@@ -7,6 +7,7 @@ intercalam-se, com a ordem dos braços a alternar, e o piloto para quando o orç
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -111,11 +112,20 @@ def partial_cost(workspace: Path, *, since: float, projects_dir: Path = CLAUDE_P
     return total
 
 
-def run_claude_arm(arm: str, task: dict, workspace: Path, *, max_usd: float, timeout_s: int, jev_home: Path) -> dict:
+def arm_env(arm: str, *, jev_home: Path, jev_env: dict | None = None) -> dict:
+    """O ambiente de cada braço: o do braço JEV leva também as definições do Jev (ex.: JEV_POOL)."""
+    extra = {"JEV_HOME": str(jev_home)}
+    if arm == "jev" and jev_env:
+        extra.update(jev_env)
+    return _env(**extra)
+
+
+def run_claude_arm(arm: str, task: dict, workspace: Path, *, max_usd: float, timeout_s: int, jev_home: Path,
+                   jev_env: dict | None = None) -> dict:
     started, started_at = time.monotonic(), time.time()
     try:
         proc = subprocess.run(arm_argv(arm, max_usd=max_usd), input=task["prompt"], capture_output=True, text=True,
-                              cwd=workspace, env=_env(JEV_HOME=str(jev_home)), timeout=timeout_s)
+                              cwd=workspace, env=arm_env(arm, jev_home=jev_home, jev_env=jev_env), timeout=timeout_s)
         out = read_claude(proc.stdout, returncode=proc.returncode)
     except subprocess.TimeoutExpired:
         out = {"status": "timeout", "cost_usd": partial_cost(workspace, since=started_at), "models": {}, "result": "",
@@ -182,10 +192,12 @@ def _row(pilot_id: str, arm: str, task: dict, **fields) -> dict:
 
 
 def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path, acceptance_root: Path,
-              home: Path | None = None, run_arm=run_claude_arm, accept=accept, git: bool = True,
+              home: Path | None = None, run_arm=None, accept=accept, git: bool = True,
               max_usd_task: float = 1.0, max_usd_total: float = 9.0, timeout_s: int = 900,
               judge: bool = False, run_judge=None, max_min_arm: float | None = None,
-              log=lambda msg: None) -> Path:
+              log=lambda msg: None, jev_env: dict | None = None, variant: str | None = None) -> Path:
+    if run_arm is None:
+        run_arm = functools.partial(run_claude_arm, jev_env=jev_env)
     run_dir = pilot.pilots_dir(home) / pilot_id
     workspaces = {arm: run_dir / arm for arm in ARMS}
     jev_home = run_dir / "jev-home"  # o ledger do mod no braço JEV, à parte do teu ledger do dia a dia
@@ -201,6 +213,7 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
     pilot.append({"v": 1, "type": "meta", "pilot": pilot_id, "started": _now(),
                   "tasks": [{"id": t["id"], "title": t["title"], "kind": t["kind"]} for t in tasks],
                   "max_usd_per_task": max_usd_task, "max_usd_total": max_usd_total, "max_min_arm": max_min_arm,
+                  "variant": variant,
                   "workspaces": {arm: str(ws) for arm, ws in workspaces.items()}}, home=home)
 
     spent, stopped = 0.0, None

@@ -91,12 +91,12 @@ def test_jev_saying_cheap_on_a_text_task_runs_it_on_a_free_model():
     assert (d.runner, d.model, d.is_standard) == ("openrouter-free", "nvidia/nemotron-3-ultra-550b-a55b:free", False)
 
 
-def test_jev_saying_cheap_on_a_file_task_runs_it_on_haiku():
+def test_jev_saying_cheap_on_a_file_task_runs_it_on_sonnet():
     # Resposta real: code:file_read_write -> gpt-6-luna·low. Um free não tem ferramentas para mexer em
-    # ficheiros, por isso vai para a Anthropic mais barata, com o esforço do Jev.
+    # ficheiros. No piloto, o Haiku nesse papel falhou 2 de 3 tarefas: vai para o Sonnet, com o esforço do Jev.
     d = router.decide("corrige o typo 'recieve' no README.md", post=jev_reply("jev_cheap_file_task"))
 
-    assert (d.runner, d.model, d.effort) == ("anthropic", "haiku", "low")
+    assert (d.runner, d.model, d.effort) == ("anthropic", "sonnet", "low")
     assert d.router_cost_usd == pytest.approx(9.7e-06)
 
 
@@ -150,3 +150,28 @@ def test_decision_serialises_for_the_ledger():
 
     assert rec["router_model"] == "typesafe/jev-router" and rec["router_cost_usd"] > 0
     assert json.loads(json.dumps(rec)) == rec
+
+
+def test_the_anthropic_only_pool_leaves_out_the_cheap_free_stand_ins(monkeypatch):
+    monkeypatch.setenv("JEV_POOL", "anthropic")
+    seen = {}
+
+    def spy(body, headers):
+        seen.update(body=body)
+        return jev_reply("jev_decision_simple")(body, headers)
+
+    router.decide("x", post=spy)
+
+    assert set(seen["body"]["plugins"][0]["allowed_models"]) == {
+        "anthropic/claude-haiku-4.5", "anthropic/claude-sonnet-5.5",
+        "anthropic/claude-opus-5.5", "anthropic/claude-fable-5.1",
+    }
+
+
+def test_in_the_anthropic_only_pool_a_cheap_answer_is_not_turned_into_a_free_run(monkeypatch):
+    # Se o Jev ignorar a lista e servir um barato, isso é um modelo fora do pool: standard.
+    monkeypatch.setenv("JEV_POOL", "anthropic")
+
+    d = router.decide("x", post=jev_reply("jev_cheap_text"))
+
+    assert d.is_standard and d.router_error

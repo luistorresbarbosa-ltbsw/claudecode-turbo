@@ -45,6 +45,8 @@ def _parser() -> argparse.ArgumentParser:
     prun.add_argument("--max-usd-task", type=float, default=1.0)
     prun.add_argument("--max-usd-total", type=float, default=9.0)
     prun.add_argument("--no-judge", action="store_true")
+    prun.add_argument("--anthropic-only", action="store_true",
+                      help="o pool do Jev só com modelos Anthropic (sem respostas free)")
     return p
 
 
@@ -117,8 +119,8 @@ def _route(task: str, *, agent: bool, decide, run_free) -> dict:
     decision = decide(task)
     decide_ms = int((time.monotonic() - started) * 1000)
     if agent and decision.runner == "openrouter-free":  # um subagente usa ferramentas: um free não serve
-        decision = dataclasses.replace(decision, runner="anthropic", model="haiku",
-                                       rationale=decision.rationale + " · subagente: haiku")
+        decision = dataclasses.replace(decision, runner="anthropic", model="sonnet",
+                                       rationale=decision.rationale + " · subagente: sonnet")
     out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None,
            "model_id": None if decision.is_standard else pricing.ALIASES.get(decision.model, decision.model)}
     if decision.runner != "openrouter-free":
@@ -178,13 +180,15 @@ def _pilot(args) -> int:
     if args.tasks:
         wanted = [t.strip() for t in args.tasks.split(",")]
         tasks = [t for t in tasks if t["id"] in wanted]
-    pilot_id = "fatura-" + datetime.now().strftime("%Y%m%d-%H%M")
+    variant = "anthropic" if args.anthropic_only else "anthropic+free"
+    pilot_id = f"fatura-{'anthropic-' if args.anthropic_only else ''}" + datetime.now().strftime("%Y%m%d-%H%M")
     print(f"piloto {pilot_id}: {len(tasks)} tarefas · {args.max_min:g} min por braço · "
-          f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total", flush=True)
+          f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total · pool do Jev: {variant}", flush=True)
     pilot_run.run_pilot(tasks, pilot_id=pilot_id, seed=root / "seed", inject_root=root / "inject",
                         acceptance_root=root / "acceptance", max_min_arm=args.max_min,
                         max_usd_task=args.max_usd_task, max_usd_total=args.max_usd_total,
-                        judge=not args.no_judge, log=lambda msg: print(msg, flush=True))
+                        judge=not args.no_judge, log=lambda msg: print(msg, flush=True),
+                        jev_env={"JEV_POOL": "anthropic"} if args.anthropic_only else None, variant=variant)
     return 0
 
 

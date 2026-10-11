@@ -242,3 +242,11 @@ def test_a_free_answer_gets_its_newlines_back_and_loses_the_mod_signature(tmp_pa
 
     # sem a assinatura: o juiz tem de ser cego
     assert (tmp_path / "docs/IVA.md").read_text() == "## Glossário\n\n| Taxa | % |\n|---|---|\n| Normal | 23% |"
+
+
+def test_the_jev_pool_setting_reaches_only_the_jev_arm(tmp_path):
+    jev = pilot_run.arm_env("jev", jev_home=tmp_path, jev_env={"JEV_POOL": "anthropic"})
+    std = pilot_run.arm_env("standard", jev_home=tmp_path, jev_env={"JEV_POOL": "anthropic"})
+
+    assert jev["JEV_POOL"] == "anthropic" and "JEV_POOL" not in std
+    assert jev["JEV_HOME"] == str(tmp_path)

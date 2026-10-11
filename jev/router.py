@@ -10,8 +10,9 @@ O Jev decide entre Anthropic e free:
 - escolhe um modelo Anthropic: a tarefa corre pela subscrição (`claude -p`) com o modelo e o esforço dele;
 - escolhe um dos modelos baratos (o pool dele não tem modelos free; os baratos são a forma de dizer
   "isto não precisa da Anthropic"): a tarefa corre num modelo free, para poupar;
-- escolhe barato numa tarefa que mexe em ficheiros: um free não tem ferramentas, por isso corre na
-  Anthropic mais barata (haiku), com o esforço do Jev.
+- escolhe barato numa tarefa que mexe em ficheiros: um free não tem ferramentas, por isso corre no
+  Sonnet, com o esforço do Jev (no piloto de 2026-10-11, o Haiku nesse papel falhou 2 de 3 tarefas).
+Com JEV_POOL=anthropic o pool do Jev fica só com os modelos Anthropic: não há respostas free.
 Os modelos free nunca decidem nada: só executam.
 
 Qualquer falha (erro, metadados em falta, um modelo fora da lista permitida, um esforço
@@ -44,6 +45,13 @@ ANTHROPIC_MODELS = {
 CHEAP_SIGNALS = ("openai/gpt-6-luna*", "google/gemini-*flash*", "deepseek/*flash*")
 FREE_EXECUTOR = "nvidia/nemotron-3-ultra-550b-a55b:free"  # o free mais bem cotado (550B)
 JEV_POOL = (*ANTHROPIC_MODELS, *CHEAP_SIGNALS)
+
+
+def _pool() -> tuple[str, ...]:
+    """O pool pedido ao Jev; JEV_POOL=anthropic deixa de fora os baratos que fazem de free."""
+    if os.environ.get("JEV_POOL", "").strip().lower() == "anthropic":
+        return tuple(ANTHROPIC_MODELS)
+    return JEV_POOL
 # Tarefas que precisam de ferramentas (ler/editar o repo, correr comandos): um free não as consegue fazer
 _TOOL_TASK_PREFIXES = ("code:", "agent:")
 _TOOL_TASKS = {"devops", "security_audit"}
@@ -123,7 +131,7 @@ def decide(task: str, *, post=_post) -> Decision:
     try:
         resp = post(
             {"model": JEV_MODEL, "messages": [{"role": "user", "content": task}], "max_tokens": 1,
-             "plugins": [{"id": "jev-router", "allowed_models": list(JEV_POOL)}]},
+             "plugins": [{"id": "jev-router", "allowed_models": list(_pool())}]},
             {"X-OpenRouter-Metadata": "enabled"},
         )
         cost = float((resp.get("usage") or {}).get("cost") or 0.0)
@@ -139,16 +147,17 @@ def decide(task: str, *, post=_post) -> Decision:
         slug, effort = _undated(top["model"]), _effort(top.get("effort"))
         task_type = ((data.get("answers") or {}).get("task") or {}).get("choice") or ""
         why = _why(data)
+        cheap_allowed = _pool() != tuple(ANTHROPIC_MODELS)
         if slug in ANTHROPIC_MODELS:
             runner, model = "anthropic", ANTHROPIC_MODELS[slug]
-        elif _is_cheap(slug) and _needs_tools(task_type):
-            runner, model = "anthropic", "haiku"
-            why += " · barato, mas mexe em ficheiros: haiku"
-        elif _is_cheap(slug):
+        elif not (_is_cheap(slug) and cheap_allowed):
+            raise ValueError(f"o Jev escolheu {slug}, fora dos modelos permitidos")
+        elif _needs_tools(task_type):
+            runner, model = "anthropic", "sonnet"
+            why += " · barato, mas mexe em ficheiros: sonnet"
+        else:
             runner, model = "openrouter-free", FREE_EXECUTOR
             why += " · barato: corre num free"
-        else:
-            raise ValueError(f"o Jev escolheu {slug}, fora dos modelos permitidos")
         return Decision(
             runner=runner, model=model, effort=effort, rationale=why,
             est_output_tokens=int(data.get("estimated_output_tokens") or 0),

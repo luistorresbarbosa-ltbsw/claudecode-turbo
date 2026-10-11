@@ -88,7 +88,7 @@ def test_route_for_a_subagent_never_uses_a_free_model(capsys):
     code, out = route("analisa o módulo de faturação", FREE, run_free=run_free, agent=True, capsys=capsys)
 
     assert run_free.calls == []  # um subagente usa ferramentas: um free não serve
-    assert (out["decision"]["model"], out["model_id"]) == ("haiku", "claude-haiku-4-5")
+    assert (out["decision"]["model"], out["model_id"]) == ("sonnet", "claude-sonnet-5-5")
 
 
 # --- record ------------------------------------------------------------------
