@@ -175,3 +175,48 @@ def test_in_the_anthropic_only_pool_a_cheap_answer_is_not_turned_into_a_free_run
     d = router.decide("x", post=jev_reply("jev_cheap_text"))
 
     assert d.is_standard and d.router_error
+
+
+# --- a troca anterior: sem ela, "sim, avança" parece conversa e ia para um free (sonda real, 2026-10-11)
+
+LAST_EXCHANGE = [{"role": "user", "content": "acrescenta fatura/io.py com de_json"},
+                 {"role": "assistant", "content": "Proponho validar os campos e a região. Avanço?"}]
+
+
+def _spying():
+    sent = {}
+
+    def spy(body, headers):
+        sent.update(body)
+        return jev_reply("jev_decision_simple")(body, headers)
+    return sent, spy
+
+
+def test_the_jev_reads_the_last_exchange_before_the_prompt():
+    sent, spy = _spying()
+
+    router.decide("sim, avança", history=LAST_EXCHANGE, post=spy)
+
+    assert sent["messages"] == [*LAST_EXCHANGE, {"role": "user", "content": "sim, avança"}]
+
+
+def test_a_long_exchange_reaches_the_jev_by_the_start_of_the_prompt_and_the_end_of_the_answer():
+    sent, spy = _spying()
+    prompt = "PEDIDO " + "x" * router.HISTORY_CHARS * 2
+    answer = "y" * router.HISTORY_CHARS * 2 + " Avanço?"
+
+    router.decide("sim", history=[{"role": "user", "content": prompt}, {"role": "assistant", "content": answer}],
+                  post=spy)
+
+    user, assistant, _ = sent["messages"]
+    assert len(user["content"]) == router.HISTORY_CHARS and user["content"].startswith("PEDIDO")
+    assert len(assistant["content"]) == router.HISTORY_CHARS and assistant["content"].endswith("Avanço?")
+
+
+def test_an_empty_answer_or_another_role_never_reaches_the_jev():
+    sent, spy = _spying()
+
+    router.decide("continua", history=[{"role": "user", "content": "x"}, {"role": "assistant", "content": "  "},
+                                       {"role": "system", "content": "outra coisa"}], post=spy)
+
+    assert sent["messages"] == [{"role": "user", "content": "x"}, {"role": "user", "content": "continua"}]

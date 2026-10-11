@@ -16,6 +16,8 @@ Não há comando: escreves como sempre. A linha de estado mostra a decisão, por
    o modelo mais barato que chega, com o esforço. O pool que lhe damos tem os modelos Anthropic e três
    baratos (`gpt-6-luna`, `gemini-*-flash`, `deepseek-*-flash`), que fazem de "free" porque os modelos
    free não estão no pool do Jev. Pedimos-lhe 1 token: a decisão vem nos metadados do OpenRouter.
+   O Jev lê também a troca anterior (o teu último pedido e o fim da resposta). Sem ela, um
+   seguimento como "sim, avança" parecia conversa e ia para um free.
 2. **Executar.**
    - O Jev escolhe **Anthropic**: o mod reescreve o modelo e o esforço de cada pedido do turno
      (`turn.step`), e a sessão responde com eles, pela tua subscrição.

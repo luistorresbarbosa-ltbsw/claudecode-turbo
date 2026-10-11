@@ -2,7 +2,8 @@
 esforço de cada tarefa.
 
 O Jev lê a tarefa, classifica o tipo e a dificuldade e escolhe o candidato mais barato que chega,
-com o esforço de raciocínio. Não tem modo "só decidir": executa sempre no modelo escolhido. Por isso
+com o esforço de raciocínio. Lê também a troca anterior (o último pedido e a resposta): sem ela, um
+seguimento como "sim, avança" parece conversa e ia para um free. Não tem modo "só decidir": executa sempre no modelo escolhido. Por isso
 pedimos-lhe 1 token. A decisão (o modelo e o esforço) vem nos metadados do OpenRouter, e o custo dela
 é o custo do Jev, que entra no caminho JEV.
 
@@ -55,6 +56,9 @@ def _pool() -> tuple[str, ...]:
 # Tarefas que precisam de ferramentas (ler/editar o repo, correr comandos): um free não as consegue fazer
 _TOOL_TASK_PREFIXES = ("code:", "agent:")
 _TOOL_TASKS = {"devops", "security_audit"}
+# Da troca anterior, cada mensagem vai aparada: o início do pedido e o fim da resposta, onde costuma
+# estar a pergunta ou a proposta a que o prompt seguinte responde
+HISTORY_CHARS = 2000
 
 
 @dataclass(frozen=True)
@@ -118,6 +122,18 @@ def _why(data: dict) -> str:
     return " · ".join(parts)
 
 
+def history_messages(history) -> list[dict]:
+    """A troca anterior em mensagens para o Jev (e para o free), aparadas; vazias e outros papéis ficam de fora."""
+    out = []
+    for message in history or ():
+        role, content = message.get("role"), (message.get("content") or "").strip()
+        if role == "user" and content:
+            out.append({"role": "user", "content": content[:HISTORY_CHARS]})
+        elif role == "assistant" and content:
+            out.append({"role": "assistant", "content": content[-HISTORY_CHARS:]})
+    return out
+
+
 def _post(body: dict, headers: dict) -> dict:
     req = urllib.request.Request(OPENROUTER_URL, data=json.dumps(body).encode(), headers={
         "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
@@ -126,11 +142,12 @@ def _post(body: dict, headers: dict) -> dict:
         return json.loads(r.read())
 
 
-def decide(task: str, *, post=_post) -> Decision:
+def decide(task: str, *, history=(), post=_post) -> Decision:
     cost = 0.0
     try:
         resp = post(
-            {"model": JEV_MODEL, "messages": [{"role": "user", "content": task}], "max_tokens": 1,
+            {"model": JEV_MODEL, "messages": [*history_messages(history), {"role": "user", "content": task}],
+             "max_tokens": 1,
              "plugins": [{"id": "jev-router", "allowed_models": list(_pool())}]},
             {"X-OpenRouter-Metadata": "enabled"},
         )

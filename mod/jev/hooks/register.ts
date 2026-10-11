@@ -24,11 +24,21 @@ type Route = {
   summary?: Summary
 }
 type Routed = { task: string; route: Route; waitMs: number; scope: 'main' | 'agent' }
+type Exchange = { prompt: string; answer: string }
 
 let pending: Routed | undefined // decidido no prompt.submit, à espera do turn.start
 const turns = new Map<string, Routed>() // turno principal -> decisão
 const queuedAgents: Routed[] = [] // decididos no tool.call, à espera do 1.º passo do subagente
 const agents = new Map<string, Routed>() // subagente -> decisão
+// A última troca do turno principal (o pedido e a resposta): o Jev decide o prompt seguinte com ela.
+// Sem ela, um seguimento como "sim, avança" parece conversa e ia para um free.
+let lastExchange: Exchange | undefined
+const prompts = new Map<string, string>() // turno principal -> o pedido com que começou
+
+function history(): { role: 'user' | 'assistant'; content: string }[] {
+  if (!lastExchange) return []
+  return [{ role: 'user', content: lastExchange.prompt }, { role: 'assistant', content: lastExchange.answer }]
+}
 
 function readJson<T>(text: string): T | undefined {
   try {
@@ -67,7 +77,10 @@ export const register: Register = on => {
     if (!ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) return next(e)
 
     $.ui.status('JEV: a decidir…')
-    const ran = await $.process.run([JEV, 'route'], { stdin: task, timeoutMs: 120_000 })
+    const ran = await $.process.run([JEV, 'route', '--json'], {
+      stdin: JSON.stringify({ task, history: history() }),
+      timeoutMs: 120_000,
+    })
     const route = readJson<Route>(ran.stdout)
     if (!route) {
       $.ui.status('JEV: sem decisão, segue o standard')
@@ -78,6 +91,7 @@ export const register: Register = on => {
       // O Jev mandou para um free: este prompt não gasta quota Anthropic. O modelo da sessão fica
       // a saber o que se passou, para os turnos seguintes.
       $.ui.status(`JEV: ${route.free.model_id.split('/').pop()} (free)${totals(route.summary)}`)
+      lastExchange = { prompt: task, answer: route.free.text }
       try {
         await $.session.append({
           message: {
@@ -96,6 +110,7 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
+    prompts.set(e.turnId, e.text || lastExchange?.prompt || '') // uma continuação não traz texto: fica o pedido de antes
     if (pending) {
       turns.set(e.turnId, pending)
       pending = undefined
@@ -114,6 +129,10 @@ export const register: Register = on => {
   })
 
   on('turn.complete', async ($, e, next) => {
+    if (!e.agentId) {
+      lastExchange = { prompt: prompts.get(e.turnId) ?? '', answer: e.answer }
+      prompts.delete(e.turnId)
+    }
     const routed = e.agentId ? agents.get(e.agentId) : turns.get(e.turnId)
     if (routed) {
       if (e.agentId) agents.delete(e.agentId)

@@ -37,6 +37,8 @@ def _parser() -> argparse.ArgumentParser:
     led.add_argument("--json", action="store_true")
     route = sub.add_parser("route", help="para o mod: o Jev decide o prompt do stdin (JSON na saída)")
     route.add_argument("--agent", action="store_true", help="a tarefa é de um subagente (nunca vai para um free)")
+    route.add_argument("--json", action="store_true",
+                       help='o stdin é {"task", "history"}: o prompt e a troca anterior da sessão')
     sub.add_parser("record", help="para o mod: regista um turno (JSON no stdin)")
     pil = sub.add_parser("pilot", help="o piloto: standard vs JEV no projeto fatura").add_subparsers(dest="pilot_cmd", required=True)
     prun = pil.add_parser("run", help="corre os dois braços, tarefa a tarefa, e no fim o juiz")
@@ -117,9 +119,9 @@ def _estimated_standard(tokens: dict) -> dict:
             "cost_usd": round(pricing.cost_of(std.model, tokens), 9), "tokens": None, "duration_ms": None}
 
 
-def _route(task: str, *, agent: bool, decide, run_free) -> dict:
+def _route(task: str, *, history=(), agent: bool, decide, run_free) -> dict:
     started = time.monotonic()
-    decision = decide(task)
+    decision = decide(task, history=history)
     decide_ms = int((time.monotonic() - started) * 1000)
     if agent and decision.runner == "openrouter-free":  # um subagente usa ferramentas: um free não serve
         decision = dataclasses.replace(decision, runner="anthropic", model="sonnet",
@@ -129,7 +131,7 @@ def _route(task: str, *, agent: bool, decide, run_free) -> dict:
     if decision.runner != "openrouter-free":
         return out
 
-    res = run_free(task, decision)
+    res = run_free(task, decision, history=history)
     out["free"] = {"ok": res.ok, "text": res.text, "model_id": res.model_id, "duration_ms": res.duration_ms,
                    "error": res.error}
     if not res.ok:  # regra do utilizador: qualquer falha cai para o standard (a sessão segue sem mudanças)
@@ -220,7 +222,11 @@ def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=N
             from dotenv import load_dotenv
             load_dotenv(REPO_ENV)
             decide = router.decide
-        out = _route(text.strip(), agent=args.agent, decide=decide, run_free=run_free or dispatch.run_free)
+        task, history = text.strip(), []
+        if args.json:
+            payload = json.loads(text)
+            task, history = payload["task"].strip(), payload.get("history") or []
+        out = _route(task, history=history, agent=args.agent, decide=decide, run_free=run_free or dispatch.run_free)
         print(json.dumps(out, ensure_ascii=False))
         return 0
     if args.cmd == "pilot":

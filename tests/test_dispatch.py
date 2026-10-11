@@ -136,6 +136,20 @@ def test_free_run_returns_the_answer_at_zero_cost():
     assert r.tokens["output"] > 0
 
 
+
+def test_a_free_run_reads_the_last_exchange_before_the_prompt():
+    from tests.test_router import LAST_EXCHANGE
+    seen = {}
+
+    def complete(**kw):
+        seen.update(kw)
+        return litellm.completion(**kw, mock_response="A validação recusa campos a mais.")
+
+    dispatch.run_free("explica melhor", FREE, history=LAST_EXCHANGE, complete=complete)
+
+    assert seen["messages"][0]["role"] == "system"
+    assert seen["messages"][1:] == [*LAST_EXCHANGE, {"role": "user", "content": "explica melhor"}]
+
 def test_free_run_with_an_empty_reply_is_a_failure():
     # mock_response="" não serve: o litellm trata-o como "sem mock" e vai à rede
     def complete(**kw):

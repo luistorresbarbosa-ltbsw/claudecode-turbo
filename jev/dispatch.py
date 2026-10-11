@@ -127,7 +127,7 @@ def _litellm_completion(**kwargs):
     return litellm.completion(**kwargs)
 
 
-def run_free(task: str, decision: router.Decision, *, complete=_litellm_completion) -> RunResult:
+def run_free(task: str, decision: router.Decision, *, history=(), complete=_litellm_completion) -> RunResult:
     started = time.monotonic()
 
     def result(ok: bool, text: str = "", tokens: dict | None = None, error: str | None = None) -> RunResult:
@@ -137,6 +137,7 @@ def run_free(task: str, decision: router.Decision, *, complete=_litellm_completi
     try:
         resp = complete(model=f"openrouter/{decision.model}",
                         messages=[{"role": "system", "content": FREE_SYSTEM_PROMPT},
+                                  *router.history_messages(history),  # um seguimento precisa da troca anterior
                                   {"role": "user", "content": task}],
                         timeout=FREE_TIMEOUT_S)
         text = (resp.choices[0].message.content or "").strip()

@@ -66,12 +66,13 @@ function typed($: Engine, text: string, kind: 'composer' | 'task-notification' =
   return $.prompt.submit({ text, origin: { kind } as never, wait: false } as never)
 }
 
-async function turn($: Engine, turnId: string, step: { model?: string; agentId?: string } = {}) {
-  if (!step.agentId) await $.turn.start({ text: 'x', turnId })
+async function turn($: Engine, turnId: string,
+                    step: { model?: string; agentId?: string; text?: string; answer?: string } = {}) {
+  if (!step.agentId) await $.turn.start({ text: step.text ?? 'x', turnId })
   const stream = $.turn.step({ turnId, index: 0, model: step.model ?? 'claude-opus-5-5', effort: 'xhigh', messageCount: 1,
                                ...(step.agentId ? { agentId: step.agentId } : {}) } as never)
   for (;;) if ((await stream.next()).done) break
-  return $.turn.complete({ answer: 'ok', durationMs: 4000, isAborted: false, turnId, reason: 'answer', usage: USAGE,
+  return $.turn.complete({ answer: step.answer ?? 'ok', durationMs: 4000, isAborted: false, turnId, reason: 'answer', usage: USAGE,
                            ...(step.agentId ? { agentId: step.agentId } : {}) } as never)
 }
 
@@ -150,4 +151,33 @@ test('um fork herda o modelo e não passa pelo Jev', async ($, on) => {
 
   expect(calls).toHaveLength(0)
   expect(agentCalls[0]?.model).toBe(undefined)
+})
+
+// Sem a troca anterior, o Jev lê "sim, avança" como conversa e manda-o para um free (sonda real, 2026-10-11)
+test('o Jev decide cada prompt a ver a troca anterior: o teu último pedido e a resposta', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1', { text: 'acrescenta fatura/io.py', answer: 'Proponho validar os campos. Avanço?' })
+  await typed($, 'sim, avança')
+
+  const routes = calls.filter(c => c.argv.includes('route'))
+  expect(routes[0]?.argv).toContain('--json')
+  expect(JSON.parse(routes[0]?.init?.stdin ?? '{}')).toEqual({ task: 'acrescenta fatura/io.py', history: [] })
+  expect(JSON.parse(routes[1]?.init?.stdin ?? '{}')).toEqual({
+    task: 'sim, avança',
+    history: [{ role: 'user', content: 'acrescenta fatura/io.py' },
+              { role: 'assistant', content: 'Proponho validar os campos. Avanço?' }],
+  })
+})
+
+test('uma resposta free também conta como a troca anterior', async ($, on) => {
+  const { calls } = engine(on, { route: FREE })
+
+  await typed($, 'o que é uma closure?')
+  await typed($, 'dá um exemplo')
+
+  const second = JSON.parse(calls.filter(c => c.argv.includes('route'))[1]?.init?.stdin ?? '{}')
+  expect(second.history).toEqual([{ role: 'user', content: 'o que é uma closure?' },
+                                  { role: 'assistant', content: 'Uma closure é uma função que lembra o seu âmbito.' }])
 })

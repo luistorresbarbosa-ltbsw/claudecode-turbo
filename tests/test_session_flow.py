@@ -7,6 +7,7 @@ import pytest
 from jev import cli, ledger, pricing
 from jev.dispatch import RunResult
 from jev.router import Decision, standard
+from tests.test_router import LAST_EXCHANGE
 
 SONNET_LOW = Decision(runner="anthropic", model="sonnet", effort="low", rationale="Jev: code:repo_scan",
                       router_cost_usd=0.0002)
@@ -25,15 +26,16 @@ def home(tmp_path, monkeypatch):
 
 
 def free_ok(text="Uma closure é…"):
-    def run_free(task, decision):
+    def run_free(task, decision, history=()):
         run_free.calls.append(task)
+        run_free.histories.append(list(history))
         return RunResult(ok=True, model_id=decision.model, cost_usd=0.0, tokens={"input": 1000, "output": 500},
                          duration_ms=3000, text=text)
-    run_free.calls = []
+    run_free.calls, run_free.histories = [], []
     return run_free
 
 
-def free_failing(task, decision):
+def free_failing(task, decision, history=()):
     return RunResult(ok=False, model_id=decision.model, cost_usd=0.0, tokens=None, duration_ms=500, text="",
                      error="RateLimitError: 429")
 
@@ -130,3 +132,26 @@ def test_record_marks_subagent_turns(capsys):
             "usage": SONNET_USAGE, "duration_ms": 5000, "reason": "answer", "scope": "agent"}, capsys)
 
     assert ledger.read_all()[-1]["decision"]["scope"] == "agent"
+
+
+def test_route_json_gives_the_jev_the_prompt_and_the_last_exchange(capsys):
+    seen = {}
+
+    def decide(task, **kw):
+        seen.update(task=task, **kw)
+        return SONNET_LOW
+
+    code = cli.main(["route", "--json"], decide=decide, run_free=free_ok(),
+                    stdin=io.StringIO(json.dumps({"task": "sim, avança", "history": LAST_EXCHANGE})))
+
+    assert code == 0 and seen == {"task": "sim, avança", "history": LAST_EXCHANGE}
+    assert json.loads(capsys.readouterr().out)["decision"]["model"] == "sonnet"
+
+
+def test_a_free_answer_gets_the_last_exchange_too(capsys):
+    run_free = free_ok("A validação recusa campos a mais.")
+
+    cli.main(["route", "--json"], decide=lambda t, **k: FREE, run_free=run_free,
+             stdin=io.StringIO(json.dumps({"task": "explica melhor", "history": LAST_EXCHANGE})))
+
+    assert run_free.calls == ["explica melhor"] and run_free.histories == [LAST_EXCHANGE]
