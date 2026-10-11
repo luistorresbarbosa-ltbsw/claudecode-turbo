@@ -97,3 +97,34 @@ def test_the_judge_does_not_read_the_claude_md_both_arms_got(tmp_path):
 
     assert "REGRAS_IGUAIS_NOS_DOIS" not in material  # igual nos dois: é contexto, não trabalho
     assert "CODIGO_DO_PRIMEIRO" in material and "CODIGO_DO_SEGUNDO" in material
+
+
+def _prompts(tmp_path, **kw):
+    ws = _workspaces(tmp_path)
+    prompts = []
+
+    def run_judge(prompt):
+        prompts.append(prompt)
+        return {"status": "done", "cost_usd": 0.1, "structured": _verdicts(("legibilidade", "A")), "result": ""}
+
+    pilot_run.judge_pilot("p1", ws, home=tmp_path, run_judge=run_judge, **kw)
+    return prompts
+
+
+def test_the_judge_reads_the_projects_own_description_and_criteria(tmp_path):
+    spec = {"projeto": "o interpretador de uma pequena linguagem de expressões",
+            "criterios": {"robustez": "Os erros de sintaxe dizem a linha e a coluna.",
+                          "testes": "Os testes cobrem a associatividade e o âmbito."}}
+
+    prompts = _prompts(tmp_path, spec=spec)
+
+    assert len(prompts) == 2 and all("o interpretador de uma pequena linguagem de expressões" in p for p in prompts)
+    assert all("faturação" not in p and "NIF" not in p for p in prompts)  # nada do outro projeto
+    assert "- robustez: Os erros de sintaxe dizem a linha e a coluna." in prompts[0]
+    assert "- legibilidade: Nomes claros" in prompts[0]  # o que o projeto não redefine fica como está
+
+
+def test_without_a_spec_the_judge_keeps_the_fatura_wording(tmp_path):
+    prompts = _prompts(tmp_path)
+
+    assert "faturação portuguesa" in prompts[0] and "NIF" in prompts[0]

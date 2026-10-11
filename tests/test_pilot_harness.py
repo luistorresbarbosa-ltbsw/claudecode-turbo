@@ -280,3 +280,27 @@ def test_without_a_claude_md_no_arm_gets_one_and_the_meta_says_so(tmp_path):
     assert not (run_dir / "standard" / "CLAUDE.md").exists() and not (run_dir / "jev" / "CLAUDE.md").exists()
     [p] = pilot.read_all(home=tmp_path / "home")
     assert p["meta"]["claude_md"] is False
+
+
+def test_a_hanging_acceptance_fails_that_task_instead_of_stopping_the_pilot(tmp_path):
+    test_file = tmp_path / "test_lento.py"
+    test_file.write_text("import time\n\ndef test_pendurado():\n    time.sleep(30)\n")
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+
+    r = pilot_run.accept(test_file, workspace, python=sys.executable, timeout_s=1)
+
+    assert r["ok"] is False and r["passed"] == 0 and "1 s" in r["error"]
+
+
+def test_the_judge_gets_the_projects_spec(tmp_path):
+    prompts = []
+
+    def run_judge(prompt):
+        prompts.append(prompt)
+        return {"status": "done", "cost_usd": 0.0, "structured": {"criteria": []}, "result": ""}
+
+    run(tmp_path, FakeArms(), judge=True, run_judge=run_judge,
+        judge_spec={"projeto": "o interpretador calc", "criterios": {}})
+
+    assert len(prompts) == 2 and all("o interpretador calc" in p for p in prompts)

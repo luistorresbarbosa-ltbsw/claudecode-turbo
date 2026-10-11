@@ -248,3 +248,21 @@ def test_pilot_claude_md_needs_the_projects_rules_file(tmp_path, monkeypatch, ca
     assert cli.main(["pilot", "run", "--project", "demo", "--claude-md"]) == 2
 
     assert "regras.md" in capsys.readouterr().err and not seen
+
+
+def test_pilot_judges_with_the_projects_juiz_json(tmp_path, monkeypatch):
+    root, seen = _project(tmp_path, monkeypatch, claude_md=False)
+    spec = {"projeto": "o interpretador calc", "criterios": {"robustez": "x"}}
+    (root / "juiz.json").write_text(json.dumps(spec), encoding="utf-8")
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--no-judge"]) == 0
+
+    assert seen["judge_spec"] == spec
+
+
+def test_pilot_without_juiz_json_keeps_the_default_judge(tmp_path, monkeypatch):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--no-judge"]) == 0
+
+    assert seen["judge_spec"] is None

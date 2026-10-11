@@ -191,6 +191,8 @@ def _pilot(args) -> int:
     claude_md = root / "regras.md" if args.claude_md else None
     if claude_md and not claude_md.is_file():
         return _fail(f"--claude-md: falta pilot/{args.project}/regras.md")
+    judge_file = root / "juiz.json"  # o que o juiz avalia neste projeto (sem ele, o do fatura)
+    judge_spec = json.loads(judge_file.read_text(encoding="utf-8")) if judge_file.is_file() else None
     variant = "anthropic" if args.anthropic_only else "anthropic+free"
     pilot_id = (f"{args.project}-{'anthropic-' if args.anthropic_only else ''}{'claudemd-' if claude_md else ''}"
                 + datetime.now().strftime("%Y%m%d-%H%M"))
@@ -202,7 +204,7 @@ def _pilot(args) -> int:
                         max_usd_task=args.max_usd_task, max_usd_total=args.max_usd_total,
                         judge=not args.no_judge, log=lambda msg: print(msg, flush=True),
                         jev_env={"JEV_POOL": "anthropic"} if args.anthropic_only else None, variant=variant,
-                        claude_md=claude_md)
+                        claude_md=claude_md, judge_spec=judge_spec)
     return 0
 
 
