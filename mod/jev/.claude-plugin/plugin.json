@@ -1,0 +1,5 @@
+{
+  "name": "jev",
+  "version": "0.1.0",
+  "description": "/jev: um modelo free escolhe o modelo e o esforço Anthropic (ou free) para cada tarefa, corre-a e mostra quanto poupaste"
+}
