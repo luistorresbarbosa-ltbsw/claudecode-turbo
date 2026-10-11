@@ -10,6 +10,7 @@ dependencies = [
 
 [project.scripts]
 jev = "jev.cli:main"
+jev-dashboard = "jev.dashboard:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<!-- Sem rede: a CSP deste ficheiro recusa qualquer pedido que não seja ao próprio servidor. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>JEV · custo vs standard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M6 23h7v-7h7V9h6' fill='none' stroke='white' stroke-width='3' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+/*
+  Cores. Neutros azulados, um só azul (JEV) e verde/vermelho SÓ onde há diferença de custo.
+  Validado com o validate_palette do skill dataviz, contra estas superfícies:
+    - JEV vs Standard: ΔE 17.4 claro / 17.6 escuro com daltonismo (alvo 8), 17.9 / 20.2 com visão normal (mínimo 15).
+    - O Standard é o cinzento de "contexto" (ênfase: um tom + cinzento); por isso falha de propósito
+      o piso de croma e, no escuro, a banda de luminosidade, que são regras de matizes categóricos.
+    - Texto >= 4.5:1 sobre --surface e --plane (confirmado com contrast()).
+*/
+:root {
+  color-scheme: light;
+  --surface: #fbfcfd;
+  --plane: #f1f4f7;
+  --hair: #dde3ea;
+  --axis: #c2cbd6;
+  --ink: #0e1b2c;
+  --ink-2: #46556a;
+  --muted: #5f6d80;
+  --jev: #2a78d6;
+  --std: #46556a;
+  --gain: #0ca30c;
+  --gain-ink: #006300;
+  --loss: #d03b3b;
+  --loss-ink: #b92d2d;
+  --warn: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --glyph: #1b1405;
+  --wash: 0.16;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface: #10161e;
+    --plane: #18212b;
+    --hair: #232d39;
+    --axis: #2f3b49;
+    --ink: #e8edf3;
+    --ink-2: #aab6c5;
+    --muted: #8190a3;
+    --jev: #3987e5;
+    --std: #aab6c5;
+    --gain: #0ca30c;
+    --gain-ink: #0ca30c;
+    --loss: #d03b3b;
+    --loss-ink: #ee6b6b;
+    --wash: 0.24;
+  }
+}
+
+* { box-sizing: border-box; }
+html { background: var(--surface); }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font: 14px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+main { max-width: 1120px; margin: 0 auto; padding: 32px 24px 72px; }
+h1, h2, p { margin: 0; }
+button { font: inherit; color: inherit; }
+code { font: 0.92em ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--plane); padding: 1px 6px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--jev); outline-offset: 2px; border-radius: 4px; }
+
+/* cabeçalho */
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px 32px; }
+h1 { font-size: 22px; line-height: 1.2; font-weight: 650; letter-spacing: -0.015em; }
+.note { margin-top: 6px; color: var(--ink-2); font-size: 13.5px; }
+.live { display: flex; align-items: center; gap: 8px; margin-top: 5px; color: var(--muted); font-size: 12.5px; }
+.live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gain); flex: none; }
+.live.is-error { color: var(--loss-ink); }
+.live.is-error .dot { background: var(--loss); }
+
+.problem { display: flex; gap: 10px; align-items: flex-start; margin-top: 20px; padding: 12px 14px; border-radius: 8px; background: var(--plane); color: var(--ink); font-size: 13.5px; }
+.problem .ico { margin-top: 3px; }
+.problem[hidden] { display: none; }
+.empty { margin-top: 56px; }
+.empty-title { font-size: 20px; line-height: 1.4; font-weight: 550; letter-spacing: -0.01em; }
+.empty code { font-size: 0.85em; }
+[hidden] { display: none !important; }
+
+/* a conta: Standard - JEV = Poupado */
+.band { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 22px 40px; margin-top: 28px; padding: 26px 0 28px; border-block: 1px solid var(--hair); }
+.eq { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 22px; min-width: 0; }
+.fig { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fig-label { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 13px; font-weight: 500; }
+.fig-value { display: flex; align-items: baseline; gap: 12px; font-size: clamp(26px, 3.2vw, 34px); line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+.fig-sub { color: var(--muted); font-size: 12.5px; }
+.op { color: var(--muted); font-size: 28px; line-height: 1; font-weight: 400; padding-bottom: 27px; }
+.fig-result .fig-value { font-size: clamp(40px, 6.2vw, 62px); }
+.fig-result .fig-pct { font-size: clamp(18px, 2.4vw, 24px); letter-spacing: -0.01em; }
+.fig-result.is-gain .fig-value { color: var(--gain-ink); }
+.fig-result.is-loss .fig-value { color: var(--loss-ink); }
+.fig-result .fig-sub { font-size: 13px; color: var(--ink-2); }
+.fig-count { text-align: right; align-items: flex-end; }
+/* valores com muitos dígitos (milhares de $): letra mais pequena em vez de partir a linha */
+.band[data-size="l"] .fig-value { font-size: clamp(22px, 2.7vw, 28px); }
+.band[data-size="l"] .fig-result .fig-value { font-size: clamp(34px, 5vw, 50px); }
+.band[data-size="xl"] .fig-value { font-size: clamp(18px, 2.2vw, 22px); }
+.band[data-size="xl"] .fig-result .fig-value { font-size: clamp(28px, 4vw, 38px); }
+
+.key { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; border-radius: 2px; flex: none; }
+.key-std { border-color: var(--std); }
+.key-jev { border-color: var(--jev); }
+
+/* secções */
+.sec { margin-top: 44px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; min-height: 30px; }
+h2 { font-size: 15px; font-weight: 650; letter-spacing: -0.005em; }
+.sec-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--muted); font-size: 12.5px; }
+.sec-meta > span { display: inline-flex; align-items: center; gap: 5px; }
+
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--plane); border-radius: 8px; }
+.seg button { padding: 3px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--hair); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 12px 0 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 12.5px; }
+.legend li { display: inline-flex; align-items: center; gap: 8px; }
+.swatch { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+.swatch-gain { background: var(--gain); opacity: calc(var(--wash) * 2.2); }
+.swatch-loss { background: var(--loss); opacity: calc(var(--wash) * 2.2); }
+
+/* gráfico */
+.plot { position: relative; margin-top: 8px; }
+.plot svg { display: block; overflow: visible; font-family: inherit; touch-action: pan-y; }
+.plot .grid { stroke: var(--hair); stroke-width: 1; }
+.plot .axis { stroke: var(--axis); stroke-width: 1; }
+.plot .tick { fill: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.plot .tick-day { fill: var(--ink-2); font-weight: 600; }
+.plot .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.plot .line-std { stroke: var(--std); }
+.plot .line-jev { stroke: var(--jev); }
+.plot .wash-gain { fill: var(--gain); fill-opacity: var(--wash); }
+.plot .wash-loss { fill: var(--loss); fill-opacity: var(--wash); }
+.plot .ring { fill: var(--surface); }
+.plot .dot-std { fill: var(--std); }
+.plot .dot-jev { fill: var(--jev); }
+.plot .cross { stroke: var(--ink-2); stroke-opacity: 0.5; stroke-width: 1; }
+.plot .end-name { fill: var(--ink-2); font-size: 12px; }
+.plot .end-value { fill: var(--ink); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.plot svg:focus-visible { outline-offset: 4px; }
+
+.tip { position: absolute; z-index: 2; top: 0; left: 0; width: max-content; min-width: 200px; max-width: 290px; padding: 10px 12px 11px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--hair), 0 8px 24px rgb(14 27 44 / 0.14); font-size: 12.5px; pointer-events: none; }
+.tip[hidden] { display: none; }
+.tip-when { color: var(--muted); font-size: 12px; }
+.tip-task { margin-top: 1px; color: var(--ink); font-weight: 550; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tip-rows { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; margin: 9px 0 0; padding-top: 8px; border-top: 1px solid var(--hair); }
+.tip-rows dt { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); }
+.tip-rows dd { margin: 0; text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tip-rows .is-gain { color: var(--gain-ink); }
+.tip-rows .is-loss { color: var(--loss-ink); }
+.tip-rows .sep { grid-column: 1 / -1; height: 1px; background: var(--hair); margin: 3px 0; }
+.tip-rows .quiet dt, .tip-rows .quiet dd { font-weight: 450; }
+
+/* tabelas */
+.table-wrap { margin: 10px -10px 0; overflow-x: auto; }
+table { width: 100%; min-width: 800px; border-collapse: collapse; font-size: 13.5px; }
+caption { text-align: left; padding: 0 10px 8px; color: var(--muted); font-size: 12.5px; caption-side: top; }
+thead th { padding: 8px 10px; text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--axis); }
+tbody td { padding: 11px 10px; vertical-align: top; border-bottom: 1px solid var(--hair); }
+tbody tr:hover td { background: var(--plane); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.when { white-space: nowrap; color: var(--muted); width: 1%; }
+.when b { font-weight: 500; color: var(--ink); margin-right: 6px; }
+.task { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; max-width: 44ch; }
+.model { font-weight: 600; overflow-wrap: anywhere; }
+.effort { color: var(--ink-2); }
+.pick { display: flex; align-items: center; flex-wrap: wrap; gap: 0 8px; }
+.pick-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin-top: 5px; }
+.meter { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.meter i { width: 3px; border-radius: 1px; background: var(--hair); }
+.meter i:nth-child(1) { height: 5px; } .meter i:nth-child(2) { height: 6.5px; } .meter i:nth-child(3) { height: 8px; }
+.meter i:nth-child(4) { height: 9.5px; } .meter i:nth-child(5) { height: 11px; }
+.meter i.on { background: var(--ink-2); }
+
+.badge, .tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; line-height: 16px; white-space: nowrap; }
+.badge { padding: 0 6px; border-radius: 4px; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--axis); }
+.badge-free { background: var(--plane); color: var(--ink); box-shadow: none; }
+.badge-measured { background: var(--ink-2); color: var(--surface); box-shadow: none; font-weight: 600; }
+.badge-estimated { background: transparent; box-shadow: none; outline: 1px dashed var(--muted); outline-offset: -1px; }
+.tag { padding: 0 8px 0 5px; border-radius: 999px; background: var(--plane); color: var(--ink); }
+.tag.tag-failed { font-weight: 600; }
+.ico { flex: none; display: block; }
+.i-warn { fill: var(--warn); }
+.i-serious { fill: var(--serious); }
+.i-critical { fill: var(--critical); }
+.i-glyph { fill: none; stroke: var(--glyph); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.i-glyph-light { fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; }
+
+.cost-sub { display: flex; justify-content: flex-end; margin-top: 5px; }
+.zero { color: var(--muted); }
+.diff { width: 1%; }
+thead th.diff { padding-right: calc(10px + 12px + 92px); }
+.delta { display: inline-grid; grid-template-columns: 6.4em 92px; align-items: center; gap: 12px; }
+.delta-num { text-align: right; font-weight: 650; }
+.is-gain .delta-num { color: var(--gain-ink); }
+.is-loss .delta-num { color: var(--loss-ink); }
+.is-even .delta-num { color: var(--ink-2); font-weight: 500; }
+.track { position: relative; height: 8px; }
+.track::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+.bar { position: absolute; top: 0; height: 8px; min-width: 4px; }
+.bar-gain { left: 50%; background: var(--gain); border-radius: 0 4px 4px 0; }
+.bar-loss { right: 50%; background: var(--loss); border-radius: 4px 0 0 4px; }
+
+.more { display: block; margin: 16px auto 0; padding: 6px 16px; border: 0; border-radius: 8px; background: var(--plane); color: var(--ink); font-size: 13px; cursor: pointer; }
+.more:hover { background: var(--hair); }
+
+#content { transition: opacity 0.2s; }
+#content.is-stale { opacity: 0.5; }
+.row-new td { animation: arrived 2.6s ease-out; }
+@keyframes arrived { from { background: color-mix(in srgb, var(--jev) 18%, transparent); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  .row-new td { animation: none; }
+  #content { transition: none; }
+}
+
+@media (max-width: 780px) {
+  main { padding: 24px 16px 56px; }
+  .band { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 18px; padding: 22px 0 24px; }
+  .eq { display: contents; }
+  .op { display: none; }
+  .fig-result { order: -1; grid-column: 1 / -1; }
+  .fig-count { grid-column: 1 / -1; justify-self: start; text-align: left; align-items: flex-start; }
+  .fig-value, .band[data-size] .fig-value { font-size: 26px; }
+  .fig-result .fig-value, .band[data-size] .fig-result .fig-value { font-size: 46px; }
+  .band[data-size="l"] .fig-result .fig-value { font-size: 38px; }
+  .band[data-size="xl"] .fig-result .fig-value { font-size: 30px; }
+  .table-wrap { margin-inline: -16px; }
+  thead th:first-child, tbody td:first-child { padding-left: 16px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <h1>JEV vs Claude Code standard</h1>
+      <p class="note">Custos a preço de lista: medem consumo de quota da subscrição, não dinheiro faturado.</p>
+    </div>
+    <p class="live" id="live" role="status" title="O ledger é relido a cada 5 segundos"><span class="dot" aria-hidden="true"></span><span id="live-text">A carregar…</span></p>
+  </header>
+
+  <div class="problem" id="problem" role="alert" hidden></div>
+
+  <section class="empty" id="empty" hidden>
+    <p class="empty-title">Ainda sem tarefas. Corre <code>/jev &lt;tarefa&gt;</code> no Claude Code.</p>
+  </section>
+
+  <div id="content" hidden>
+    <section class="band" id="band" aria-label="Resumo"></section>
+
+    <section class="sec" aria-labelledby="chart-h">
+      <div class="sec-head">
+        <h2 id="chart-h">Custo acumulado</h2>
+        <div class="seg" role="group" aria-label="Vista do custo acumulado">
+          <button type="button" data-view="chart" aria-pressed="true">Gráfico</button>
+          <button type="button" data-view="table" aria-pressed="false">Tabela</button>
+        </div>
+      </div>
+      <ul class="legend" id="legend"></ul>
+      <div class="plot" id="plot"></div>
+      <div class="table-wrap" id="plot-table" hidden></div>
+    </section>
+
+    <section class="sec" aria-labelledby="tasks-h">
+      <div class="sec-head">
+        <h2 id="tasks-h">Tarefas</h2>
+        <p class="sec-meta" id="tasks-meta"></p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Quando</th>
+              <th scope="col">Tarefa</th>
+              <th scope="col">Escolha do JEV</th>
+              <th scope="col" class="num">JEV</th>
+              <th scope="col" class="num">Standard</th>
+              <th scope="col" class="num diff">Diferença</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-body"></tbody>
+        </table>
+      </div>
+      <button type="button" class="more" id="more" hidden></button>
+    </section>
+  </div>
+  <noscript><p class="note">Este dashboard precisa de JavaScript.</p></noscript>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const POLL_MS = 5000;
+  const PAGE = 100;                               // linhas da tabela por "Mostrar mais"
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+  const MINUS = '−';
+  const EPS = 5e-7;                               // o ledger arredonda a 6 casas
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    live: $('live'), liveText: $('live-text'), problem: $('problem'), empty: $('empty'), content: $('content'),
+    band: $('band'), legend: $('legend'), plot: $('plot'), plotTable: $('plot-table'),
+    body: $('tasks-body'), meta: $('tasks-meta'), more: $('more'),
+  };
+  const state = { rows: [], series: [], summary: {}, view: 'chart', shown: PAGE, seen: new Set(), loaded: false, lastText: null, std: null };
+
+  // ---------------------------------------------------------------- DOM
+  // Tudo o que vem do ledger entra como texto (nós de texto ou atributos): nunca como HTML.
+  function build(node, props, kids) {
+    for (const k in props || {}) {
+      const v = props[k];
+      if (v != null && v !== false) node.setAttribute(k, v === true ? '' : String(v));
+    }
+    for (const kid of kids.flat(Infinity)) if (kid != null && kid !== false) node.append(kid);
+    return node;
+  }
+  const h = (tag, props, ...kids) => build(document.createElement(tag), props, kids);
+  const s = (tag, props, ...kids) => build(document.createElementNS(SVG_NS, tag), props, kids);
+  // replaceChildren() transforma `false` no texto "false": filtra antes.
+  const fill = (node, ...kids) => node.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
+
+  // ----------------------------------------------------------- formatação
+  const nfCache = {};
+  const nf = (d) => (nfCache[d] ||= new Intl.NumberFormat('pt-PT', { minimumFractionDigits: d, maximumFractionDigits: d }));
+  function usd(x, d, signed) {
+    const r = Number(x.toFixed(d));
+    const body = '$' + nf(d).format(Math.abs(r));
+    return r < 0 ? MINUS + body : signed && r > 0 ? '+' + body : body;
+  }
+  function pct(x, signed) {
+    const r = Number(x.toFixed(1));
+    const body = nf(1).format(Math.abs(r)) + '%';
+    return r < 0 ? MINUS + body : signed && r > 0 ? '+' + body : body;
+  }
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  function when(t) {
+    if (!isFinite(t)) return { day: '—', time: '', full: '' };
+    const d = new Date(t), now = new Date();
+    const diff = Math.round((dayStart(now) - dayStart(d)) / 864e5);
+    const day = diff === 0 ? 'hoje' : diff === 1 ? 'ontem'
+      : `${d.getDate()} ${MONTHS[d.getMonth()]}` + (d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : '');
+    return { day, time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`, full: d.toLocaleString('pt-PT') };
+  }
+  const dayMonth = (t) => { const d = new Date(t); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const shortModel = (id) => id.split('/').pop().replace(/:free$/, '');
+  function prettyModel(id) {                       // claude-opus-5-5 -> opus 5.5
+    const m = /^claude-([a-z]+)-(\d+)-(\d+)(?:-\d{8})?$/.exec(id);
+    return m ? `${m[1]} ${m[2]}.${m[3]}` : id;
+  }
+
+  // ------------------------------------------------------------- dados
+  const obj = (v) => (v && typeof v === 'object' ? v : {});
+  const str = (v) => (typeof v === 'string' ? v : v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
+
+  function toRow(rec, index) {
+    const dec = obj(rec.decision), jev = obj(rec.jev), std = obj(rec.standard);
+    const jevCost = num(jev.cost_usd), stdCost = num(std.cost_usd);
+    const fb = jev.fallback;                         // chave em falta = null (registos antigos)
+    return {
+      key: str(rec.id) + '#' + index,
+      t: Date.parse(rec.ts),
+      task: str(rec.task),
+      runner: str(dec.runner), model: str(dec.model), effort: str(dec.effort),
+      rationale: str(dec.rationale), routerModel: str(dec.router_model),
+      routerError: dec.router_error == null ? null : str(dec.router_error),
+      jevCost, stdCost,
+      saved: typeof rec.savings_usd === 'number' && isFinite(rec.savings_usd) ? rec.savings_usd : stdCost - jevCost,
+      jevModelId: str(jev.model_id),
+      failed: jev.ok === false,
+      fallback: fb ? { from: str(obj(fb).from), reason: str(obj(fb).reason) } : null,
+      stdKind: str(std.kind), stdModelId: str(std.model_id), stdEffort: str(std.effort),
+    };
+  }
+
+  function prepare(records) {
+    const rows = records.map((r, i) => toRow(obj(r), i));
+    // Cronológico. Um ts em falta herda o do registo anterior, para não partir o gráfico.
+    let last = NaN;
+    for (const r of rows) { if (isFinite(r.t)) last = r.t; else r.t = last; }
+    const first = rows.find((r) => isFinite(r.t));
+    for (const r of rows) { if (!isFinite(r.t)) r.t = first ? first.t : Date.now(); else break; }
+    rows.sort((a, b) => a.t - b.t);
+    return rows;
+  }
+
+  function series(rows) {
+    let std = 0, jev = 0;
+    // uma tarefa falhada não poupou nada: o standard só acumula as concluídas (como o resumo)
+    return rows.map((r) => ({ r, t: r.t, std: (std += r.failed ? 0 : r.stdCost), jev: (jev += r.jevCost) }));
+  }
+
+  // -------------------------------------------------------------- ícones
+  const ICONS = {
+    router: () => [s('path', { class: 'i-warn', d: 'M7 1.2 13.2 12.2H.8z' }), s('path', { class: 'i-glyph', d: 'M7 5v3.3M7 10.1v.1' })],
+    fallback: () => [s('circle', { class: 'i-serious', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph', d: 'M5.7 4.4 4 6.1l1.7 1.7M4.2 6.1h3.7a2 2 0 0 1 0 4H6' })],
+    failed: () => [s('circle', { class: 'i-critical', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph-light', d: 'M4.9 4.9l4.2 4.2M9.1 4.9 4.9 9.1' })],
+  };
+  const icon = (kind) => s('svg', { class: 'ico', viewBox: '0 0 14 14', width: 13, height: 13, 'aria-hidden': 'true' }, ICONS[kind]());
+
+  // ---------------------------------------------------------- escalas
+  function niceTicks(lo, hi, count) {
+    const range = (hi - lo) || 1, raw = range / count, pow = 10 ** Math.floor(Math.log10(raw)), f = raw / pow;
+    const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * pow;
+    const min = Math.floor(lo / step + 1e-9) * step, max = Math.ceil(hi / step - 1e-9) * step, ticks = [];
+    for (let v = min; v <= max + step * 1e-9; v += step) ticks.push(Number(v.toFixed(10)));
+    let decimals = 0;
+    while (Math.abs(step * 10 ** decimals - Math.round(step * 10 ** decimals)) > 1e-9 && decimals < 8) decimals++;
+    return { min, max, ticks, decimals };
+  }
+
+  function timeTicks(t0, t1, maxCount) {
+    const M = 60e3, H = 60 * M, D = 24 * H;
+    const steps = [M, 5 * M, 15 * M, 30 * M, H, 2 * H, 3 * H, 6 * H, 12 * H, D, 2 * D, 7 * D, 14 * D, 30 * D, 91 * D];
+    const step = steps.find((st) => (t1 - t0) / st <= maxCount) || steps[steps.length - 1], ticks = [];
+    if (step >= D) {                               // meias-noites locais, de n em n dias
+      const days = Math.round(step / D), d = new Date(t0);
+      d.setHours(0, 0, 0, 0);
+      if (d.getTime() < t0) d.setDate(d.getDate() + 1);
+      for (let t = d.getTime(); t <= t1; ) { ticks.push(t); const n = new Date(t); n.setDate(n.getDate() + days); t = n.getTime(); }
+    } else {
+      const off = new Date(t0).getTimezoneOffset() * 60e3;
+      for (let t = Math.ceil((t0 - off) / step) * step + off; t <= t1; t += step) ticks.push(t);
+    }
+    return { ticks, daily: step >= D };
+  }
+
+  // ---------------------------------------------------------- resumo
+  function stdLabel() {                            // o que é "standard", lido do registo mais recente
+    const r = state.std;
+    return r && r.stdModelId ? [prettyModel(r.stdModelId), r.stdEffort].filter(Boolean).join(', ') : 'o que usarias sem JEV';
+  }
+
+  function drawBand() {
+    const sm = state.summary, rows = state.rows;
+    const total = num(sm.tasks) || rows.length, std = num(sm.standard_usd), jev = num(sm.jev_usd);
+    const saved = num(sm.saved_usd), spct = num(sm.saved_pct);
+    const d = Math.max(Math.abs(std), Math.abs(jev)) < 10 ? 3 : 2;
+    const kind = saved > EPS ? 'gain' : saved < -EPS ? 'loss' : 'even';
+    const sub = { gain: 'o JEV saiu mais barato que o standard', loss: 'o JEV saiu mais caro que o standard', even: 'o JEV custou o mesmo que o standard' }[kind];
+    const first = rows.length ? dayMonth(rows[0].t) : '';
+    const longest = Math.max(usd(std, d).length, usd(jev, d).length, usd(saved, d, true).length);
+    els.band.dataset.size = longest >= 13 ? 'xl' : longest >= 10 ? 'l' : 'm';
+    els.band.replaceChildren(
+      h('div', { class: 'eq' },
+        h('div', { class: 'fig fig-std' },
+          h('span', { class: 'fig-label' }, h('i', { class: 'key key-std' }), 'Standard'),
+          h('span', { class: 'fig-value' }, usd(std, d)),
+          h('span', { class: 'fig-sub' }, stdLabel() + (num(sm.failed) ? ` · sem ${num(sm.failed)} falhada${num(sm.failed) > 1 ? 's' : ''}` : ''))),
+        h('span', { class: 'op', 'aria-hidden': 'true' }, MINUS),
+        h('div', { class: 'fig fig-jev' },
+          h('span', { class: 'fig-label' }, h('i', { class: 'key key-jev' }), 'JEV'),
+          h('span', { class: 'fig-value' }, usd(jev, d)),
+          h('span', { class: 'fig-sub' }, 'execução e decisão')),
+        h('span', { class: 'op', 'aria-hidden': 'true' }, '='),
+        h('div', { class: `fig fig-result is-${kind}` },
+          h('span', { class: 'fig-label' }, 'Poupado'),
+          h('span', { class: 'fig-value' }, h('span', {}, usd(saved, d, true)), h('span', { class: 'fig-pct' }, pct(spct, true))),
+          h('span', { class: 'fig-sub' }, sub))),
+      h('div', { class: 'fig fig-count' },
+        h('span', { class: 'fig-label' }, 'Tarefas'),
+        h('span', { class: 'fig-value' }, String(total)),
+        h('span', { class: 'fig-sub' }, first ? `desde ${first}` : '')));
+  }
+
+  // ---------------------------------------------------------- gráfico
+  function drawLegend() {
+    const gain = state.series.some((p, i) => p.std - p.jev > EPS), loss = state.series.some((p) => p.std - p.jev < -EPS);
+    fill(els.legend,
+      h('li', {}, h('i', { class: 'key key-std' }), `Standard (${stdLabel()})`),
+      h('li', {}, h('i', { class: 'key key-jev' }), 'JEV'),
+      gain && h('li', {}, h('i', { class: 'swatch swatch-gain' }), 'JEV poupou'),
+      loss && h('li', {}, h('i', { class: 'swatch swatch-loss' }), 'JEV gastou mais'));
+    els.legend.hidden = state.view !== 'chart';
+  }
+
+  function drawChart() {
+    const pts = state.series, host = els.plot;
+    host.replaceChildren();
+    if (!pts.length || state.view !== 'chart') return;
+
+    const W = Math.max(280, Math.floor(host.clientWidth)), narrow = W < 600;
+    const n = pts.length, end = pts[n - 1];
+    let hi = 0, lo = 0;
+    for (const p of pts) { hi = Math.max(hi, p.std, p.jev); lo = Math.min(lo, p.std, p.jev); }
+    const yt = niceTicks(lo, hi || 1, narrow ? 4 : 5);
+    const fmtY = (v) => '$' + nf(yt.decimals).format(v);
+    // As margens acompanham o texto que têm de levar: totais de 5 ou 6 dígitos não podem ser cortados.
+    const endDecimals = Math.max(Math.abs(end.std), Math.abs(end.jev)) < 10 ? 3 : 2;
+    const endText = [`Standard ${usd(end.std, endDecimals)}`, `JEV ${usd(end.jev, endDecimals)}`];
+    const widest = (texts) => Math.max(...texts.map((t) => t.length));
+    const m = {
+      top: 12, bottom: 32,
+      left: Math.max(44, Math.ceil(widest(yt.ticks.map(fmtY)) * 7) + 18),
+      right: narrow ? 14 : Math.max(118, Math.ceil(widest(endText) * 7) + 26),
+    };
+    const iw = W - m.left - m.right;
+    const tMin = pts[0].t, tMax = pts[pts.length - 1].t, span = tMax - tMin, pad = span > 0 ? span * 0.03 : 12 * 3600e3;
+    const t0 = tMin - pad, t1 = tMax + pad;
+    const xt = timeTicks(t0, t1, Math.max(3, Math.floor(iw / 96)));
+    const isMidnight = (t) => { const d = new Date(t); return d.getHours() === 0 && d.getMinutes() === 0; };
+    // Horas sem nenhuma meia-noite à vista: o dia vai numa segunda linha, debaixo da primeira hora.
+    const dateRow = !xt.daily && xt.ticks.length > 0 && !isMidnight(xt.ticks[0]);
+    if (dateRow) m.bottom = 48;
+    const H = narrow ? 260 : 330, ih = H - m.top - m.bottom;
+    const X = (t) => m.left + ((t - t0) / (t1 - t0)) * iw;
+    const Y = (v) => m.top + (1 - (v - yt.min) / (yt.max - yt.min)) * ih;
+    const f = (n) => n.toFixed(1);
+    const xs = pts.map((p) => X(p.t)), xL = m.left, xR = m.left + iw;
+
+    const svg = s('svg', {
+      width: W, height: H, viewBox: `0 0 ${W} ${H}`, tabindex: 0, role: 'slider',
+      'aria-label': 'Custo acumulado por tarefa. Usa as setas para percorrer as tarefas',
+      'aria-orientation': 'horizontal', 'aria-valuemin': 1, 'aria-valuemax': n, 'aria-valuenow': n,
+      'aria-valuetext': 'Nenhuma tarefa selecionada',
+    });
+
+    // grelha e eixos
+    for (const v of yt.ticks) {
+      svg.append(s('line', { class: v === 0 ? 'axis' : 'grid', x1: xL, x2: xR, y1: f(Y(v)), y2: f(Y(v)) }),
+        s('text', { class: 'tick', x: m.left - 10, y: f(Y(v)), 'text-anchor': 'end', 'dominant-baseline': 'central' }, fmtY(v)));
+    }
+    xt.ticks.forEach((t, i) => {
+      const d = new Date(t), midnight = isMidnight(t);
+      const label = midnight || xt.daily ? dayMonth(t) : `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      svg.append(s('line', { class: 'axis', x1: f(X(t)), x2: f(X(t)), y1: f(Y(yt.min)), y2: f(Y(yt.min) + 4) }),
+        s('text', { class: 'tick' + (midnight || xt.daily ? ' tick-day' : ''), x: f(X(t)), y: f(Y(yt.min) + 19), 'text-anchor': 'middle' }, label));
+      if (i === 0 && dateRow) {
+        svg.append(s('text', { class: 'tick tick-day', x: f(X(t)), y: f(Y(yt.min) + 35), 'text-anchor': 'middle' }, dayMonth(t)));
+      }
+    });
+
+    // a diferença entre as duas linhas: um polígono por sequência de degraus com o mesmo sinal
+    const lv = (k, key) => (k === 0 ? 0 : pts[k - 1][key]);
+    const xa = (k) => (k === 0 ? xL : xs[k - 1]), xb = (k) => (k === n ? xR : xs[k]);
+    const runs = [];
+    for (let k = 1; k <= n; k++) {
+      const gap = lv(k, 'std') - lv(k, 'jev'), sign = gap > EPS ? 1 : gap < -EPS ? -1 : 0;
+      if (!sign) continue;
+      const last = runs[runs.length - 1];
+      if (last && last.sign === sign && last.b === k - 1) last.b = k; else runs.push({ sign, a: k, b: k });
+    }
+    const runPath = (run) => {
+      const up = run.sign > 0 ? 'std' : 'jev', low = run.sign > 0 ? 'jev' : 'std';
+      let d = `M${f(xa(run.a))} ${f(Y(lv(run.a, up)))}`;
+      for (let k = run.a; k <= run.b; k++) { d += `H${f(xb(k))}`; if (k < run.b) d += `V${f(Y(lv(k + 1, up)))}`; }
+      d += `V${f(Y(lv(run.b, low)))}`;
+      for (let k = run.b; k >= run.a; k--) { d += `H${f(xa(k))}`; if (k > run.a) d += `V${f(Y(lv(k - 1, low)))}`; }
+      return d + 'Z';
+    };
+    for (const sign of [1, -1]) {
+      const d = runs.filter((r) => r.sign === sign).map(runPath).join('');
+      if (d) svg.append(s('path', { class: sign > 0 ? 'wash-gain' : 'wash-loss', d }));
+    }
+
+    // linhas em degrau: o custo acumulado só muda quando uma tarefa acaba
+    const stepPath = (key) => {
+      let d = `M${f(xL)} ${f(Y(0))}`;
+      pts.forEach((p, i) => { d += `H${f(xs[i])}V${f(Y(p[key]))}`; });
+      return d + `H${f(xR)}`;
+    };
+    svg.append(s('path', { class: 'line line-std', d: stepPath('std') }), s('path', { class: 'line line-jev', d: stepPath('jev') }));
+
+    // pontas e etiquetas diretas (a legenda continua a ser o canal fiável)
+    const endDot = (key, cls) => [s('circle', { class: 'ring', cx: f(xR), cy: f(Y(end[key])), r: 6 }), s('circle', { class: cls, cx: f(xR), cy: f(Y(end[key])), r: 4 })];
+    svg.append(...endDot('std', 'dot-std'), ...endDot('jev', 'dot-jev'));
+    if (!narrow) {
+      const labels = [{ name: 'Standard', value: usd(end.std, endDecimals), y: Y(end.std) }, { name: 'JEV', value: usd(end.jev, endDecimals), y: Y(end.jev) }];
+      const [top, bottom] = labels[0].y <= labels[1].y ? labels : [labels[1], labels[0]];
+      if (bottom.y - top.y < 17) { const push = (17 - (bottom.y - top.y)) / 2; top.y -= push; bottom.y += push; }
+      for (const l of labels) {
+        svg.append(s('text', { x: f(xR + 13), y: f(l.y), 'dominant-baseline': 'central' },
+          s('tspan', { class: 'end-name' }, l.name + ' '), s('tspan', { class: 'end-value' }, l.value)));
+      }
+    }
+
+    // hover/foco: guia vertical, pontos e tooltip
+    const cross = s('line', { class: 'cross', y1: m.top, y2: m.top + ih, visibility: 'hidden' });
+    const mk = (cls) => s('g', { visibility: 'hidden' }, s('circle', { class: 'ring', r: 6 }), s('circle', { class: cls, r: 4 }));
+    const hStd = mk('dot-std'), hJev = mk('dot-jev');
+    const hit = s('rect', { x: xL, y: m.top, width: iw + (narrow ? 0 : 12), height: ih, fill: 'transparent' });
+    svg.append(cross, hStd, hJev, hit);
+    const tip = h('div', { class: 'tip', hidden: true, 'aria-hidden': 'true' });
+    host.append(svg, tip);
+
+    const move = (g, x, y) => { g.firstChild.setAttribute('cx', x); g.firstChild.setAttribute('cy', y); g.lastChild.setAttribute('cx', x); g.lastChild.setAttribute('cy', y); };
+    let active = -1;
+    const set = (i) => {
+      active = i;
+      const p = pts[i], x = f(xs[i]);
+      cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('visibility', 'visible');
+      move(hStd, x, f(Y(p.std))); move(hJev, x, f(Y(p.jev)));
+      hStd.setAttribute('visibility', 'visible'); hJev.setAttribute('visibility', 'visible');
+      fillTip(tip, p, i);
+      tip.hidden = false;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let left = xs[i] + 16;
+      if (left + tw > W - 4) left = xs[i] - tw - 16;
+      tip.style.left = Math.max(4, left) + 'px';
+      tip.style.top = Math.max(0, Math.min(m.top + 4, H - th - 4)) + 'px';
+      svg.setAttribute('aria-valuenow', i + 1);
+      svg.setAttribute('aria-valuetext', speak(p));
+    };
+    const clear = () => {
+      active = -1;
+      for (const g of [cross, hStd, hJev]) g.setAttribute('visibility', 'hidden');
+      tip.hidden = true;
+    };
+    const nearest = (px) => {
+      let a = 0, b = n - 1;
+      while (a < b) { const mid = (a + b) >> 1; if (xs[mid] < px) a = mid + 1; else b = mid; }
+      return a > 0 && px - xs[a - 1] < xs[a] - px ? a - 1 : a;
+    };
+    const fromEvent = (e) => nearest(e.clientX - svg.getBoundingClientRect().left);
+    hit.addEventListener('pointermove', (e) => set(fromEvent(e)));
+    hit.addEventListener('pointerdown', (e) => set(fromEvent(e)));
+    hit.addEventListener('pointerleave', () => { if (!svg.matches(':focus-visible')) clear(); });
+    svg.addEventListener('focus', () => { if (active < 0 && svg.matches(':focus-visible')) set(n - 1); });
+    svg.addEventListener('blur', clear);
+    svg.addEventListener('keydown', (e) => {
+      const to = { ArrowLeft: Math.max(0, (active < 0 ? n : active) - 1), ArrowRight: Math.min(n - 1, active + 1), Home: 0, End: n - 1 }[e.key];
+      if (e.key === 'Escape') { clear(); return; }
+      if (to === undefined) return;
+      e.preventDefault();
+      set(to);
+    });
+  }
+
+  function gapOf(p) { return p.std - p.jev; }
+  const kindOf = (v) => (v > EPS ? 'gain' : v < -EPS ? 'loss' : 'even');
+  const speak = (p) => `${when(p.t).day} ${when(p.t).time}, ${p.r.task}. Standard ${usd(p.std, 3)}, JEV ${usd(p.jev, 3)}, poupado ${usd(gapOf(p), 3, true)}`;
+
+  function fillTip(tip, p) {
+    const w = when(p.t), d = Math.max(p.std, p.jev) < 10 ? 3 : 2, total = gapOf(p), own = p.r.saved;
+    tip.replaceChildren(
+      h('div', { class: 'tip-when' }, `${w.day}, ${w.time}`),
+      h('div', { class: 'tip-task' }, p.r.task),
+      h('dl', { class: 'tip-rows' },
+        h('dt', {}, h('i', { class: 'key key-std' }), 'Standard'), h('dd', {}, usd(p.std, d)),
+        h('dt', {}, h('i', { class: 'key key-jev' }), 'JEV'), h('dd', {}, usd(p.jev, d)),
+        h('dt', {}, 'Poupado'), h('dd', { class: `is-${kindOf(total)}` }, usd(total, d, true)),
+        h('div', { class: 'sep' }),
+        h('div', { style: 'display:contents', class: 'quiet' },
+          h('dt', {}, 'Só esta tarefa'), h('dd', { class: `is-${kindOf(own)}` }, usd(own, 4, true)))));
+  }
+
+  function drawChartTable() {
+    const host = els.plotTable;
+    host.replaceChildren();
+    if (state.view !== 'table') return;
+    const last = state.series[state.series.length - 1];
+    const d = Math.max(last.std, last.jev) < 10 ? 3 : 2;
+    host.append(h('table', { style: 'min-width:560px' },
+      h('caption', {}, 'Os valores do gráfico: custo acumulado depois de cada tarefa.'),
+      h('thead', {}, h('tr', {},
+        h('th', { scope: 'col' }, 'Depois de'), h('th', { scope: 'col' }, 'Tarefa'),
+        h('th', { scope: 'col', class: 'num' }, 'Standard'), h('th', { scope: 'col', class: 'num' }, 'JEV'), h('th', { scope: 'col', class: 'num' }, 'Poupado'))),
+      h('tbody', {}, state.series.map((p) => {
+        const w = when(p.t);
+        return h('tr', {},
+          h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
+          h('td', {}, h('div', { class: 'task', title: p.r.task }, p.r.task)),
+          h('td', { class: 'num' }, usd(p.std, d)), h('td', { class: 'num' }, usd(p.jev, d)),
+          h('td', { class: `num is-${kindOf(gapOf(p))}` }, h('span', { class: 'delta-num' }, usd(gapOf(p), d, true))));
+      }))));
+  }
+
+  function drawView() {
+    for (const b of document.querySelectorAll('.seg button')) b.setAttribute('aria-pressed', String(b.dataset.view === state.view));
+    els.plot.hidden = state.view !== 'chart';
+    els.plotTable.hidden = state.view !== 'table';
+    drawLegend();
+    drawChart();
+    drawChartTable();
+  }
+
+  // ---------------------------------------------------------- tabela
+  function choiceCell(r) {
+    const free = r.runner === 'openrouter-free';
+    const name = free ? shortModel(r.model) : r.model || '—';
+    const level = EFFORTS.indexOf(r.effort) + 1;
+    const title = [r.model && `Modelo: ${r.model}${r.jevModelId && r.jevModelId !== r.model ? ` (${r.jevModelId})` : ''}`,
+      r.rationale && `Porquê: ${r.rationale}`].filter(Boolean).join('\n');
+    const tags = [];
+    if (r.routerError !== null) {
+      tags.push(h('span', { class: 'tag', title: `O cérebro free${r.routerModel ? ` (${r.routerModel})` : ''} falhou: ${r.routerError}.\nA decisão passou a ser o standard.` },
+        icon('router'), 'router falhou'));
+    }
+    if (r.fallback) {
+      tags.push(h('span', { class: 'tag', title: `A execução falhou em ${r.fallback.from || 'o modelo escolhido'}${r.fallback.reason ? ` (${r.fallback.reason})` : ''} e foi repetida no standard${r.jevModelId ? ` (${r.jevModelId})` : ''}.\nO custo do JEV soma as duas tentativas.` },
+        icon('fallback'), 'fallback'));
+    }
+    if (r.failed) {
+      tags.push(h('span', { class: 'tag tag-failed', title: r.fallback ? 'A tarefa falhou mesmo depois do fallback para o standard.' : 'A tarefa falhou.' },
+        icon('failed'), 'falhou'));
+    }
+    return h('div', { title },
+      h('div', { class: 'pick' },
+        h('span', { class: 'model' }, name),
+        r.effort && h('span', { class: 'effort' }, `· ${r.effort}`),
+        level > 0 && h('span', { class: 'meter', role: 'img', 'aria-label': `esforço ${r.effort}, ${level} de ${EFFORTS.length}`, title: `Esforço: ${r.effort} (${level} de ${EFFORTS.length})` },
+          EFFORTS.map((_, i) => h('i', { class: i < level ? 'on' : null })))),
+      h('div', { class: 'pick-meta' },
+        free
+          ? h('span', { class: 'badge badge-free', title: 'Modelo grátis do OpenRouter: custo $0' }, 'grátis')
+          : r.runner && h('span', { class: 'badge', title: 'Corre no Claude Code, na subscrição Anthropic' }, r.runner === 'anthropic' ? 'Anthropic' : r.runner),
+        tags));
+  }
+
+  function costText(x, d) { return x === 0 ? h('span', { class: 'zero' }, '$0') : usd(x, d); }
+
+  function deltaCell(r, maxAbs) {
+    const shown = Number(r.saved.toFixed(4)), kind = kindOf(shown);
+    const width = maxAbs > 0 ? Math.min(100, (Math.abs(shown) / maxAbs) * 100) : 0;
+    const pctOf = r.stdCost > 0 ? (Math.abs(r.saved) / r.stdCost) * 100 : null;
+    const title = [
+      kind === 'gain' ? 'O JEV custou menos que o standard' : kind === 'loss' ? 'O JEV custou mais que o standard' : 'O JEV custou o mesmo que o standard',
+      pctOf !== null && kind !== 'even' ? ` (${nf(1).format(pctOf)}%)` : '', '.',
+      r.failed ? '\nA tarefa falhou: esta diferença não corresponde a um resultado entregue.' : '',
+    ].join('');
+    return h('div', { class: `delta is-${kind}`, title },
+      h('span', { class: 'delta-num' }, usd(r.saved, 4, true)),
+      h('span', { class: 'track', 'aria-hidden': 'true' },
+        kind !== 'even' && h('i', { class: `bar bar-${kind}`, style: `width:${(width / 2).toFixed(2)}%` })));
+  }
+
+  function drawTasks() {
+    const newestFirst = state.rows.slice().reverse();
+    let maxAbs = 0;
+    for (const r of state.rows) maxAbs = Math.max(maxAbs, Math.abs(r.saved));
+    const shown = newestFirst.slice(0, state.shown);
+    els.body.replaceChildren(...shown.map((r) => {
+      const w = when(r.t);
+      return h('tr', { class: r.isNew ? 'row-new' : null },
+        h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
+        h('td', {}, h('div', { class: 'task', title: r.task }, r.task)),
+        h('td', {}, choiceCell(r)),
+        h('td', { class: 'num', title: r.fallback ? 'Soma as duas tentativas: a que falhou e a repetição no standard.' : null }, costText(r.jevCost, 4)),
+        h('td', { class: 'num' },
+          h('div', {}, costText(r.stdCost, 4)),
+          r.stdKind === 'measured' || r.stdKind === 'estimated'
+            ? h('div', { class: 'cost-sub' }, r.stdKind === 'measured'
+              ? h('span', { class: 'badge badge-measured', title: 'Medido: a mesma tarefa correu mesmo no standard.' }, 'medido')
+              : h('span', { class: 'badge badge-estimated', title: 'Estimado: o standard não correu; é uma estimativa a preço de lista.' }, 'estimado'))
+            : null),
+        h('td', { class: 'num diff' }, deltaCell(r, maxAbs)));
+    }));
+
+    const failed = state.rows.filter((r) => r.failed).length;
+    const falls = state.rows.filter((r) => r.fallback).length;
+    const routers = state.rows.filter((r) => r.routerError !== null).length;
+    fill(els.meta,
+      failed > 0 && h('span', { title: 'Tarefas que falharam, mesmo depois do fallback' }, icon('failed'), `${failed} ${failed === 1 ? 'falhou' : 'falharam'}`),
+      falls > 0 && h('span', { title: 'Execuções repetidas no standard depois de falharem' }, icon('fallback'), `${falls} ${falls === 1 ? 'fallback' : 'fallbacks'}`),
+      routers > 0 && h('span', { title: 'O cérebro free falhou e a decisão passou a ser o standard' }, icon('router'), `${routers} ${routers === 1 ? 'router falhou' : 'routers falharam'}`));
+
+    const rest = newestFirst.length - shown.length;
+    els.more.hidden = rest <= 0;
+    els.more.textContent = `Mostrar mais ${Math.min(PAGE, rest)} (faltam ${rest})`;
+  }
+
+  // ------------------------------------------------------- ciclo de vida
+  function render(data) {
+    const records = Array.isArray(data && data.records) ? data.records : [];
+    const rows = prepare(records);
+    const known = state.seen;
+    for (const r of rows) r.isNew = state.loaded && !known.has(r.key);
+    state.rows = rows;
+    state.series = series(rows);
+    state.summary = obj(data && data.summary);
+    state.std = rows.length ? rows[rows.length - 1] : null;
+    state.seen = new Set(rows.map((r) => r.key));
+    state.loaded = true;
+    els.empty.hidden = rows.length > 0;
+    els.content.hidden = rows.length === 0;
+    if (!rows.length) return;
+    drawBand();
+    drawView();
+    drawTasks();
+  }
+
+  function setLive(ok, text) {
+    els.live.classList.toggle('is-error', !ok);
+    els.liveText.textContent = text;
+    els.content.classList.toggle('is-stale', !ok && state.loaded);
+  }
+
+  function showProblem(msg) {
+    els.problem.hidden = !msg;
+    fill(els.problem, msg && [icon('failed'), h('p', {}, msg)]);
+  }
+
+  async function poll() {
+    if (document.hidden) return schedule();
+    let text;
+    try {
+      const res = await fetch('/api/ledger', { cache: 'no-store' });
+      text = await res.text();
+      if (!res.ok) {
+        let reason = `HTTP ${res.status}`;
+        try { reason = JSON.parse(text).error || reason; } catch (_) { /* resposta que não é JSON */ }
+        showProblem(`Não consegui ler o ledger: ${reason}`);
+        setLive(false, 'Ledger ilegível');
+        return schedule();
+      }
+    } catch (_) {
+      showProblem(state.loaded ? '' : 'Não consegui falar com o servidor do dashboard. Confirma que o jev-dashboard continua a correr.');
+      setLive(false, 'Sem ligação ao servidor. A tentar de novo…');
+      return schedule();
+    }
+    try {
+      if (text !== state.lastText) { render(JSON.parse(text)); state.lastText = text; }
+      showProblem('');
+      const n = new Date();
+      setLive(true, `Lido às ${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`);
+    } catch (err) {
+      console.error(err);
+      showProblem(`Erro ao desenhar o dashboard: ${err.message}`);
+      setLive(false, 'Erro ao desenhar');
+    }
+    schedule();
+  }
+  let timer = 0;
+  function schedule() { clearTimeout(timer); timer = setTimeout(poll, POLL_MS); }
+
+  for (const b of document.querySelectorAll('.seg button')) {
+    b.addEventListener('click', () => { state.view = b.dataset.view; if (state.rows.length) drawView(); });
+  }
+  els.more.addEventListener('click', () => { state.shown += PAGE; drawTasks(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(timer); poll(); } });
+  let lastWidth = 0;
+  new ResizeObserver(() => {
+    const w = Math.floor(els.plot.clientWidth);
+    if (w && w !== lastWidth && state.rows.length && state.view === 'chart') { lastWidth = w; drawChart(); }
+  }).observe(els.plot);
+
+  poll();
+})();
+</script>
+</body>
+</html>
