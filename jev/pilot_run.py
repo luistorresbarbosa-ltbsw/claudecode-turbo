@@ -124,9 +124,18 @@ def run_claude_arm(arm: str, task: dict, workspace: Path, *, max_usd: float, tim
     return out
 
 
+MOD_SIGNATURE = "— JEV: respondido por "  # como o mod assina uma resposta free
+
+
 def save_text_answer(workspace: Path, rel_path: str, text: str) -> None:
     if text.startswith(HOOK_PREFIX):
-        text = text[len(HOOK_PREFIX):]
+        # Resposta free do mod: o claude -p devolve o motivo do drop numa só linha (cada \n vira U+FFFD) e
+        # o mod assina-a. Repõe as linhas e tira a assinatura, que denunciaria o braço ao juiz.
+        text = text[len(HOOK_PREFIX):].replace("\ufffd", "\n")
+        cut = text.rfind(MOD_SIGNATURE)
+        if cut >= 0:
+            text = text[:cut]
+        text = text.rstrip()
     path = Path(workspace) / rel_path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")

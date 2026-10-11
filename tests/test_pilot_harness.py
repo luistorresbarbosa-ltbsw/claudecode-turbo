@@ -231,3 +231,14 @@ def test_the_venv_an_agent_creates_never_lands_in_the_arm_commits(tmp_path):
     ws = pilot.pilots_dir(tmp_path / "home") / "p1" / "standard"
     tracked = subprocess.run(["git", "ls-files"], cwd=ws, capture_output=True, text=True).stdout.split()
     assert "fatura/nova.py" in tracked and not any(f.startswith(".venv") for f in tracked)
+
+
+def test_a_free_answer_gets_its_newlines_back_and_loses_the_mod_signature(tmp_path):
+    # O claude -p devolve o motivo do drop numa linha só: cada \n vira U+FFFD; e o mod assina a resposta.
+    shown = ("Prompt dropped by a hook: ## Glossário��| Taxa | % |�|---|---|�| Normal | 23% |"
+             "��— JEV: respondido por nvidia/nemotron-3-ultra-550b-a55b:free (free) · Jev: qa_knowledge")
+
+    pilot_run.save_text_answer(tmp_path, "docs/IVA.md", shown)
+
+    # sem a assinatura: o juiz tem de ser cego
+    assert (tmp_path / "docs/IVA.md").read_text() == "## Glossário\n\n| Taxa | % |\n|---|---|\n| Normal | 23% |"
