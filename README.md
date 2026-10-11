@@ -37,6 +37,22 @@ Não há comando: escreves como sempre. A linha de estado mostra a decisão, por
 **Fallback:** se o Jev falhar (erro, timeout de 15 s, um modelo fora do pool) ou o free falhar, a
 sessão segue com o standard, sem mudanças.
 
+### Versões (`JEV_POLICY`)
+
+- **v1** (por defeito): cada prompt corre no modelo e no esforço que o Jev escolher para ele.
+- **v2**: o modelo e o esforço são da sessão.
+  - **Porquê:** a cache do Claude é de cada modelo. Trocar de modelo a meio obriga a escrever a
+    conversa toda na cache do novo modelo, a 2× o preço de entrada. Mudar o esforço invalida a cache
+    das mensagens.
+  - **Com a cache quente,** o modelo e o esforço só sobem: um modelo maior, ou mais esforço no mesmo
+    modelo, porque aí a qualidade paga a reescrita.
+  - **Com a cache fria,** vale a escolha do Jev: numa sessão nova, depois de um `/clear` ou de uma
+    compactação, ou com mais de uma hora parada.
+  - **Os turnos que não passam pelo Jev,** como uma notificação, ficam no modelo da sessão.
+  - **O pool** fica só com modelos Anthropic, salvo `JEV_POOL=all`.
+  - **Onde fica o modelo da sessão:** em `$JEV_HOME/sessions/<id>.json`, pelo id da sessão, para
+    sobreviver a um `--resume`.
+
 **No histórico do OpenRouter**, cada decisão aparece com o modelo que serviu o token (por exemplo
 `gpt-6-luna` ou `claude-sonnet-5.5`) e com `router: typesafe/jev-router`.
 
@@ -67,7 +83,13 @@ de custo. No fim, um juiz Opus (pela subscrição) compara os dois resultados à
 ```bash
 uv run jev pilot run --project fatura --max-min 10 --max-usd-task 1 --max-usd-total 4.5
 uv run jev pilot run --project fatura --anthropic-only   # pool do Jev só com modelos Anthropic
+uv run jev pilot run --project fatura --arms jev-v1,jev-v2 --session   # v1 contra v2, uma sessão por braço
 ```
+
+`--arms` escolhe os dois braços: `standard`, `jev` (a versão por defeito), `jev-v1` e `jev-v2`.
+`--session` corre todas as tarefas de cada braço numa só sessão, com `claude -p --resume`. Cada tarefa
+de código leva também um seguimento ("Corre os testes e corrige o que falhar."), como numa sessão a
+sério. É assim que se vê o efeito da cache: com um prompt por sessão, a v1 e a v2 comportam-se igual.
 
 `--no-judge` salta o juiz. `--claude-md` dá aos dois braços o mesmo CLAUDE.md, feito de
 `pilot/<projeto>/regras.md` (no fatura, as críticas do juiz às primeiras corridas). O juiz não o lê:
@@ -98,8 +120,8 @@ cada critério quer dizer nele.
   é $0.20/M.
 
 Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`),
-`JEV_STANDARD_EFFORT` (por defeito `xhigh`) e `JEV_POOL` (`anthropic` deixa o pool do Jev só com
-modelos Anthropic, sem respostas free).
+`JEV_STANDARD_EFFORT` (por defeito `xhigh`), `JEV_POOL` (`anthropic` deixa o pool do Jev só com
+modelos Anthropic, sem respostas free; `all` mete os baratos) e `JEV_POLICY` (`v1` ou `v2`).
 
 ## Desenvolvimento
 

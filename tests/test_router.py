@@ -220,3 +220,28 @@ def test_an_empty_answer_or_another_role_never_reaches_the_jev():
                                        {"role": "system", "content": "outra coisa"}], post=spy)
 
     assert sent["messages"] == [{"role": "user", "content": "x"}, {"role": "user", "content": "continua"}]
+
+
+# --- o pool por defeito depende da versão: a v2 fica só com Anthropic (os free falharam no código) -----
+
+def _pool_sent(monkeypatch, *, policy_env, pool_env):
+    for var, value in (("JEV_POLICY", policy_env), ("JEV_POOL", pool_env)):
+        if value is None:
+            monkeypatch.delenv(var, raising=False)
+        else:
+            monkeypatch.setenv(var, value)
+    sent, spy = _spying()
+    router.decide("x", post=spy)
+    return set(sent["plugins"][0]["allowed_models"])
+
+
+def test_the_v2_pool_is_anthropic_only_by_default(monkeypatch):
+    assert _pool_sent(monkeypatch, policy_env="v2", pool_env=None) == set(router.ANTHROPIC_MODELS)
+
+
+def test_the_v1_pool_keeps_the_cheap_stand_ins_by_default(monkeypatch):
+    assert _pool_sent(monkeypatch, policy_env=None, pool_env=None) == set(router.JEV_POOL)
+
+
+def test_jev_pool_all_brings_the_cheap_stand_ins_back_in_v2(monkeypatch):
+    assert _pool_sent(monkeypatch, policy_env="v2", pool_env="all") == set(router.JEV_POOL)

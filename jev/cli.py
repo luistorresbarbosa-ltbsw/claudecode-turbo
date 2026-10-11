@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 
-from jev import dispatch, ledger, pricing, router
+from jev import dispatch, ledger, policy, pricing, router
 
 REPO_ENV = Path(__file__).resolve().parent.parent / ".env"
 DEFAULT_MAX_USD = 0.50
@@ -50,6 +50,10 @@ def _parser() -> argparse.ArgumentParser:
     prun.add_argument("--no-judge", action="store_true")
     prun.add_argument("--anthropic-only", action="store_true",
                       help="o pool do Jev só com modelos Anthropic (sem respostas free)")
+    prun.add_argument("--arms", default="standard,jev",
+                      help="os dois braços a comparar, separados por vírgula: standard, jev, jev-v1, jev-v2")
+    prun.add_argument("--session", action="store_true",
+                      help="cada braço corre todas as tarefas numa só sessão, com um seguimento nas de código")
     prun.add_argument("--claude-md", action="store_true",
                       help="dá aos dois braços um CLAUDE.md, feito de pilot/<projeto>/regras.md")
     return p
@@ -119,14 +123,20 @@ def _estimated_standard(tokens: dict) -> dict:
             "cost_usd": round(pricing.cost_of(std.model, tokens), 9), "tokens": None, "duration_ms": None}
 
 
-def _route(task: str, *, history=(), agent: bool, decide, run_free) -> dict:
+def _route(task: str, *, history=(), session: str | None = None, reset: bool = False, agent: bool,
+           decide, run_free) -> dict:
     started = time.monotonic()
     decision = decide(task, history=history)
     decide_ms = int((time.monotonic() - started) * 1000)
     if agent and decision.runner == "openrouter-free":  # um subagente usa ferramentas: um free não serve
         decision = dataclasses.replace(decision, runner="anthropic", model="sonnet",
                                        rationale=decision.rationale + " · subagente: sonnet")
-    out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None,
+    # O modelo da sessão (v2): um subagente começa sem contexto, por isso não tem cache a perder
+    state = None if (agent or not session or reset) else policy.load_state(session)
+    if not agent and session:
+        decision = policy.apply(decision, state, policy.current())
+        policy.save_state(session, policy.next_state(decision, state))
+    out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None, "policy": policy.current(),
            "model_id": None if decision.is_standard else pricing.ALIASES.get(decision.model, decision.model)}
     if decision.runner != "openrouter-free":
         return out
@@ -137,6 +147,8 @@ def _route(task: str, *, history=(), agent: bool, decide, run_free) -> dict:
     if not res.ok:  # regra do utilizador: qualquer falha cai para o standard (a sessão segue sem mudanças)
         fallback = router.standard(f"o free falhou: {res.error}", router_cost_usd=decision.router_cost_usd)
         out.update(decision=fallback.to_ledger(), model_id=None)
+        if session and not agent:  # a sessão vai correr no standard
+            policy.save_state(session, policy.next_state(fallback, state))
         return out
     # este prompt não vai ter turno Anthropic: regista-se já
     ledger.append(ledger.make_record(
@@ -187,6 +199,11 @@ def _pilot(args) -> int:
     if args.tasks:
         wanted = [t.strip() for t in args.tasks.split(",")]
         tasks = [t for t in tasks if t["id"] in wanted]
+    arms = tuple(a.strip() for a in args.arms.split(",") if a.strip())
+    unknown = [a for a in arms if a not in pilot_run.KNOWN_ARMS]
+    if unknown or len(arms) != 2 or len(set(arms)) != 2:
+        return _fail(f"--arms: quero dois braços diferentes de {', '.join(pilot_run.KNOWN_ARMS)} "
+                     f"(veio {args.arms})")
     # no repo não se chama CLAUDE.md, senão a sessão que mexe em pilot/ também o carregava
     claude_md = root / "regras.md" if args.claude_md else None
     if claude_md and not claude_md.is_file():
@@ -194,17 +211,19 @@ def _pilot(args) -> int:
     judge_file = root / "juiz.json"  # o que o juiz avalia neste projeto (sem ele, o do fatura)
     judge_spec = json.loads(judge_file.read_text(encoding="utf-8")) if judge_file.is_file() else None
     variant = "anthropic" if args.anthropic_only else "anthropic+free"
+    arms_tag = "" if arms == pilot_run.ARMS else "-".join(a.removeprefix("jev-") for a in arms) + "-"
     pilot_id = (f"{args.project}-{'anthropic-' if args.anthropic_only else ''}{'claudemd-' if claude_md else ''}"
-                + datetime.now().strftime("%Y%m%d-%H%M"))
+                f"{'sessao-' if args.session else ''}{arms_tag}" + datetime.now().strftime("%Y%m%d-%H%M"))
     print(f"piloto {pilot_id}: {len(tasks)} tarefas · {args.max_min:g} min por braço · "
           f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total · pool do Jev: {variant}"
-          f"{' · CLAUDE.md nos dois braços' if claude_md else ''}", flush=True)
+          f"{' · CLAUDE.md nos dois braços' if claude_md else ''} · braços: {' vs '.join(arms)}"
+          f"{' · uma sessão por braço' if args.session else ''}", flush=True)
     pilot_run.run_pilot(tasks, pilot_id=pilot_id, seed=root / "seed", inject_root=root / "inject",
                         acceptance_root=root / "acceptance", max_min_arm=args.max_min,
                         max_usd_task=args.max_usd_task, max_usd_total=args.max_usd_total,
                         judge=not args.no_judge, log=lambda msg: print(msg, flush=True),
                         jev_env={"JEV_POOL": "anthropic"} if args.anthropic_only else None, variant=variant,
-                        claude_md=claude_md, judge_spec=judge_spec)
+                        claude_md=claude_md, judge_spec=judge_spec, arms=arms, session=args.session)
     return 0
 
 
@@ -224,11 +243,13 @@ def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=N
             from dotenv import load_dotenv
             load_dotenv(REPO_ENV)
             decide = router.decide
-        task, history = text.strip(), []
+        task, history, session, reset = text.strip(), [], None, False
         if args.json:
             payload = json.loads(text)
             task, history = payload["task"].strip(), payload.get("history") or []
-        out = _route(task, history=history, agent=args.agent, decide=decide, run_free=run_free or dispatch.run_free)
+            session, reset = payload.get("session"), bool(payload.get("reset"))
+        out = _route(task, history=history, session=session, reset=reset, agent=args.agent, decide=decide,
+                     run_free=run_free or dispatch.run_free)
         print(json.dumps(out, ensure_ascii=False))
         return 0
     if args.cmd == "pilot":

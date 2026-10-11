@@ -26,7 +26,7 @@ const USAGE = { input_tokens: 2, output_tokens: 4, cache_read_input_tokens: 1073
 
 type Call = { argv: readonly string[]; init?: ProcessRunInit }
 
-function engine(on: On, routes: { route?: object; agent?: object; raw?: string }) {
+function engine(on: On, routes: { route?: object; agent?: object; raw?: string; sequence?: string[] }) {
   const calls: Call[] = []
   const status: (string | undefined)[] = []
   const appended: unknown[] = []
@@ -36,7 +36,8 @@ function engine(on: On, routes: { route?: object; agent?: object; raw?: string }
     calls.push(e)
     const out = e.argv.includes('record') ? { summary: { tasks: 2, saved_usd: 0.0571, saved_pct: 49.1 } }
       : e.argv.includes('--agent') ? routes.agent : routes.route
-    const stdout = routes.raw ?? JSON.stringify(out)
+    const next = routes.sequence && !e.argv.includes('record') ? routes.sequence.shift() : undefined
+    const stdout = routes.raw ?? next ?? JSON.stringify(out)
     return { value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('ui.status', (_$, e) => {
@@ -48,6 +49,8 @@ function engine(on: On, routes: { route?: object; agent?: object; raw?: string }
     return { value: { message: e.message, uuid: 'u1' } } as never
   })
   on('prompt.submit', (_$, e) => ({ text: e.text, origin: e.origin }))
+  on('session.id', () => ({ value: 'sessao-1' }) as never)
+  on('session.compact', () => ({ messages: [{ role: 'user', text: 'resumo da conversa', toolUses: [] }] }) as never)
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.step', async function* (_$, e) {
     steps.push(e)
@@ -162,9 +165,13 @@ test('o Jev decide cada prompt a ver a troca anterior: o teu último pedido e a 
   await typed($, 'sim, avança')
 
   const routes = calls.filter(c => c.argv.includes('route'))
+  const sent = (i: number) => {
+    const { task, history } = JSON.parse(routes[i]?.init?.stdin ?? '{}')
+    return { task, history }
+  }
   expect(routes[0]?.argv).toContain('--json')
-  expect(JSON.parse(routes[0]?.init?.stdin ?? '{}')).toEqual({ task: 'acrescenta fatura/io.py', history: [] })
-  expect(JSON.parse(routes[1]?.init?.stdin ?? '{}')).toEqual({
+  expect(sent(0)).toEqual({ task: 'acrescenta fatura/io.py', history: [] })
+  expect(sent(1)).toEqual({
     task: 'sim, avança',
     history: [{ role: 'user', content: 'acrescenta fatura/io.py' },
               { role: 'assistant', content: 'Proponho validar os campos. Avanço?' }],
@@ -180,4 +187,68 @@ test('uma resposta free também conta como a troca anterior', async ($, on) => {
   const second = JSON.parse(calls.filter(c => c.argv.includes('route'))[1]?.init?.stdin ?? '{}')
   expect(second.history).toEqual([{ role: 'user', content: 'o que é uma closure?' },
                                   { role: 'assistant', content: 'Uma closure é uma função que lembra o seu âmbito.' }])
+})
+
+// v2: o modelo é da sessão. O núcleo guarda-o pelo id da sessão (que sobrevive a um --resume e muda com /clear)
+test('o route leva o id da sessão', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'acrescenta fatura/io.py')
+
+  const payload = JSON.parse(calls.find(c => c.argv.includes('route'))?.init?.stdin ?? '{}')
+  expect(payload.session).toBe('sessao-1')
+  expect(payload.reset).toBe(false)
+})
+
+function compact($: Engine, trigger: 'manual' | 'precompute') {
+  return $.session.compact({ trigger, messages: [{ role: 'user', text: 'x', toolUses: [] }] } as never)
+}
+
+test('depois de uma compactação, o prompt seguinte diz ao núcleo que a cache ficou fria', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'primeiro')
+  await compact($, 'precompute') // só prepara: a conversa ainda não mudou
+  await typed($, 'segundo')
+  await compact($, 'manual')
+  await typed($, 'terceiro')
+  await typed($, 'quarto')
+
+  const resets = calls.filter(c => c.argv.includes('route')).map(c => JSON.parse(c.init?.stdin ?? '{}').reset)
+  expect(resets).toEqual([false, false, true, false]) // só o primeiro prompt depois da compactação
+})
+
+test('na v2, um turno que não passou pelo Jev (uma notificação) fica no modelo e no esforço da sessão', async ($, on) => {
+  const { steps } = engine(on, { route: { ...SONNET_LOW, policy: 'v2' } })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1')
+  await typed($, 'tarefa terminada', 'task-notification')
+  await turn($, 't2')
+
+  expect(steps[1]?.model).toBe('claude-sonnet-5-5') // sem isto, ia para o opus por defeito e reescrevia a cache
+  expect(steps[1]?.effort).toBe('low')
+})
+
+test('na v1, um turno que não passou pelo Jev fica no modelo por defeito', async ($, on) => {
+  const { steps } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1')
+  await typed($, 'tarefa terminada', 'task-notification')
+  await turn($, 't2')
+
+  expect(steps[1]?.model).toBe('claude-opus-5-5')
+})
+
+test('na v2, se o núcleo falhar, o turno cai no standard e não no modelo da sessão', async ($, on) => {
+  const { steps } = engine(on, { sequence: [JSON.stringify({ ...SONNET_LOW, policy: 'v2' }), 'Traceback: boom'] })
+
+  await typed($, 'primeiro')
+  await turn($, 't1')
+  await typed($, 'segundo')
+  await turn($, 't2')
+
+  expect(steps[0]?.model).toBe('claude-sonnet-5-5')
+  expect(steps[1]?.model).toBe('claude-opus-5-5') // a regra: qualquer falha cai no standard
 })

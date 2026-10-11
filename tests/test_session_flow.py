@@ -11,6 +11,8 @@ from tests.test_router import LAST_EXCHANGE
 
 SONNET_LOW = Decision(runner="anthropic", model="sonnet", effort="low", rationale="Jev: code:repo_scan",
                       router_cost_usd=0.0002)
+OPUS_HIGH = Decision(runner="anthropic", model="opus", effort="high", rationale="Jev: code:debugging",
+                     router_cost_usd=0.0007)
 FREE = Decision(runner="openrouter-free", model="nvidia/nemotron-3-ultra-550b-a55b:free", effort="high",
                 rationale="Jev: qa_knowledge · barato: corre num free", router_cost_usd=0.0)
 # uso de um turno real de sonnet (o formato do turn.complete: as quatro contagens como a API as escreve)
@@ -155,3 +157,56 @@ def test_a_free_answer_gets_the_last_exchange_too(capsys):
              stdin=io.StringIO(json.dumps({"task": "explica melhor", "history": LAST_EXCHANGE})))
 
     assert run_free.calls == ["explica melhor"] and run_free.histories == [LAST_EXCHANGE]
+
+
+# --- v2: o modelo é da sessão (a cache é de cada modelo) -----------------------------------------------
+
+def routed(decision, *, session="s1", reset=False, capsys):
+    payload = {"task": "x", "history": [], "session": session, "reset": reset}
+    assert cli.main(["route", "--json"], decide=lambda t, **k: decision, run_free=free_ok(),
+                    stdin=io.StringIO(json.dumps(payload))) == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def test_route_v2_keeps_the_sessions_model_when_the_jev_asks_for_a_smaller_one(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v2")
+
+    routed(OPUS_HIGH, capsys=capsys)
+    out = routed(SONNET_LOW, capsys=capsys)
+
+    assert out["decision"]["model"] == "opus" and out["decision"]["effort"] == "high"
+    assert out["model_id"] == pricing.ALIASES["opus"]
+    assert "v2: mantém opus · high" in out["decision"]["rationale"]
+
+
+def test_route_v2_after_a_reset_follows_the_jev_again(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v2")
+
+    routed(OPUS_HIGH, capsys=capsys)
+    out = routed(SONNET_LOW, reset=True, capsys=capsys)  # /clear ou compactação: a cache ficou fria
+
+    assert out["decision"]["model"] == "sonnet"
+
+
+def test_route_v2_sessions_do_not_mix(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v2")
+
+    routed(OPUS_HIGH, session="s1", capsys=capsys)
+    out = routed(SONNET_LOW, session="s2", capsys=capsys)
+
+    assert out["decision"]["model"] == "sonnet"
+
+
+def test_route_v1_decides_each_prompt_on_its_own(capsys, monkeypatch):
+    monkeypatch.delenv("JEV_POLICY", raising=False)
+
+    routed(OPUS_HIGH, capsys=capsys)
+    out = routed(SONNET_LOW, capsys=capsys)
+
+    assert out["decision"]["model"] == "sonnet"
+
+
+def test_route_says_which_policy_decided(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v2")
+
+    assert routed(SONNET_LOW, capsys=capsys)["policy"] == "v2"

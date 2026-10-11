@@ -91,7 +91,7 @@ class FakeArms:
     def __init__(self, cost=0.10):
         self.cost, self.order = cost, []
 
-    def __call__(self, arm, task, workspace, *, max_usd, timeout_s, jev_home):
+    def __call__(self, arm, task, workspace, *, max_usd, timeout_s, jev_home, **kw):
         self.order.append((task["id"], arm))
         if arm == "jev":  # o mod regista a decisão do Jev no ledger da casa do braço JEV
             ledger.append(ledger.make_record(
@@ -101,13 +101,13 @@ class FakeArms:
         return {"status": "done", "cost_usd": self.cost, "wall_ms": 1000, "models": {"claude-x": self.cost}, "result": "ok"}
 
 
-def run(tmp_path, arms, **kw):
+def run(tmp_path, fake, **kw):
     seed = tmp_path / "seed"
     (seed / "fatura").mkdir(parents=True)
     (seed / "fatura" / "__init__.py").write_text("")
     return pilot_run.run_pilot(
         TASKS, pilot_id="p1", seed=seed, inject_root=tmp_path / "inject", acceptance_root=tmp_path / "acc",
-        home=tmp_path / "home", run_arm=arms, accept=lambda *a, **k: {"ok": True, "passed": 1, "failed": 0},
+        home=tmp_path / "home", run_arm=fake, accept=lambda *a, **k: {"ok": True, "passed": 1, "failed": 0},
         git=False, **kw)
 
 
@@ -304,3 +304,96 @@ def test_the_judge_gets_the_projects_spec(tmp_path):
         judge_spec={"projeto": "o interpretador calc", "criterios": {}})
 
     assert len(prompts) == 2 and all("o interpretador calc" in p for p in prompts)
+
+
+
+# --- v2 contra v1: braços com nome e uma sessão contínua por braço ----------------------------------
+
+def test_each_jev_version_runs_the_mod_with_its_policy(tmp_path):
+    for arm, policy in (("jev-v1", "v1"), ("jev-v2", "v2")):
+        assert "--plugin-dir" in pilot_run.arm_argv(arm, max_usd=1.0)
+        assert pilot_run.arm_env(arm, jev_home=tmp_path)["JEV_POLICY"] == policy
+    assert "--plugin-dir" not in pilot_run.arm_argv("standard", max_usd=1.0)
+    assert "JEV_POLICY" not in pilot_run.arm_env("standard", jev_home=tmp_path)
+
+
+def test_named_arms_alternate_who_goes_first(tmp_path):
+    arms = FakeArms()
+
+    run(tmp_path, arms, arms=("jev-v1", "jev-v2"))
+
+    assert arms.order == [("T1", "jev-v1"), ("T1", "jev-v2"), ("T2", "jev-v2"), ("T2", "jev-v1"),
+                          ("T3", "jev-v1"), ("T3", "jev-v2")]
+    [p] = pilot.read_all(home=tmp_path / "home")
+    assert p["meta"]["arms"] == ["jev-v1", "jev-v2"]
+
+
+def test_an_unknown_arm_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="braço"):
+        run(tmp_path, FakeArms(), arms=("standard", "jev-v9"))
+
+
+def test_the_resume_flag_continues_a_session():
+    argv = pilot_run.arm_argv("jev-v2", max_usd=1.0, resume="00b3744d")
+
+    assert argv[argv.index("--resume") + 1] == "00b3744d"
+
+
+class SessionArms:
+    """Fronteira externa falsa de uma sessão contínua: o total_cost_usd do claude -p é cumulativo."""
+
+    def __init__(self):
+        self.calls, self.total = [], {}
+
+    def __call__(self, arm, task, workspace, *, max_usd, timeout_s, jev_home, resume=None, prompt=None, **kw):
+        self.calls.append((arm, task["id"], resume, prompt))
+        self.total[arm] = self.total.get(arm, 0.0) + 0.10
+        return {"status": "done", "cost_usd": self.total[arm], "models": {"claude-x": self.total[arm]},
+                "result": "ok", "wall_ms": 1000, "session_id": f"sessao-{arm}",
+                "tokens": {"input": 1, "output": 2, "cache_read": 30, "cache_write_1h": 40}}
+
+
+def test_in_session_mode_each_arm_continues_one_session_with_a_follow_up(tmp_path):
+    arms = SessionArms()
+
+    run(tmp_path, arms, arms=("jev-v1", "jev-v2"), session=True)
+
+    v1 = [(task, resume, prompt) for arm, task, resume, prompt in arms.calls if arm == "jev-v1"]
+    assert [resume for _, resume, _ in v1] == [None] + ["sessao-jev-v1"] * 5  # 3 tarefas, cada uma com seguimento
+    assert [prompt for _, _, prompt in v1][1] == pilot_run.FOLLOW_UP
+    [p] = pilot.read_all(home=tmp_path / "home")
+    row = next(t for t in p["tasks"] if t["arm"] == "jev-v1" and t["task"] == "T3")
+    assert row["cost_usd"] == pytest.approx(0.20)  # as duas chamadas da tarefa, não o total cumulativo
+    assert row["models"] == {"claude-x": pytest.approx(0.20)}
+    assert row["wall_ms"] == 2000
+    assert row["tokens"] == {"input": 2, "output": 4, "cache_read": 60, "cache_write_1h": 80}
+    assert p["meta"]["session"] is True
+
+
+def test_a_text_task_gets_no_follow_up_because_its_answer_is_the_document(tmp_path):
+    arms = SessionArms()
+    seed = tmp_path / "seed"
+    seed.mkdir()
+    text = [{"id": "T1", "title": "Glossário", "kind": "text", "prompt": "escreve", "output_file": "docs/x.md"}]
+
+    pilot_run.run_pilot(text, pilot_id="p1", seed=seed, inject_root=tmp_path / "i", acceptance_root=tmp_path / "a",
+                        home=tmp_path / "home", run_arm=arms, git=False, arms=("jev-v1", "jev-v2"), session=True,
+                        accept=lambda *a, **k: {"ok": True, "passed": 1, "failed": 0})
+
+    assert [(arm, prompt) for arm, _, _, prompt in arms.calls] == [("jev-v1", None), ("jev-v2", None)]
+
+
+def test_the_judge_compares_the_two_named_arms(tmp_path):
+    prompts = []
+
+    def run_judge(prompt):
+        prompts.append(prompt)
+        winner = "A" if len(prompts) == 1 else "B"  # as duas passagens dão o mesmo braço
+        return {"status": "done", "cost_usd": 0.0, "result": "",
+                "structured": {"criteria": [{"id": "legibilidade", "winner": winner, "reason": "r"}]}}
+
+    run(tmp_path, FakeArms(), arms=("jev-v1", "jev-v2"), judge=True, run_judge=run_judge)
+
+    [p] = pilot.read_all(home=tmp_path / "home")
+    legibilidade = next(c for c in p["judge"]["criteria"] if c["id"] == "legibilidade")
+    assert legibilidade["result"] == "jev-v1"

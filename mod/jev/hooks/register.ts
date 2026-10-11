@@ -18,6 +18,7 @@ type Decision = {
 type Summary = { tasks: number; saved_usd: number; saved_pct: number }
 type Route = {
   decision: Decision
+  policy?: 'v1' | 'v2'
   model_id: string | null
   decide_ms: number
   free: { ok: boolean; text: string; model_id: string; duration_ms: number } | null
@@ -33,6 +34,12 @@ const agents = new Map<string, Routed>() // subagente -> decisão
 // A última troca do turno principal (o pedido e a resposta): o Jev decide o prompt seguinte com ela.
 // Sem ela, um seguimento como "sim, avança" parece conversa e ia para um free.
 let lastExchange: Exchange | undefined
+// Uma compactação reescreve a conversa: a cache do modelo fica fria e, na v2, o Jev volta a escolher à vontade.
+// (Um /clear não precisa disto: a sessão continua com outro id, e o núcleo guarda o modelo pelo id.)
+let resetPending = false
+// Na v2, o modelo e o esforço da sessão: um turno que não passou pelo Jev (uma notificação) também corre neles,
+// senão ia para o modelo por defeito e a cache reescrevia-se duas vezes (para lá e de volta)
+let sessionModel: { model: string; effort: Effort | null } | undefined
 const prompts = new Map<string, string>() // turno principal -> o pedido com que começou
 
 function history(): { role: 'user' | 'assistant'; content: string }[] {
@@ -77,12 +84,21 @@ export const register: Register = on => {
     if (!ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) return next(e)
 
     $.ui.status('JEV: a decidir…')
+    let session: string | undefined
+    try {
+      session = await $.session.id()
+    } catch {
+      session = undefined // sem id, o núcleo decide cada prompt por si (como na v1)
+    }
+    const reset = resetPending
+    resetPending = false
     const ran = await $.process.run([JEV, 'route', '--json'], {
-      stdin: JSON.stringify({ task, history: history() }),
+      stdin: JSON.stringify({ task, history: history(), session, reset }),
       timeoutMs: 120_000,
     })
     const route = readJson<Route>(ran.stdout)
     if (!route) {
+      sessionModel = undefined // a regra: qualquer falha cai no standard, também na v2
       $.ui.status('JEV: sem decisão, segue o standard')
       return next(e)
     }
@@ -104,6 +120,9 @@ export const register: Register = on => {
       }
       return { drop: `${route.free.text}\n\n— JEV: respondido por ${route.free.model_id} (free) · ${d.rationale}` }
     }
+    sessionModel = route.policy === 'v2' && !d.is_standard && route.model_id
+      ? { model: route.model_id, effort: d.effort }
+      : undefined
     pending = { task, route, waitMs: route.decide_ms + (route.free?.duration_ms ?? 0), scope: 'main' }
     $.ui.status(`JEV: ${label(d)}`)
     return next(e)
@@ -121,6 +140,10 @@ export const register: Register = on => {
   // Cada pedido do turno sai com o modelo e o esforço que o Jev escolheu (pela subscrição)
   on('turn.step', async function* ($, e, next) {
     const routed = e.agentId ? claimAgent(e) : turns.get(e.turnId)
+    if (!routed && !e.agentId && sessionModel) {
+      const effort = sessionModel.effort ? { effort: sessionModel.effort } : {}
+      return yield* next({ ...e, model: sessionModel.model, ...effort })
+    }
     const d = routed?.route.decision
     if (!routed || !d || d.is_standard || !routed.route.model_id) return yield* next(e)
     const effort = d.effort ? { effort: d.effort } : {}
@@ -152,6 +175,13 @@ export const register: Register = on => {
       }
     }
     return next(e)
+  })
+
+  on('session.compact', async ($, e, next) => {
+    const out = await next(e)
+    // `precompute` só prepara (a conversa não muda), e a de um subagente não toca na cache do turno principal
+    if (e.trigger !== 'precompute' && e.agentId === undefined && !('skip' in out)) resetPending = true
+    return out
   })
 
   // Subagentes: o Jev escolhe o modelo a partir da tarefa do agente (um subagente nunca vai para um free)

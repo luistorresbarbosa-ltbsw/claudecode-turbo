@@ -266,3 +266,28 @@ def test_pilot_without_juiz_json_keeps_the_default_judge(tmp_path, monkeypatch):
     assert cli.main(["pilot", "run", "--project", "demo", "--no-judge"]) == 0
 
     assert seen["judge_spec"] is None
+
+
+def test_pilot_runs_named_arms_each_in_one_session(tmp_path, monkeypatch):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--arms", "jev-v1,jev-v2", "--session", "--no-judge"]) == 0
+
+    assert seen["arms"] == ("jev-v1", "jev-v2") and seen["session"] is True
+    assert seen["pilot_id"].startswith("demo-sessao-v1-v2-")
+
+
+def test_pilot_defaults_to_standard_against_jev(tmp_path, monkeypatch):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--no-judge"]) == 0
+
+    assert seen["arms"] == ("standard", "jev") and seen["session"] is False
+
+
+def test_pilot_refuses_an_unknown_arm(tmp_path, monkeypatch, capsys):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--arms", "jev-v9,standard"]) == 2
+
+    assert "jev-v9" in capsys.readouterr().err and not seen

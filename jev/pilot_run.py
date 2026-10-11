@@ -24,6 +24,10 @@ MOD_DIR = REPO / "mod" / "jev"
 PILOT_ROOT = REPO / "pilot" / "fatura"
 REPO_PYTHON = REPO / ".venv" / "bin" / "python"
 ARMS = ("standard", "jev")
+# Os braços que o piloto conhece e o que cada um leva no ambiente: jev-v1 e jev-v2 são o mod com a política fixa
+KNOWN_ARMS = {"standard": {}, "jev": {}, "jev-v1": {"JEV_POLICY": "v1"}, "jev-v2": {"JEV_POLICY": "v2"}}
+# O seguimento de cada tarefa de código numa sessão contínua (igual em todos os braços)
+FOLLOW_UP = "Corre os testes e corrige o que falhar."
 SUBSCRIPTION_ONLY_STRIP = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")  # tudo pela subscrição
 HOOK_PREFIX = "Prompt dropped by a hook: "  # como o claude -p mostra uma resposta free do mod
 
@@ -32,12 +36,18 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def arm_argv(arm: str, *, max_usd: float) -> list[str]:
+def uses_mod(arm: str) -> bool:
+    return arm != "standard"
+
+
+def arm_argv(arm: str, *, max_usd: float, resume: str | None = None) -> list[str]:
     argv = ["claude", "-p", "--output-format", "json",
             "--permission-mode", "acceptEdits", "--permission-prompts", "none",
             "--allowed-tools", "Bash(uv run pytest:*)",
             "--max-budget-usd", str(max_usd)]
-    if arm == "jev":
+    if resume:  # continua a sessão do braço (o contexto e a cache vêm da tarefa anterior)
+        argv += ["--resume", resume]
+    if uses_mod(arm):
         argv += ["--plugin-dir", str(MOD_DIR)]
     return argv
 
@@ -61,6 +71,8 @@ def read_claude(stdout: str, *, returncode: int) -> dict:
         "models": {m: float(u.get("costUSD") or 0.0) for m, u in (data.get("modelUsage") or {}).items()},
         "result": data.get("result") or "",
         "structured": data.get("structured_output"),
+        "session_id": data.get("session_id"),
+        "tokens": pricing.tokens_from_claude_usage(data.get("usage") or {}),
         "error": None if status == "done" else f"{data.get('subtype')}: {data.get('terminal_reason')}",
     }
 
@@ -115,21 +127,23 @@ def partial_cost(workspace: Path, *, since: float, projects_dir: Path = CLAUDE_P
 def arm_env(arm: str, *, jev_home: Path, jev_env: dict | None = None) -> dict:
     """O ambiente de cada braço: o do braço JEV leva também as definições do Jev (ex.: JEV_POOL)."""
     extra = {"JEV_HOME": str(jev_home)}
-    if arm == "jev" and jev_env:
-        extra.update(jev_env)
+    if uses_mod(arm):
+        extra.update(jev_env or {})
+        extra.update(KNOWN_ARMS.get(arm, {}))
     return _env(**extra)
 
 
 def run_claude_arm(arm: str, task: dict, workspace: Path, *, max_usd: float, timeout_s: int, jev_home: Path,
-                   jev_env: dict | None = None) -> dict:
+                   jev_env: dict | None = None, resume: str | None = None, prompt: str | None = None) -> dict:
     started, started_at = time.monotonic(), time.time()
     try:
-        proc = subprocess.run(arm_argv(arm, max_usd=max_usd), input=task["prompt"], capture_output=True, text=True,
-                              cwd=workspace, env=arm_env(arm, jev_home=jev_home, jev_env=jev_env), timeout=timeout_s)
+        proc = subprocess.run(arm_argv(arm, max_usd=max_usd, resume=resume), input=prompt or task["prompt"],
+                              capture_output=True, text=True, cwd=workspace,
+                              env=arm_env(arm, jev_home=jev_home, jev_env=jev_env), timeout=timeout_s)
         out = read_claude(proc.stdout, returncode=proc.returncode)
     except subprocess.TimeoutExpired:
         out = {"status": "timeout", "cost_usd": partial_cost(workspace, since=started_at), "models": {}, "result": "",
-               "error": f"cortada aos {timeout_s} s (envelope de tempo)"}
+               "session_id": resume, "error": f"cortada aos {timeout_s} s (envelope de tempo)"}
     out["wall_ms"] = int((time.monotonic() - started) * 1000)
     return out
 
@@ -198,12 +212,17 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
               max_usd_task: float = 1.0, max_usd_total: float = 9.0, timeout_s: int = 900,
               judge: bool = False, run_judge=None, max_min_arm: float | None = None,
               log=lambda msg: None, jev_env: dict | None = None, variant: str | None = None,
-              claude_md: Path | None = None, judge_spec: dict | None = None) -> Path:
+              claude_md: Path | None = None, judge_spec: dict | None = None,
+              arms: tuple[str, ...] = ARMS, session: bool = False) -> Path:
+    unknown = [arm for arm in arms if arm not in KNOWN_ARMS]
+    if unknown or len(set(arms)) != len(arms) or not arms:
+        raise ValueError(f"braço desconhecido ou repetido: {', '.join(unknown) or ', '.join(arms)}")
     if run_arm is None:
         run_arm = functools.partial(run_claude_arm, jev_env=jev_env)
     run_dir = pilot.pilots_dir(home) / pilot_id
-    workspaces = {arm: run_dir / arm for arm in ARMS}
-    jev_home = run_dir / "jev-home"  # o ledger do mod no braço JEV, à parte do teu ledger do dia a dia
+    workspaces = {arm: run_dir / arm for arm in arms}
+    # o ledger do mod de cada braço, à parte do teu ledger do dia a dia e do do outro braço
+    jev_homes = {arm: run_dir / f"{arm}-home" for arm in arms}
     for workspace in workspaces.values():
         shutil.copytree(seed, workspace, dirs_exist_ok=True)
         if claude_md:  # as mesmas regras nos dois braços, já no ponto de partida
@@ -218,41 +237,62 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
     pilot.append({"v": 1, "type": "meta", "pilot": pilot_id, "started": _now(),
                   "tasks": [{"id": t["id"], "title": t["title"], "kind": t["kind"]} for t in tasks],
                   "max_usd_per_task": max_usd_task, "max_usd_total": max_usd_total, "max_min_arm": max_min_arm,
-                  "variant": variant, "claude_md": claude_md is not None,
+                  "variant": variant, "claude_md": claude_md is not None, "arms": list(arms), "session": session,
                   "workspaces": {arm: str(ws) for arm, ws in workspaces.items()}}, home=home)
 
     spent, stopped = 0.0, None
     try:
-        used_ms = {arm: 0 for arm in ARMS}  # o envelope de tempo é de cada braço
+        used_ms = {arm: 0 for arm in arms}  # o envelope de tempo é de cada braço
+        sessions: dict[str, dict] = {arm: {"id": None, "cost": 0.0, "models": {}} for arm in arms}
         for i, task in enumerate(tasks):
-            for arm in (ARMS if i % 2 == 0 else ARMS[::-1]):  # quem vai primeiro alterna
-                left_s = max_min_arm * 60 - used_ms[arm] / 1000 if max_min_arm else timeout_s
-                if stopped or left_s < 10:
+            for arm in (arms if i % 2 == 0 else arms[::-1]):  # quem vai primeiro alterna
+                if stopped or _left_s(max_min_arm, used_ms[arm], timeout_s) < 10:
                     pilot.append(_row(pilot_id, arm, task), home=home)
                     continue
                 workspace = workspaces[arm]
                 _inject(task, inject_root, workspace)
-                seen = len(ledger.read_all(home=jev_home))
-                r = run_arm(arm, task, workspace, max_usd=round(min(max_usd_task, max_usd_total - spent), 4),
-                            timeout_s=int(min(timeout_s, left_s)), jev_home=jev_home)
-                used_ms[arm] += r["wall_ms"]
-                info = _jev_info(ledger.read_all(home=jev_home)[seen:]) if arm == "jev" else None
-                cost = r["cost_usd"] + (info["decision_cost_usd"] if info else 0.0)
+                seen = len(ledger.read_all(home=jev_homes[arm]))
+                # numa sessão contínua, cada tarefa de código leva um seguimento, como numa sessão a sério
+                prompts = [None] + ([FOLLOW_UP] if session and task["kind"] == "code" else [])
+                calls = []
+                for prompt in prompts:
+                    left_s = _left_s(max_min_arm, used_ms[arm], timeout_s)
+                    if calls and left_s < 10:
+                        break
+                    allowed = round(min(max_usd_task - sum(c["cost_usd"] for c in calls), max_usd_total - spent), 4)
+                    kw = {"max_usd": allowed, "timeout_s": int(min(timeout_s, left_s)), "jev_home": jev_homes[arm]}
+                    if session:  # o --max-budget-usd conta a sessão toda: o teto é o que já gastou mais esta chamada
+                        kw.update(resume=sessions[arm]["id"], prompt=prompt,
+                                  max_usd=round(sessions[arm]["cost"] + allowed, 4))
+                    r = run_arm(arm, task, workspace, **kw)
+                    if session:
+                        r = _per_call(r, sessions[arm])
+                    used_ms[arm] += r["wall_ms"]
+                    calls.append(r)
+                    if r["status"] != "done":
+                        break
+                info = _jev_info(ledger.read_all(home=jev_homes[arm])[seen:]) if uses_mod(arm) else None
+                cost = sum(c["cost_usd"] for c in calls) + (info["decision_cost_usd"] if info else 0.0)
                 spent += cost
-                if task["kind"] == "text" and r.get("result"):
-                    save_text_answer(workspace, task["output_file"], r["result"])
+                main = calls[0]
+                if task["kind"] == "text" and main.get("result"):
+                    save_text_answer(workspace, task["output_file"], main["result"])
                 acceptance = accept(Path(acceptance_root) / f"test_{task['id'].lower()}.py", workspace)
                 if git:
                     _git(workspace, "add", "-A")
                     _git(workspace, "commit", "-q", "-m", f"após {task['id']}")
-                pilot.append(_row(pilot_id, arm, task, status=r["status"], cost_usd=round(cost, 9), wall_ms=r["wall_ms"],
-                                  models=r["models"], jev=info, acceptance=acceptance, error=r.get("error")), home=home)
+                failed = next((c for c in calls if c["status"] != "done"), None)
+                pilot.append(_row(pilot_id, arm, task, status=(failed or main)["status"], cost_usd=round(cost, 9),
+                                  wall_ms=sum(c["wall_ms"] for c in calls), models=_summed(c["models"] for c in calls),
+                                  tokens=_summed(c.get("tokens") or {} for c in calls), calls=len(calls),
+                                  jev=info, acceptance=acceptance, error=(failed or {}).get("error")), home=home)
                 chosen = ", ".join(f"{d['model']}·{d['effort']}" for d in (info or {}).get("decisions", [])) or "-"
-                log(f"{task['id']} {arm:<8} {r['status']:<7} ${cost:.4f} {r['wall_ms'] / 1000:6.1f}s "
+                log(f"{task['id']} {arm:<8} {(failed or main)['status']:<7} ${cost:.4f} "
+                    f"{sum(c['wall_ms'] for c in calls) / 1000:6.1f}s "
                     f"aceitação={'ok' if acceptance['ok'] else 'falhou'} jev={chosen}")
                 if spent >= max_usd_total:
                     stopped = "orçamento total"
-        if judge:
+        if judge and len(arms) == 2:
             log("juiz: Opus pela subscrição, às cegas, 2 passagens…")
             verdict = judge_pilot(pilot_id, workspaces, home=home, run_judge=run_judge or run_claude_judge,
                                   spec=judge_spec)
@@ -263,6 +303,30 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
     finally:
         pilot.append({"v": 1, "type": "end", "pilot": pilot_id, "finished": _now(), "stopped": stopped}, home=home)
     return run_dir
+
+
+def _left_s(max_min_arm: float | None, used_ms: int, timeout_s: int) -> float:
+    return max_min_arm * 60 - used_ms / 1000 if max_min_arm else timeout_s
+
+
+def _per_call(r: dict, sess: dict) -> dict:
+    """Numa sessão retomada, o claude -p dá o custo cumulativo da sessão: fica só o desta chamada."""
+    models = {m: c - sess["models"].get(m, 0.0) for m, c in r["models"].items()}
+    out = {**r, "cost_usd": max(0.0, r["cost_usd"] - sess["cost"]),
+           "models": {m: c for m, c in models.items() if c > 1e-12}}
+    if r.get("session_id"):
+        sess["id"] = r["session_id"]
+    sess["cost"] = max(sess["cost"], r["cost_usd"])
+    sess["models"] = {**sess["models"], **r["models"]}
+    return out
+
+
+def _summed(dicts) -> dict:
+    total: dict = {}
+    for d in dicts:
+        for k, v in d.items():
+            total[k] = total.get(k, 0) + v
+    return total
 
 
 # --- juiz: Opus pela subscrição, às cegas, duas passagens com a ordem trocada -------------------
@@ -356,7 +420,8 @@ def judge_pilot(pilot_id: str, workspaces: dict, *, home: Path | None = None, ru
     criteria = "\n".join(f"- {c['id']}: {claims[c['id']]}" for c in CRITERIA)
     project = spec.get("projeto") or DEFAULT_PROJECT
     by_order, cost, passes = {}, 0.0, []
-    for order in (ARMS, ARMS[::-1]):
+    pair = tuple(workspaces)
+    for order in (pair, pair[::-1]):
         r = run_judge(JUDGE_PROMPT.format(projeto=project, criteria=criteria,
                                           material=judge_material(workspaces, order=order)))
         cost += r.get("cost_usd") or 0.0
