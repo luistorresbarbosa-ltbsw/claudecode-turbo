@@ -2,6 +2,7 @@
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -169,10 +170,10 @@ def test_each_arm_stops_when_its_time_envelope_runs_out(tmp_path):
 
 # --- custo de uma tarefa cortada a meio --------------------------------------
 
-def _transcript(folder, cwd, lines):
+def _transcript(folder, cwd, lines, name="s1"):
     folder.mkdir(parents=True, exist_ok=True)
     rows = [{"type": "user", "cwd": str(cwd), "message": {"role": "user", "content": "x"}}, *lines]
-    (folder / "s1.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    (folder / f"{name}.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
 
 
 def test_a_killed_run_is_priced_from_its_transcript_counting_each_message_once(tmp_path):
@@ -397,3 +398,61 @@ def test_the_judge_compares_the_two_named_arms(tmp_path):
     [p] = pilot.read_all(home=tmp_path / "home")
     legibilidade = next(c for c in p["judge"]["criteria"] if c["id"] == "legibilidade")
     assert legibilidade["result"] == "jev-v1"
+
+
+# --- sessão contínua: o teto e o custo de uma chamada cortada são só dessa chamada ---------------------
+
+def test_in_session_mode_the_budget_cap_is_per_call(tmp_path):
+    # O --max-budget-usd conta só a chamada atual, também com --resume (o total_cost_usd é que é cumulativo)
+    arms = SessionArms()
+    caps = []
+    original = arms.__call__
+
+    def capturing(arm, task, workspace, **kw):
+        caps.append(kw["max_usd"])
+        return original(arm, task, workspace, **kw)
+
+    run(tmp_path, capturing, arms=("jev-v1", "jev-v2"), session=True, max_usd_task=1.5, max_usd_total=9.0)
+
+    assert max(caps) <= 1.5
+
+
+def test_partial_cost_of_a_resumed_session_counts_only_this_call(tmp_path):
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    usage = {"input_tokens": 2, "output_tokens": 4, "cache_read_input_tokens": 10738,
+             "cache_creation_input_tokens": 14262,
+             "cache_creation": {"ephemeral_1h_input_tokens": 14262, "ephemeral_5m_input_tokens": 0}}
+
+    def msg(i, ts):
+        return {"type": "assistant", "cwd": str(workspace), "timestamp": ts,
+                "message": {"id": f"msg_{i}", "model": "claude-sonnet-5-5", "usage": usage}}
+
+    _transcript(tmp_path / "projects" / "x", workspace, [
+        msg(1, "2026-10-11T20:00:00Z"),  # de uma tarefa anterior
+        {"type": "cost-state", "totalCostUSD": 5.0},  # o total cumulativo da sessão: não serve aqui
+        msg(2, "2026-10-11T21:00:00Z"), msg(2, "2026-10-11T21:00:00Z"),  # desta chamada, em 2 linhas
+    ], name="sessao-1")
+    since = datetime(2026, 10, 11, 20, 30, tzinfo=timezone.utc).timestamp()
+
+    cost = pilot_run.partial_cost(workspace, since=since, projects_dir=tmp_path / "projects", session="sessao-1")
+
+    assert cost == pytest.approx(0.0592396)  # só a mensagem desta chamada, uma vez
+
+
+def test_a_call_cut_in_session_mode_costs_only_its_own_messages(tmp_path):
+    class CutArms(SessionArms):
+        def __call__(self, arm, task, workspace, *, resume=None, prompt=None, **kw):
+            if task["id"] == "T2" and prompt is None:  # o pedido da T2 é cortado pelo envelope
+                self.calls.append((arm, task["id"], resume, prompt))
+                return {"status": "timeout", "cost_usd": 0.07, "models": {}, "result": "", "wall_ms": 1000,
+                        "session_id": resume, "error": "cortada"}
+            return super().__call__(arm, task, workspace, resume=resume, prompt=prompt, **kw)
+
+    run(tmp_path, CutArms(), arms=("jev-v1", "jev-v2"), session=True)
+
+    [p] = pilot.read_all(home=tmp_path / "home")
+    rows = {t["task"]: t for t in p["tasks"] if t["arm"] == "jev-v1"}
+    assert rows["T2"]["cost_usd"] == pytest.approx(0.07) and rows["T2"]["status"] == "timeout"
+    # a chamada morta não grava o total: a seguinte continua do total de antes dela
+    assert rows["T3"]["cost_usd"] == pytest.approx(0.20)

@@ -86,14 +86,18 @@ def _env(**extra: str) -> dict:
 CLAUDE_PROJECTS = Path.home() / ".claude" / "projects"
 
 
-def partial_cost(workspace: Path, *, since: float, projects_dir: Path = CLAUDE_PROJECTS) -> float:
+def partial_cost(workspace: Path, *, since: float, projects_dir: Path = CLAUDE_PROJECTS,
+                 session: str | None = None) -> float:
     """O custo de uma sessão cortada a meio, lido da transcrição que o Claude Code grava em disco.
 
     Usa a linha `cost-state` (o total exato) quando existe; senão soma o `usage` das mensagens, uma vez
-    por `message.id` (o Claude Code escreve uma linha por bloco da mesma mensagem).
+    por `message.id` (o Claude Code escreve uma linha por bloco da mesma mensagem). Numa sessão retomada
+    (`session`), o `cost-state` é o total da sessão toda: conta só as mensagens desde `since`.
     """
     if not Path(projects_dir).is_dir():
         return 0.0
+    if session:
+        return _messages_cost(_session_files(Path(projects_dir), session), since=since)
     cwd = str(Path(workspace))
     total = 0.0
     for path in Path(projects_dir).glob("*/*.jsonl"):
@@ -124,6 +128,36 @@ def partial_cost(workspace: Path, *, since: float, projects_dir: Path = CLAUDE_P
     return total
 
 
+def _session_files(projects_dir: Path, session: str) -> list[Path]:
+    """A transcrição da sessão e as dos subagentes dela."""
+    return [*projects_dir.glob(f"*/{session}.jsonl"), *projects_dir.glob(f"*/{session}/subagents/*.jsonl")]
+
+
+def _messages_cost(paths, *, since: float) -> float:
+    priced, total = set(), 0.0
+    for path in paths:
+        for raw in Path(path).read_bytes().splitlines():
+            try:
+                r = json.loads(raw.decode("utf-8", errors="replace"))
+            except json.JSONDecodeError:
+                continue
+            message = r.get("message") if isinstance(r, dict) and isinstance(r.get("message"), dict) else {}
+            if r.get("type") != "assistant" or not message.get("usage") or message.get("id") in priced:
+                continue
+            try:
+                when = datetime.fromisoformat(str(r.get("timestamp")).replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                continue
+            if when < since:
+                continue
+            priced.add(message.get("id"))
+            try:
+                total += pricing.cost_of(message.get("model") or "", pricing.tokens_from_claude_usage(message["usage"]))
+            except KeyError:
+                continue  # modelo sem preço conhecido: não inventamos
+    return total
+
+
 def arm_env(arm: str, *, jev_home: Path, jev_env: dict | None = None) -> dict:
     """O ambiente de cada braço: o do braço JEV leva também as definições do Jev (ex.: JEV_POOL)."""
     extra = {"JEV_HOME": str(jev_home)}
@@ -142,7 +176,8 @@ def run_claude_arm(arm: str, task: dict, workspace: Path, *, max_usd: float, tim
                               env=arm_env(arm, jev_home=jev_home, jev_env=jev_env), timeout=timeout_s)
         out = read_claude(proc.stdout, returncode=proc.returncode)
     except subprocess.TimeoutExpired:
-        out = {"status": "timeout", "cost_usd": partial_cost(workspace, since=started_at), "models": {}, "result": "",
+        out = {"status": "timeout", "cost_usd": partial_cost(workspace, since=started_at, session=resume),
+               "models": {}, "result": "",
                "session_id": resume, "error": f"cortada aos {timeout_s} s (envelope de tempo)"}
     out["wall_ms"] = int((time.monotonic() - started) * 1000)
     return out
@@ -261,9 +296,8 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
                         break
                     allowed = round(min(max_usd_task - sum(c["cost_usd"] for c in calls), max_usd_total - spent), 4)
                     kw = {"max_usd": allowed, "timeout_s": int(min(timeout_s, left_s)), "jev_home": jev_homes[arm]}
-                    if session:  # o --max-budget-usd conta a sessão toda: o teto é o que já gastou mais esta chamada
-                        kw.update(resume=sessions[arm]["id"], prompt=prompt,
-                                  max_usd=round(sessions[arm]["cost"] + allowed, 4))
+                    if session:  # o --max-budget-usd conta só esta chamada, também com --resume
+                        kw.update(resume=sessions[arm]["id"], prompt=prompt)
                     r = run_arm(arm, task, workspace, **kw)
                     if session:
                         r = _per_call(r, sessions[arm])
@@ -310,7 +344,12 @@ def _left_s(max_min_arm: float | None, used_ms: int, timeout_s: int) -> float:
 
 
 def _per_call(r: dict, sess: dict) -> dict:
-    """Numa sessão retomada, o claude -p dá o custo cumulativo da sessão: fica só o desta chamada."""
+    """Numa sessão retomada, o claude -p dá o custo cumulativo da sessão: fica só o desta chamada.
+
+    Uma chamada cortada já vem com o custo dela (lido da transcrição), e não entra no total da sessão:
+    morta, não grava o total, e a seguinte continua do total de antes dela."""
+    if r["status"] == "timeout":
+        return r
     models = {m: c - sess["models"].get(m, 0.0) for m, c in r["models"].items()}
     out = {**r, "cost_usd": max(0.0, r["cost_usd"] - sess["cost"]),
            "models": {m: c for m, c in models.items() if c > 1e-12}}
