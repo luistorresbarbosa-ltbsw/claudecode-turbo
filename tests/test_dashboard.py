@@ -143,6 +143,7 @@ def test_api_returns_every_record_untouched_plus_the_summary(server, jev_home):
         "jev_usd": pytest.approx(0.45),
         "saved_usd": pytest.approx(-0.15),
         "saved_pct": pytest.approx(-50.0),
+        "speed": {"jev_median_ms": 100, "standard_median_ms": None, "standard_measured": 0},
     }
 
 
@@ -167,7 +168,7 @@ def test_missing_ledger_gives_no_records_and_a_zero_summary(server, jev_home):
     assert reply.json() == {
         "records": [],
         "summary": {"tasks": 0, "failed": 0, "standard_usd": 0.0, "jev_usd": 0.0,
-                    "saved_usd": 0.0, "saved_pct": 0.0},
+                    "saved_usd": 0.0, "saved_pct": 0.0, "speed": {"jev_median_ms": None, "standard_median_ms": None, "standard_measured": 0}},
     }
 
 

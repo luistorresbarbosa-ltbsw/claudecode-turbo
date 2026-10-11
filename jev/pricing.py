@@ -9,8 +9,6 @@ As correções foram confirmadas contra o `total_cost_usd` que o próprio Claude
 """
 from __future__ import annotations
 
-import litellm
-
 ALIASES = {
     "haiku": "claude-haiku-4-5",
     "sonnet": "claude-sonnet-5-5",
@@ -31,6 +29,8 @@ TOKEN_KINDS = ("input", "output", "cache_read", "cache_write_5m", "cache_write_1
 
 
 def _per_token(model: str) -> dict[str, float]:
+    import litellm  # aqui e não no topo: importá-lo custa ~1 s, e decidir um prompt não precisa de preços
+
     model_id = ALIASES.get(model, model)
     info = litellm.model_cost[model_id]  # KeyError de propósito: modelo desconhecido não é grátis
     price = {

@@ -1,107 +1,152 @@
-"""Router: decide com um modelo free; qualquer falha cai para o standard Anthropic."""
-import functools
+"""Router: o Jev (typesafe/jev-router) decide o modelo e o esforço; qualquer falha cai para o standard."""
+import copy
 import json
+import urllib.error
+from pathlib import Path
 
-import litellm
 import pytest
 
 from jev import router
 
-NEMOTRON_ULTRA = "nvidia/nemotron-3-ultra-550b-a55b:free"
+FIX = Path(__file__).parent / "fixtures"
 
 
-def answering(payload):
-    """Fronteira externa falsa: um litellm.completion real que devolve `payload` sem rede."""
-    content = payload if isinstance(payload, str) else json.dumps(payload)
-    return functools.partial(litellm.completion, mock_response=content)
+def _fixture(name):
+    return json.loads((FIX / f"{name}.json").read_text())
+
+
+def answering(data):
+    """Fronteira externa falsa: o JSON real que o OpenRouter devolveu (fixture)."""
+    def post(body, headers):
+        return copy.deepcopy(data)
+    return post
+
+
+def jev_reply(name, **top_choice):
+    """A resposta real `name`, com a escolha de topo do Jev opcionalmente alterada."""
+    data = _fixture(name)
+    if top_choice:
+        jev = next(p for p in data["openrouter_metadata"]["pipeline"] if p["name"] == "jev-router")
+        jev["data"]["selection_probabilities"][0].update(top_choice)
+    return answering(data)
 
 
 def failing(exc):
-    def complete(**kwargs):
+    def post(body, headers):
         raise exc
-    return complete
+    return post
 
 
-def test_free_runner_decision_is_taken_as_is():
-    d = router.decide("o que é um monad?", complete=answering(
-        {"runner": "openrouter-free", "model": NEMOTRON_ULTRA, "effort": None,
-         "rationale": "pergunta conceptual, não toca no repo", "est_output_tokens": 400}))
+def test_simple_question_takes_jevs_top_choice():
+    d = router.decide("explica em duas frases o que é uma closure", post=jev_reply("jev_decision_simple"))
 
-    assert (d.runner, d.model, d.effort, d.is_standard, d.router_error) == (
-        "openrouter-free", NEMOTRON_ULTRA, None, False, None)
-    assert d.est_output_tokens == 400
+    assert (d.runner, d.model, d.effort, d.is_standard, d.router_error) == ("anthropic", "sonnet", "high", False, None)
+    assert d.router_cost_usd == pytest.approx(5.4e-05)
+    assert "qa_knowledge" in d.rationale
 
 
-def test_anthropic_decision_keeps_model_and_effort():
-    d = router.decide("corrige o typo no README", complete=answering(
-        {"runner": "anthropic", "model": "haiku", "effort": "low",
-         "rationale": "edição trivial", "est_output_tokens": 120}))
+def test_hard_task_runs_the_model_jev_decided_not_the_executor_it_paired():
+    # A decisão real foi Opus·medium (probabilidade 1), servida como par Sonnet·low + Opus conselheiro.
+    # O claude -p não faz pares, por isso corre o modelo decidido.
+    d = router.decide("x", post=jev_reply("jev_decision_hard"))
 
-    assert (d.runner, d.model, d.effort, d.is_standard) == ("anthropic", "haiku", "low", False)
+    assert (d.model, d.effort) == ("opus", "medium")
+    assert d.router_cost_usd == pytest.approx(0.0018305)
 
 
-def test_router_calls_the_free_model_with_the_task_and_a_json_schema():
+def test_jev_is_only_asked_to_decide_within_the_allowed_models():
     seen = {}
 
-    def spy(**kwargs):
-        seen.update(kwargs)
-        return answering({"runner": "anthropic", "model": "haiku", "effort": "low",
-                          "rationale": "r", "est_output_tokens": 1})(**kwargs)
+    def spy(body, headers):
+        seen.update(body=body, headers=headers)
+        return jev_reply("jev_decision_simple")(body, headers)
 
-    router.decide("renomeia a função foo", complete=spy)
+    router.decide("renomeia a função foo", post=spy)
 
-    assert seen["model"] == "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
-    assert seen["model"].endswith(":free")
-    assert "renomeia a função foo" in seen["messages"][-1]["content"]
-    assert seen["response_format"]["type"] == "json_schema"
+    body = seen["body"]
+    assert body["model"] == "typesafe/jev-router"
+    assert body["max_tokens"] == 1  # o Jev executa sempre; só a decisão é paga lá, o resto corre pela subscrição
+    plugin = body["plugins"][0]
+    assert plugin["id"] == "jev-router"
+    # o pool do Jev: Anthropic + os baratos que fazem de "free" (os free não estão no pool do Jev)
+    assert set(plugin["allowed_models"]) == {
+        "anthropic/claude-haiku-4.5", "anthropic/claude-sonnet-5.5",
+        "anthropic/claude-opus-5.5", "anthropic/claude-fable-5.1",
+        "openai/gpt-6-luna*", "google/gemini-*flash*", "deepseek/*flash*",
+    }
+    assert seen["headers"]["X-OpenRouter-Metadata"] == "enabled"
+    assert "renomeia a função foo" in body["messages"][-1]["content"]
 
 
-def test_rate_limit_on_the_free_model_falls_back_to_standard():
-    exc = litellm.RateLimitError(message="429", llm_provider="openrouter", model="nemotron")
+def test_a_top_choice_outside_the_allowed_list_falls_back_to_standard():
+    d = router.decide("x", post=jev_reply("jev_decision_simple", model="openai/gpt-6.1-sol-20260929"))
 
-    d = router.decide("qualquer coisa", complete=failing(exc))
+    assert d.is_standard and d.router_error
+
+
+def test_jev_saying_cheap_on_a_text_task_runs_it_on_a_free_model():
+    # Resposta real (só com `candidates`): qa_knowledge -> google/gemini-3.8-flash. Barato = free.
+    d = router.decide("explica em duas frases o que é uma closure", post=jev_reply("jev_cheap_text"))
+
+    assert (d.runner, d.model, d.is_standard) == ("openrouter-free", "nvidia/nemotron-3-ultra-550b-a55b:free", False)
+
+
+def test_jev_saying_cheap_on_a_file_task_runs_it_on_haiku():
+    # Resposta real: code:file_read_write -> gpt-6-luna·low. Um free não tem ferramentas para mexer em
+    # ficheiros, por isso vai para a Anthropic mais barata, com o esforço do Jev.
+    d = router.decide("corrige o typo 'recieve' no README.md", post=jev_reply("jev_cheap_file_task"))
+
+    assert (d.runner, d.model, d.effort) == ("anthropic", "haiku", "low")
+    assert d.router_cost_usd == pytest.approx(9.7e-06)
+
+
+def test_jev_choosing_anthropic_from_its_candidates_list():
+    # Resposta real sem `selection_probabilities` (um só candidato): a decisão vem em `candidates`.
+    d = router.decide("x", post=jev_reply("jev_anthropic_hard"))
+
+    assert (d.runner, d.model, d.effort, d.is_standard) == ("anthropic", "opus", "medium", False)
+
+
+@pytest.mark.parametrize("jev_effort, want", [("minimal", "low"), ("low", "low"), ("xhigh", "xhigh"), ("max", "max")])
+def test_jev_effort_maps_onto_claude_code_levels(jev_effort, want):
+    assert router.decide("x", post=jev_reply("jev_decision_simple", effort=jev_effort)).effort == want
+
+
+def test_an_unknown_effort_falls_back_to_standard():
+    assert router.decide("x", post=jev_reply("jev_decision_simple", effort="turbo")).is_standard
+
+
+@pytest.mark.parametrize("exc", [
+    urllib.error.HTTPError("https://openrouter.ai", 429, "Too Many Requests", None, None),
+    urllib.error.HTTPError("https://openrouter.ai", 404, "No model left", None, None),
+    TimeoutError("o Jev não respondeu a tempo"),
+])
+def test_jev_failures_fall_back_to_standard(exc):
+    d = router.decide("x", post=failing(exc))
 
     assert d.is_standard
     assert (d.runner, d.model, d.effort) == ("anthropic", "opus", "xhigh")
-    assert "RateLimitError" in d.router_error
+    assert type(exc).__name__ in d.router_error
 
 
-def test_garbage_reply_falls_back_to_standard():
-    d = router.decide("qualquer coisa", complete=answering("não sei, talvez o sonnet?"))
+def test_a_reply_without_jevs_decision_falls_back_to_standard():
+    d = router.decide("x", post=answering({"model": "openai/gpt-6-luna", "usage": {"cost": 1e-06},
+                                            "choices": [{"message": {"content": "ok"}}]}))
 
-    assert d.is_standard
-    assert d.router_error
-
-
-@pytest.mark.parametrize("bad", [
-    # um modelo Anthropic via OpenRouter: proibido, os Anthropic vêm da subscrição
-    {"runner": "openrouter-free", "model": "haiku", "effort": None},
-    {"runner": "anthropic", "model": NEMOTRON_ULTRA, "effort": "low"},
-    {"runner": "anthropic", "model": "sonnet", "effort": None},
-    {"runner": "anthropic", "model": "sonnet", "effort": "ultra"},
-    {"runner": "openrouter-free", "model": "some/unrated-model:free", "effort": None},
-    {"runner": "anthropic", "model": "gpt-5", "effort": "low"},
-])
-def test_inconsistent_decisions_fall_back_to_standard(bad):
-    d = router.decide("x", complete=answering({**bad, "rationale": "r", "est_output_tokens": 10}))
-
-    assert d.is_standard
-    assert d.router_error
+    assert d.is_standard and d.router_error
 
 
 def test_standard_follows_the_env_overrides(monkeypatch):
     monkeypatch.setenv("JEV_STANDARD_MODEL", "sonnet")
     monkeypatch.setenv("JEV_STANDARD_EFFORT", "high")
 
-    d = router.decide("x", complete=answering("lixo"))
+    d = router.decide("x", post=failing(RuntimeError("rede")))
 
     assert (d.model, d.effort) == ("sonnet", "high")
 
 
 def test_decision_serialises_for_the_ledger():
-    d = router.decide("x", complete=answering("lixo"))
+    rec = router.decide("x", post=jev_reply("jev_decision_simple")).to_ledger()
 
-    rec = d.to_ledger()
-
-    assert rec["runner"] == "anthropic" and rec["router_error"] and rec["router_cost_usd"] == 0.0
+    assert rec["router_model"] == "typesafe/jev-router" and rec["router_cost_usd"] > 0
     assert json.loads(json.dumps(rec)) == rec

@@ -177,12 +177,32 @@ def test_ledger_command_prints_the_totals(capsys):
 def test_json_stdout_stays_parseable_even_when_litellm_runs(capsys):
     # o mod lê o stdout inteiro como JSON, e o litellm gosta de imprimir avisos no stdout
     import functools
-    import litellm
     from jev import router
-    reply = json.dumps({"runner": "anthropic", "model": "haiku", "effort": "low", "rationale": "r",
-                        "est_output_tokens": 10})
-    decide = functools.partial(router.decide, complete=functools.partial(litellm.completion, mock_response=reply))
+    from tests.test_router import jev_reply
+    decide = functools.partial(router.decide, post=jev_reply("jev_decision_simple"))
 
     cli.main(["run", "--dry", "--json", "x"], decide=decide, execute=FakeExecute(), stdin=io.StringIO())
 
-    assert json.loads(capsys.readouterr().out)["decision"]["model"] == "haiku"
+    assert json.loads(capsys.readouterr().out)["decision"]["model"] == "sonnet"
+
+
+def test_jevs_decision_cost_is_part_of_the_jev_path():
+    paid = Decision(runner="anthropic", model="haiku", effort="low", rationale="r", router_cost_usd=0.002)
+
+    run(["run", "x"], decision=paid, execute=FakeExecute(
+        Outcome(final=result("claude-haiku-4-5-20251001", 0.0227163, tokens=HAIKU_TOKENS))))
+
+    rec = last_record()
+    assert rec["jev"]["cost_usd"] == pytest.approx(0.0247163)
+    assert rec["savings_usd"] == pytest.approx(0.0881046 - 0.0247163)
+
+
+def test_dry_run_estimate_includes_jevs_decision_cost(capsys):
+    paid = Decision(runner="anthropic", model="haiku", effort="low", rationale="r", est_output_tokens=200,
+                    router_cost_usd=0.002)
+
+    run(["run", "--dry", "--json", "x"], decision=paid)
+
+    est = json.loads(capsys.readouterr().out)["estimate"]
+    # 200×$5 + 13803×$0.10 + 9683×$2 (Haiku, por milhão) = 0.0217463, mais a decisão do Jev
+    assert est["jev_usd"] == pytest.approx(0.0217463 + 0.002)

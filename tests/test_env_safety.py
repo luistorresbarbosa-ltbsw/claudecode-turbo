@@ -32,3 +32,11 @@ def test_child_claude_never_receives_an_anthropic_api_key(monkeypatch):
 
     child_env = run.calls[0]["env"]
     assert "ANTHROPIC_API_KEY" not in child_env and "ANTHROPIC_AUTH_TOKEN" not in child_env
+
+
+def test_routing_a_prompt_does_not_pay_for_importing_litellm():
+    # A decisão está no caminho de cada prompt; importar o litellm custa ~1 s. Só o pagam os preços e os free.
+    out = subprocess.run([sys.executable, "-c", "import sys, jev.cli; print('litellm' in sys.modules)"],
+                         capture_output=True, text=True, check=True)
+
+    assert out.stdout.strip() == "False"

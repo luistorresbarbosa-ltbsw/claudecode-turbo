@@ -15,9 +15,6 @@ import subprocess
 import time
 from dataclasses import dataclass
 
-import litellm
-
-litellm.suppress_debug_info = True  # senão imprime avisos no stdout, que o mod lê como JSON
 from jev import pricing, router
 
 READ_ONLY_TOOLS = ("Read", "Grep", "Glob")
@@ -123,7 +120,14 @@ def run_claude(task: str, decision: router.Decision, *, edits: bool, max_usd: fl
     )
 
 
-def run_free(task: str, decision: router.Decision, *, complete=litellm.completion) -> RunResult:
+def _litellm_completion(**kwargs):
+    import litellm  # aqui e não no topo: importá-lo custa ~1 s, e só os free precisam dele
+
+    litellm.suppress_debug_info = True  # senão imprime avisos no stdout, que o mod lê como JSON
+    return litellm.completion(**kwargs)
+
+
+def run_free(task: str, decision: router.Decision, *, complete=_litellm_completion) -> RunResult:
     started = time.monotonic()
 
     def result(ok: bool, text: str = "", tokens: dict | None = None, error: str | None = None) -> RunResult:

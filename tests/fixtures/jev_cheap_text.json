@@ -1,0 +1,450 @@
+{
+ "id": "gen-1791715474-PXnCcKZpFzVjITtn9tnc",
+ "created": 1791715474,
+ "model": "google/gemini-3.8-flash",
+ "object": "chat.completion",
+ "system_fingerprint": null,
+ "choices": [
+  {
+   "finish_reason": "length",
+   "index": 0,
+   "message": {
+    "content": null,
+    "role": "assistant",
+    "tool_calls": null,
+    "function_call": null,
+    "provider_specific_fields": {
+     "reasoning": null,
+     "refusal": null
+    }
+   },
+   "provider_specific_fields": {
+    "native_finish_reason": "MAX_TOKENS"
+   }
+  }
+ ],
+ "usage": {
+  "completion_tokens": 0,
+  "prompt_tokens": 0,
+  "total_tokens": 0,
+  "completion_tokens_details": null,
+  "prompt_tokens_details": null
+ },
+ "provider": "Google",
+ "service_tier": null,
+ "openrouter_metadata": {
+  "requested": "typesafe/jev-router",
+  "strategy": "direct",
+  "region": "LIS",
+  "summary": "available=12, selected=Google",
+  "attempt": 1,
+  "is_byok": false,
+  "endpoints": {
+   "total": 20,
+   "available": [
+    {
+     "provider": "Google",
+     "model": "google/gemini-3.8-flash-20260902",
+     "selected": true
+    },
+    {
+     "provider": "Google AI Studio",
+     "model": "google/gemini-3.8-flash-20260902",
+     "selected": false
+    },
+    {
+     "provider": "Google",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Anthropic",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Azure",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Claude Platform on AWS",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Amazon Bedrock",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Azure",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Google",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Anthropic",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Claude Platform on AWS",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Amazon Bedrock",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    }
+   ]
+  },
+  "generation_time": 838,
+  "pipeline": [
+   {
+    "type": "plugin",
+    "name": "jev-router",
+    "summary": "Selected a model and effort with the decision policy",
+    "data": {
+     "version": "jev-effort-max-20261010",
+     "answers": {
+      "task": {
+       "type": "choice",
+       "choice": "qa_knowledge",
+       "confidence": 1,
+       "probabilities": {
+        "code:general_impl": 0,
+        "code:debugging": 0,
+        "code:review_security": 0,
+        "code:sql_database": 0,
+        "code:frontend_ui": 0,
+        "code:devops_config": 0,
+        "code:shell_execution": 0,
+        "code:file_read_write": 0,
+        "code:repo_scan": 0,
+        "agent:multi_step_planning": 0,
+        "agent:web_search": 0,
+        "agent:workflow_execution": 0,
+        "agent:tool_dispatch": 0,
+        "agent:memory_extraction": 0,
+        "classification_tagging": 0,
+        "data:extraction": 0,
+        "data:transformation": 0,
+        "devops": 0,
+        "summarization": 0,
+        "translation": 0,
+        "content_writing": 0,
+        "research_report": 0,
+        "qa_knowledge": 1,
+        "conversational_reply": 0,
+        "customer_support": 0,
+        "finance_trading": 0,
+        "security_audit": 0,
+        "math": 0,
+        "roleplay_fiction": 0,
+        "other": 0
+       }
+      },
+      "task_changed": {
+       "type": "noul",
+       "noul": 0.05
+      },
+      "difficulty": {
+       "type": "score",
+       "confidence": 0.93,
+       "probabilities": {
+        "0": 0.09,
+        "1": 0.91,
+        "2": 0,
+        "3": 0,
+        "4": 0
+       }
+      },
+      "precision": {
+       "type": "score",
+       "confidence": 0.8,
+       "probabilities": {
+        "0": 0,
+        "1": 0.1,
+        "2": 0.76,
+        "3": 0.14,
+        "4": 0
+       }
+      },
+      "big_model_gain": {
+       "type": "noul",
+       "noul": 0.11
+      },
+      "visual_quality": {
+       "type": "noul",
+       "noul": 0.04
+      },
+      "codebase_integration": {
+       "type": "noul",
+       "noul": 0.03
+      },
+      "output_length": {
+       "type": "score",
+       "confidence": 1,
+       "probabilities": {
+        "0": 1,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+       }
+      },
+      "latency_sensitive": {
+       "type": "noul",
+       "noul": 0.24
+      },
+      "cheaper_model_sufficient_0": {
+       "type": "noul",
+       "noul": 0.57
+      },
+      "cheaper_model_sufficient_1": {
+       "type": "noul",
+       "noul": 0.63
+      },
+      "cheaper_model_sufficient_2": {
+       "type": "noul",
+       "noul": 0.55
+      },
+      "cheaper_model_sufficient_3": {
+       "type": "noul",
+       "noul": 0.76
+      },
+      "cheaper_model_sufficient_4": {
+       "type": "noul",
+       "noul": 0.81
+      },
+      "higher_effort_gain_6": {
+       "type": "noul",
+       "noul": 0.11
+      },
+      "higher_effort_gain_7": {
+       "type": "noul",
+       "noul": 0.12
+      },
+      "cheaper_model_sufficient_8": {
+       "type": "noul",
+       "noul": 0.61
+      },
+      "cheaper_model_sufficient_9": {
+       "type": "noul",
+       "noul": 0.58
+      },
+      "cheaper_model_sufficient_10": {
+       "type": "noul",
+       "noul": 0.62
+      },
+      "cheaper_model_sufficient_11": {
+       "type": "noul",
+       "noul": 0.57
+      },
+      "cheaper_model_sufficient_12": {
+       "type": "noul",
+       "noul": 0.6
+      },
+      "cheaper_model_sufficient_13": {
+       "type": "noul",
+       "noul": 0.63
+      },
+      "cheaper_model_sufficient_14": {
+       "type": "noul",
+       "noul": 0.66
+      },
+      "cheaper_model_sufficient_15": {
+       "type": "noul",
+       "noul": 0.68
+      },
+      "cheaper_model_sufficient_16": {
+       "type": "noul",
+       "noul": 0.7
+      },
+      "cheaper_model_sufficient_17": {
+       "type": "noul",
+       "noul": 0.68
+      },
+      "cheaper_model_sufficient_18": {
+       "type": "noul",
+       "noul": 0.69
+      },
+      "cheaper_model_sufficient_19": {
+       "type": "noul",
+       "noul": 0.77
+      },
+      "cheaper_model_sufficient_20": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_21": {
+       "type": "noul",
+       "noul": 0.78
+      },
+      "cheaper_model_sufficient_22": {
+       "type": "noul",
+       "noul": 0.8
+      },
+      "cheaper_model_sufficient_23": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_24": {
+       "type": "noul",
+       "noul": 0.75
+      },
+      "cheaper_model_sufficient_25": {
+       "type": "noul",
+       "noul": 0.8
+      }
+     },
+     "input_tokens": 8161,
+     "output_tokens": 1063,
+     "pool_source": "snapshot",
+     "provider_rule": "tier",
+     "provider_sort": "throughput",
+     "pool_generated_at": "2026-10-11T09:01:46.253Z",
+     "pool_model_count": 13,
+     "selected_tier_prior": {
+      "tier": "general",
+      "source": "intelligence_proxy",
+      "metric": "intelligence_index",
+      "score": 40.9,
+      "spend_share": 0.055714090160861325,
+      "token_share": 0.022204264042607145
+     },
+     "floor": "basic",
+     "executor_floor": "basic",
+     "reason": "deescalation",
+     "pipeline": "default",
+     "question_rule_ids": [
+      "medium-knowledge-high-effort"
+     ],
+     "signal_vector": {
+      "failures": 0,
+      "message_count": 1,
+      "input_tokens": 22,
+      "cached_tokens": 0,
+      "has_incumbent": true,
+      "incumbent_age_ms": 155231,
+      "incumbent_model": "anthropic/claude-sonnet-5.5-20260928",
+      "incumbent_effort": "high",
+      "input_tokens_delta": 0
+     },
+     "reconsidered": true,
+     "incumbent_model": "anthropic/claude-sonnet-5.5-20260928",
+     "incumbent_effort": "high",
+     "recent_failed_attempts": 0,
+     "estimated_stay_cost": 8.4e-05,
+     "estimated_switch_cost": 3.15e-05,
+     "deescalation_sufficiency": 0.8,
+     "estimated_savings_fraction": 0.625,
+     "cost_estimate": "Downshifts and throughput candidates use mean eligible-endpoint cost. Provider choice, cache reuse and output length remain estimates, not next-turn guarantees",
+     "estimated_input_tokens": 22,
+     "estimated_output_tokens": 128,
+     "evaluations": [
+      {
+       "model": "deepseek/deepseek-v4.1-flash-20260910",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "task_exclusion",
+       "estimated_cost": 9.2e-06,
+       "estimated_response_ms": 833.9885057471264
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 8.4e-05
+      },
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 4.452e-06,
+       "estimated_response_ms": 2816.3333333333335
+      },
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00042,
+       "estimated_response_ms": 3509.923076923077
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.0001764
+      },
+      {
+       "model": "google/gemini-3.8-flash-20260902",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 3.15e-05,
+       "estimated_response_ms": 2171.553191489362
+      }
+     ],
+     "candidates": [
+      {
+       "model": "google/gemini-3.8-flash-20260902",
+       "effort": "high",
+       "tier": "general",
+       "estimated_cost": 3.15e-05
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "high",
+       "tier": "deep",
+       "estimated_cost": 8.4e-05
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "high",
+       "tier": "deep",
+       "estimated_cost": 0.0001764
+      }
+     ],
+     "input_modalities": [
+      "text"
+     ],
+     "classification_input_modalities": [
+      "text"
+     ],
+     "resolved_models": [
+      "google/gemini-3.8-flash-20260902",
+      "anthropic/claude-sonnet-5.5-20260928",
+      "anthropic/claude-opus-5.5-20260921"
+     ],
+     "provider_allowlist_fallback_models": [],
+     "models": [
+      "anthropic/claude-haiku-4.5",
+      "anthropic/claude-sonnet-5.5",
+      "anthropic/claude-opus-5.5",
+      "anthropic/claude-fable-5.1",
+      "openai/gpt-6-luna*",
+      "google/gemini-*flash*",
+      "deepseek/*flash*"
+     ]
+    }
+   }
+  ]
+ }
+}

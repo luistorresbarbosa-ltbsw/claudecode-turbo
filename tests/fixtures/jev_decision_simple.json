@@ -1,0 +1,318 @@
+{
+ "id": "gen-1791713594-AotzcxpRd8MvpRUY5OPr",
+ "object": "chat.completion",
+ "created": 1791713594,
+ "model": "anthropic/claude-sonnet-5.5",
+ "provider": "Claude Platform on AWS",
+ "system_fingerprint": null,
+ "service_tier": "default",
+ "choices": [
+  {
+   "index": 0,
+   "logprobs": null,
+   "finish_reason": "length",
+   "native_finish_reason": "max_tokens",
+   "message": {
+    "role": "assistant",
+    "content": null,
+    "refusal": null,
+    "reasoning": null
+   }
+  }
+ ],
+ "usage": {
+  "prompt_tokens": 22,
+  "completion_tokens": 1,
+  "total_tokens": 23,
+  "cost": 5.4e-05,
+  "is_byok": false,
+  "prompt_tokens_details": {
+   "cached_tokens": 0,
+   "cache_write_tokens": 0,
+   "audio_tokens": 0,
+   "video_tokens": 0
+  },
+  "cost_details": {
+   "upstream_inference_cost": 5.4e-05,
+   "upstream_inference_prompt_cost": 4.4e-05,
+   "upstream_inference_completions_cost": 1e-05
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 0,
+   "image_tokens": 0,
+   "audio_tokens": 0
+  }
+ },
+ "openrouter_metadata": {
+  "requested": "typesafe/jev-router",
+  "strategy": "direct",
+  "region": "LIS",
+  "summary": "available=10, selected=Claude Platform on AWS",
+  "attempt": 1,
+  "is_byok": false,
+  "endpoints": {
+   "total": 18,
+   "available": [
+    {
+     "provider": "Claude Platform on AWS",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": true
+    },
+    {
+     "provider": "Azure",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Anthropic",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Google",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Amazon Bedrock",
+     "model": "anthropic/claude-sonnet-5.5-20260928",
+     "selected": false
+    },
+    {
+     "provider": "Claude Platform on AWS",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Amazon Bedrock",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Anthropic",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Google",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    },
+    {
+     "provider": "Azure",
+     "model": "anthropic/claude-opus-5.5-20260921",
+     "selected": false
+    }
+   ]
+  },
+  "generation_time": 2795,
+  "pipeline": [
+   {
+    "type": "plugin",
+    "name": "jev-router",
+    "summary": "Selected a model and effort with the decision policy",
+    "data": {
+     "version": "jev-effort-max-20261010",
+     "answers": {
+      "task": {
+       "type": "choice",
+       "choice": "qa_knowledge",
+       "confidence": 1,
+       "probabilities": {
+        "code:general_impl": 0,
+        "code:debugging": 0,
+        "code:review_security": 0,
+        "code:sql_database": 0,
+        "code:frontend_ui": 0,
+        "code:devops_config": 0,
+        "code:shell_execution": 0,
+        "code:file_read_write": 0,
+        "code:repo_scan": 0,
+        "agent:multi_step_planning": 0,
+        "agent:web_search": 0,
+        "agent:workflow_execution": 0,
+        "agent:tool_dispatch": 0,
+        "agent:memory_extraction": 0,
+        "classification_tagging": 0,
+        "data:extraction": 0,
+        "data:transformation": 0,
+        "devops": 0,
+        "summarization": 0,
+        "translation": 0,
+        "content_writing": 0,
+        "research_report": 0,
+        "qa_knowledge": 1,
+        "conversational_reply": 0,
+        "customer_support": 0,
+        "finance_trading": 0,
+        "security_audit": 0,
+        "math": 0,
+        "roleplay_fiction": 0,
+        "other": 0
+       }
+      },
+      "task_changed": {
+       "type": "noul",
+       "noul": 0.05
+      },
+      "difficulty": {
+       "type": "score",
+       "confidence": 0.94,
+       "probabilities": {
+        "0": 0.07,
+        "1": 0.93,
+        "2": 0,
+        "3": 0,
+        "4": 0
+       }
+      },
+      "precision": {
+       "type": "score",
+       "confidence": 0.76,
+       "probabilities": {
+        "0": 0,
+        "1": 0.09,
+        "2": 0.71,
+        "3": 0.2,
+        "4": 0
+       }
+      },
+      "big_model_gain": {
+       "type": "noul",
+       "noul": 0.14
+      },
+      "visual_quality": {
+       "type": "noul",
+       "noul": 0.05
+      },
+      "codebase_integration": {
+       "type": "noul",
+       "noul": 0.03
+      },
+      "output_length": {
+       "type": "score",
+       "confidence": 1,
+       "probabilities": {
+        "0": 1,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+       }
+      },
+      "latency_sensitive": {
+       "type": "noul",
+       "noul": 0.24
+      }
+     },
+     "input_tokens": 2011,
+     "output_tokens": 453,
+     "pool_source": "snapshot",
+     "provider_rule": "none",
+     "pool_generated_at": "2026-10-11T10:00:53.495Z",
+     "pool_model_count": 13,
+     "selected_tier_prior": {
+      "tier": "deep",
+      "source": "intelligence_proxy",
+      "metric": "intelligence_index",
+      "score": 56,
+      "spend_share": 0.1300420051069893,
+      "token_share": 0.014156002736746238
+     },
+     "floor": "basic",
+     "executor_floor": "basic",
+     "reason": "initial",
+     "pipeline": "default",
+     "question_rule_ids": [
+      "medium-knowledge-high-effort"
+     ],
+     "signal_vector": {
+      "failures": 0,
+      "message_count": 0,
+      "input_tokens": 0,
+      "cached_tokens": 0,
+      "has_incumbent": false
+     },
+     "selection_probabilities": [
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "high",
+       "probability": 0.8038048585993791
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "high",
+       "probability": 0.19619514140062091
+      }
+     ],
+     "reconsidered": true,
+     "profile_advantage": 0,
+     "cost_estimate": "Downshifts and throughput candidates use mean eligible-endpoint cost. Provider choice, cache reuse and output length remain estimates, not next-turn guarantees",
+     "estimated_input_tokens": 12,
+     "estimated_output_tokens": 128,
+     "evaluations": [
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00032
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.0001344
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 6.64e-05,
+       "estimated_response_ms": 3289.737113402062
+      }
+     ],
+     "candidates": [
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "high",
+       "tier": "deep",
+       "estimated_cost": 6.64e-05
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "high",
+       "tier": "deep",
+       "estimated_cost": 0.0001344
+      }
+     ],
+     "input_modalities": [
+      "text"
+     ],
+     "classification_input_modalities": [
+      "text"
+     ],
+     "resolved_models": [
+      "anthropic/claude-sonnet-5.5-20260928",
+      "anthropic/claude-opus-5.5-20260921"
+     ],
+     "provider_allowlist_fallback_models": [],
+     "models": [
+      "anthropic/claude-haiku-4.5",
+      "anthropic/claude-sonnet-5.5",
+      "anthropic/claude-opus-5.5",
+      "anthropic/claude-fable-5.1",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "google/gemma-4-31b-it:free"
+     ]
+    }
+   }
+  ]
+ }
+}

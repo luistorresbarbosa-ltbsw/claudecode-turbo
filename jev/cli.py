@@ -11,9 +11,11 @@ thinking extra que o standard (xhigh) faria nem o tokenizer maior do Opus.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from jev import dispatch, ledger, pricing, router
@@ -29,10 +31,13 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("task", nargs="*", help="a tarefa; se faltar, lê do stdin")
     run.add_argument("--edits", action="store_true", help="deixa editar ficheiros (por defeito só lê)")
     run.add_argument("--ab", action="store_true", help="corre também o standard, para medir a diferença")
-    run.add_argument("--dry", action="store_true", help="só decide e estima: não corre nem regista")
+    run.add_argument("--dry", action="store_true", help="só decide e estima: não corre nem regista (paga só a decisão do Jev)")
     run.add_argument("--json", action="store_true")
     led = sub.add_parser("ledger", help="totais acumulados")
     led.add_argument("--json", action="store_true")
+    route = sub.add_parser("route", help="para o mod: o Jev decide o prompt do stdin (JSON na saída)")
+    route.add_argument("--agent", action="store_true", help="a tarefa é de um subagente (nunca vai para um free)")
+    sub.add_parser("record", help="para o mod: regista um turno (JSON no stdin)")
     return p
 
 
@@ -46,7 +51,8 @@ def _label(d: router.Decision) -> str:
 
 def _estimate(decision: router.Decision, task: str) -> dict:
     tokens = pricing.with_cc_overhead({"input": len(task) // 4, "output": decision.est_output_tokens})
-    jev = 0.0 if decision.runner == "openrouter-free" else pricing.cost_of(decision.model, tokens)
+    run = 0.0 if decision.runner == "openrouter-free" else pricing.cost_of(decision.model, tokens)
+    jev = run + decision.router_cost_usd  # a decisão do Jev paga-se mesmo num --dry
     return {"jev_usd": round(jev, 9), "standard_usd": round(pricing.cost_of(router.standard().model, tokens), 9)}
 
 
@@ -93,13 +99,87 @@ def _ledger_text(s: dict) -> str:
             f"poupado {_usd(s['saved_usd'])} ({s['saved_pct']}%)")
 
 
+def _estimated_standard(tokens: dict) -> dict:
+    std = router.standard()
+    return {"kind": "estimated", "model_id": pricing.ALIASES.get(std.model, std.model), "effort": std.effort,
+            "cost_usd": round(pricing.cost_of(std.model, tokens), 9), "tokens": None, "duration_ms": None}
+
+
+def _route(task: str, *, agent: bool, decide, run_free) -> dict:
+    started = time.monotonic()
+    decision = decide(task)
+    decide_ms = int((time.monotonic() - started) * 1000)
+    if agent and decision.runner == "openrouter-free":  # um subagente usa ferramentas: um free não serve
+        decision = dataclasses.replace(decision, runner="anthropic", model="haiku",
+                                       rationale=decision.rationale + " · subagente: haiku")
+    out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None,
+           "model_id": None if decision.is_standard else pricing.ALIASES.get(decision.model, decision.model)}
+    if decision.runner != "openrouter-free":
+        return out
+
+    res = run_free(task, decision)
+    out["free"] = {"ok": res.ok, "text": res.text, "model_id": res.model_id, "duration_ms": res.duration_ms,
+                   "error": res.error}
+    if not res.ok:  # regra do utilizador: qualquer falha cai para o standard (a sessão segue sem mudanças)
+        fallback = router.standard(f"o free falhou: {res.error}", router_cost_usd=decision.router_cost_usd)
+        out.update(decision=fallback.to_ledger(), model_id=None)
+        return out
+    # este prompt não vai ter turno Anthropic: regista-se já
+    ledger.append(ledger.make_record(
+        task=task, decision=decision.to_ledger(),
+        jev={"model_id": res.model_id, "cost_usd": decision.router_cost_usd, "tokens": res.tokens,
+             "duration_ms": decide_ms + (res.duration_ms or 0), "ok": True, "fallback": None},
+        standard=_estimated_standard(pricing.with_cc_overhead(res.tokens or {})),
+    ))
+    out["summary"] = ledger.summarize(ledger.read_all())
+    return out
+
+
+def _record(payload: dict) -> dict:
+    decision = dict(payload["decision"])
+    if payload.get("scope"):
+        decision["scope"] = payload["scope"]
+    usage = payload.get("usage") or {}
+    tokens = pricing.tokens_from_claude_usage(usage)
+    model_id = usage.get("model") or payload.get("model_id") or pricing.ALIASES[router.standard().model]
+    run_cost = pricing.cost_of(model_id, tokens)
+    duration = payload.get("duration_ms")
+    if decision.get("is_standard"):  # o standard correu de facto: é uma medição real dele
+        std = router.standard()
+        standard = {"kind": "measured", "model_id": model_id, "effort": std.effort, "cost_usd": run_cost,
+                    "tokens": tokens, "duration_ms": duration}
+    else:
+        standard = _estimated_standard(tokens)
+    rec = ledger.make_record(
+        task=payload.get("task") or "",
+        decision=decision,
+        jev={"model_id": model_id, "cost_usd": run_cost + (decision.get("router_cost_usd") or 0.0),
+             "tokens": tokens, "duration_ms": duration, "ok": payload.get("reason") == "answer", "fallback": None},
+        standard=standard,
+    )
+    ledger.append(rec)
+    return {"record": rec, "summary": ledger.summarize(ledger.read_all())}
+
+
 def _fail(msg: str) -> int:
     print(f"jev: {msg}", file=sys.stderr)
     return 2
 
 
-def main(argv: list[str] | None = None, *, decide=None, execute=None, stdin=None) -> int:
+def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=None, stdin=None) -> int:
     args = _parser().parse_args(argv)
+    if args.cmd in ("route", "record"):
+        text = (stdin or sys.stdin).read()
+        if args.cmd == "record":
+            print(json.dumps(_record(json.loads(text)), ensure_ascii=False))
+            return 0
+        if decide is None:
+            from dotenv import load_dotenv
+            load_dotenv(REPO_ENV)
+            decide = router.decide
+        out = _route(text.strip(), agent=args.agent, decide=decide, run_free=run_free or dispatch.run_free)
+        print(json.dumps(out, ensure_ascii=False))
+        return 0
     if args.cmd == "ledger":
         summary = ledger.summarize(ledger.read_all())
         print(json.dumps(summary) if args.json else _ledger_text(summary))
@@ -137,7 +217,8 @@ def main(argv: list[str] | None = None, *, decide=None, execute=None, stdin=None
     rec = ledger.make_record(
         task=task,
         decision=decision.to_ledger(),
-        jev={"model_id": final.model_id, "cost_usd": outcome.cost_usd, "tokens": final.tokens,
+        jev={"model_id": final.model_id, "cost_usd": outcome.cost_usd + decision.router_cost_usd,
+             "tokens": final.tokens,
              "duration_ms": outcome.duration_ms,
              "ok": final.ok, "fallback": outcome.fallback},
         standard=_baseline(decision, outcome, ab),

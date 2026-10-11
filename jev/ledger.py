@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import statistics
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -116,4 +117,21 @@ def summarize(records: list[dict]) -> dict:
         "jev_usd": round(jev, 9),
         "saved_usd": round(saved, 9),
         "saved_pct": round(100 * saved / standard, 1) if standard > 0 else 0.0,
+        "speed": _speed(records),
+    }
+
+
+def _median_ms(values: list) -> int | None:
+    values = [v for v in values if isinstance(v, (int, float))]
+    return int(statistics.median(values)) if values else None
+
+
+def _speed(records: list[dict]) -> dict:
+    """Tempo de espera por tarefa (mediana). O standard só tem tempo quando foi medido."""
+    measured = [r["standard"].get("duration_ms") for r in records
+                if r["standard"].get("kind") == "measured" and r["standard"].get("duration_ms")]
+    return {
+        "jev_median_ms": _median_ms([r["jev"].get("duration_ms") for r in records]),
+        "standard_median_ms": _median_ms(measured),
+        "standard_measured": len(measured),
     }

@@ -1,0 +1,582 @@
+{
+ "id": "gen-1791715475-zHRQqKzlugbZxv4vi0Yk",
+ "created": 1791715476,
+ "model": "openai/gpt-6-luna",
+ "object": "chat.completion",
+ "system_fingerprint": null,
+ "choices": [
+  {
+   "finish_reason": "length",
+   "index": 0,
+   "message": {
+    "content": null,
+    "role": "assistant",
+    "tool_calls": null,
+    "function_call": null,
+    "provider_specific_fields": {
+     "reasoning_details": [
+      {
+       "type": "reasoning.encrypted",
+       "data": "gAAAAABqy2iXlTGcaCsXFlDdlcCzAFSY0eVps2BhaXxv3J_gHzgHLuKppj2vK72cu6og_MDXXWDh57DpFeBJfrTfQ6LGWMoVGUWs-geZhj_2sOtVX_EZ5sfpytFx9D9SE-Ka1FoZo-ohOs8JgUox9FqT3i_4Tb_YWAuNhMzeSr0g0FYu51w8fF65wk4zV6U69sJFcmMeHoTY6VysrqHVfL4bYBPfj271bz-O5-rG00U7-xiD3kh5b7_pHOasDNEBagKHxjJ1beL-ZJ5XV2O1EHnWgvDW9y7MqsdVGyNqyRjdvEBqznHcRydk646rTYNnLTJ3ZK4arlMqqoTMMIh9NqnLbXV7Funyhg-CGoD3ORyrz4oRwS0Vrg9HXsii-4fKd59jZ57nflWpy7aJ5j5r3fhzNw99PkAyX6xJdLaISOXmptgOMLln_0LFb8Y-Dkg22yDoNRK3YYpP0cpgVpR4k5c3ES78-iq38zK-xUjCGLwle4UsJsl0JVdNjD8qAf12jKIqJQ9TcGcC8LV3zG-gU_Dlqd0_hi-jOtMhge3vCmd3X5Jzi4MMe6nLfBvPIFEBK7LnLZYq-uEivJtodXFilQss9ZzA1I2DytkyV7WjFaThvq-gVbIgessV2TXIG_hL49rU40OKBSgRx-WnqBH5mnGfWWF02bw5LzyMfQLveZ63IgCt0CvMKZ8OcIeUYQdrJEfXrUKllX9z8NzH_V08zsluNPpimfd8_2CcYmpGYmdljlDawO1FaZiy81qnyt95EogVLGihIHQLH3JhrZAN1QEeY9h5GSfq_HIzDvtNmtmzR7vA-fuJ3e2acsAdrg_nPLR9m-17fRtom3kcZjpVZCudeOkGyjxxD9Q_yoysUCIc62vRQimwUah6iPpaYNoJA6w5UjuT6kgWxQfplRh0ICrArj8Y2cP9bMab0lA_DP9jbmNPFQbslDVMNb6oQOeja2-6M7luwf6t9vztLhbGG4O3lr7aEhzXPNxNQE5N8ctVxMfUHBmRAnluH0k56dKRRF0l_R-_6K3ftXC56j8kvome1EwGA94FlwyY6R2H-IFBgifIlmTS2nV6Sg6EEWPGrXJvmBT31Gi6XPECWn9xznuo8gko8xqleHy48yswGGiL3q4CbkL8istYjiCwXIWWkDuhRKm_hz5IW3--V_zf2DbV2i8Nb7R8Xy2RwAxsomUsbMqFJ3WSz74=.eyJlbmRwb2ludF9zbHVnIjoib3BlbmFpL2dwdC02LWx1bmEtMjAyNjA5MjJ8YXp1cmUifQ",
+       "format": "azure-openai-responses-v1",
+       "id": "rs_0ffb2e9ececda64d016acb689550b48195a9292f97804ebde8",
+       "index": 0
+      }
+     ],
+     "reasoning": null,
+     "refusal": null
+    }
+   },
+   "provider_specific_fields": {
+    "native_finish_reason": "max_output_tokens"
+   }
+  }
+ ],
+ "usage": {
+  "completion_tokens": 16,
+  "prompt_tokens": 17,
+  "total_tokens": 33,
+  "completion_tokens_details": {
+   "audio_tokens": 0,
+   "reasoning_tokens": 16,
+   "image_tokens": 0
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cache_write_tokens": 0,
+   "cached_tokens": 0,
+   "video_tokens": 0,
+   "cache_creation_tokens": 0
+  },
+  "cost": 9.7e-06,
+  "is_byok": false,
+  "cost_details": {
+   "upstream_inference_cost": 9.7e-06,
+   "upstream_inference_prompt_cost": 1.7e-06,
+   "upstream_inference_completions_cost": 8e-06
+  }
+ },
+ "provider": "Azure",
+ "service_tier": "default",
+ "openrouter_metadata": {
+  "requested": "typesafe/jev-router",
+  "strategy": "direct",
+  "region": "LIS",
+  "summary": "available=2, selected=Azure",
+  "attempt": 1,
+  "is_byok": false,
+  "endpoints": {
+   "total": 5,
+   "available": [
+    {
+     "provider": "Azure",
+     "model": "openai/gpt-6-luna-20260922",
+     "selected": true
+    },
+    {
+     "provider": "OpenAI",
+     "model": "openai/gpt-6-luna-20260922",
+     "selected": false
+    }
+   ]
+  },
+  "generation_time": 3416,
+  "pipeline": [
+   {
+    "type": "plugin",
+    "name": "jev-router",
+    "summary": "Selected a model and effort with the decision policy",
+    "data": {
+     "version": "jev-effort-max-20261010",
+     "answers": {
+      "task": {
+       "type": "choice",
+       "choice": "code:file_read_write",
+       "confidence": 1,
+       "probabilities": {
+        "code:general_impl": 0,
+        "code:debugging": 0,
+        "code:review_security": 0,
+        "code:sql_database": 0,
+        "code:frontend_ui": 0,
+        "code:devops_config": 0,
+        "code:shell_execution": 0,
+        "code:file_read_write": 1,
+        "code:repo_scan": 0,
+        "agent:multi_step_planning": 0,
+        "agent:web_search": 0,
+        "agent:workflow_execution": 0,
+        "agent:tool_dispatch": 0,
+        "agent:memory_extraction": 0,
+        "classification_tagging": 0,
+        "data:extraction": 0,
+        "data:transformation": 0,
+        "devops": 0,
+        "summarization": 0,
+        "translation": 0,
+        "content_writing": 0,
+        "research_report": 0,
+        "qa_knowledge": 0,
+        "conversational_reply": 0,
+        "customer_support": 0,
+        "finance_trading": 0,
+        "security_audit": 0,
+        "math": 0,
+        "roleplay_fiction": 0,
+        "other": 0
+       }
+      },
+      "task_changed": {
+       "type": "noul",
+       "noul": 0.04
+      },
+      "difficulty": {
+       "type": "score",
+       "confidence": 0.82,
+       "probabilities": {
+        "0": 0.21,
+        "1": 0.79,
+        "2": 0,
+        "3": 0,
+        "4": 0
+       }
+      },
+      "precision": {
+       "type": "score",
+       "confidence": 0.79,
+       "probabilities": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "3": 0.25,
+        "4": 0.75
+       }
+      },
+      "big_model_gain": {
+       "type": "noul",
+       "noul": 0.07
+      },
+      "visual_quality": {
+       "type": "noul",
+       "noul": 0.04
+      },
+      "codebase_integration": {
+       "type": "noul",
+       "noul": 0.03
+      },
+      "output_length": {
+       "type": "score",
+       "confidence": 1,
+       "probabilities": {
+        "0": 1,
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0
+       }
+      },
+      "latency_sensitive": {
+       "type": "noul",
+       "noul": 0.16
+      },
+      "cheaper_model_sufficient_0": {
+       "type": "noul",
+       "noul": 0.67
+      },
+      "cheaper_model_sufficient_1": {
+       "type": "noul",
+       "noul": 0.68
+      },
+      "cheaper_model_sufficient_2": {
+       "type": "noul",
+       "noul": 0.64
+      },
+      "higher_effort_gain_3": {
+       "type": "noul",
+       "noul": 0.08
+      },
+      "higher_effort_gain_5": {
+       "type": "noul",
+       "noul": 0.1
+      },
+      "higher_effort_gain_6": {
+       "type": "noul",
+       "noul": 0.08
+      },
+      "higher_effort_gain_7": {
+       "type": "noul",
+       "noul": 0.07
+      },
+      "cheaper_model_sufficient_8": {
+       "type": "noul",
+       "noul": 0.81
+      },
+      "cheaper_model_sufficient_9": {
+       "type": "noul",
+       "noul": 0.83
+      },
+      "cheaper_model_sufficient_10": {
+       "type": "noul",
+       "noul": 0.83
+      },
+      "cheaper_model_sufficient_11": {
+       "type": "noul",
+       "noul": 0.8
+      },
+      "cheaper_model_sufficient_12": {
+       "type": "noul",
+       "noul": 0.81
+      },
+      "cheaper_model_sufficient_13": {
+       "type": "noul",
+       "noul": 0.82
+      },
+      "cheaper_model_sufficient_14": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_15": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_16": {
+       "type": "noul",
+       "noul": 0.76
+      },
+      "cheaper_model_sufficient_17": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_18": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_19": {
+       "type": "noul",
+       "noul": 0.75
+      },
+      "cheaper_model_sufficient_20": {
+       "type": "noul",
+       "noul": 0.78
+      },
+      "cheaper_model_sufficient_21": {
+       "type": "noul",
+       "noul": 0.7
+      },
+      "cheaper_model_sufficient_22": {
+       "type": "noul",
+       "noul": 0.79
+      },
+      "cheaper_model_sufficient_23": {
+       "type": "noul",
+       "noul": 0.82
+      },
+      "cheaper_model_sufficient_24": {
+       "type": "noul",
+       "noul": 0.84
+      },
+      "cheaper_model_sufficient_25": {
+       "type": "noul",
+       "noul": 0.79
+      }
+     },
+     "input_tokens": 8120,
+     "output_tokens": 1057,
+     "pool_source": "snapshot",
+     "provider_rule": "tier",
+     "provider_sort": "throughput",
+     "pool_generated_at": "2026-10-11T10:00:53.495Z",
+     "pool_model_count": 13,
+     "selected_tier_prior": {
+      "tier": "basic",
+      "source": "curated",
+      "metric": null,
+      "score": null,
+      "spend_share": 0.010589908438827443,
+      "token_share": 0.047931148719311326
+     },
+     "floor": "basic",
+     "executor_floor": "basic",
+     "reason": "continuation",
+     "pipeline": "default",
+     "question_rule_ids": [],
+     "signal_vector": {
+      "failures": 0,
+      "message_count": 1,
+      "input_tokens": 17,
+      "cached_tokens": 0,
+      "has_incumbent": true,
+      "incumbent_age_ms": 106374,
+      "incumbent_model": "openai/gpt-6-luna-20260922",
+      "incumbent_effort": "low",
+      "input_tokens_delta": 0
+     },
+     "reconsidered": false,
+     "incumbent_model": "openai/gpt-6-luna-20260922",
+     "incumbent_effort": "low",
+     "recent_failed_attempts": 0,
+     "estimated_stay_cost": 2.2e-06,
+     "estimated_switch_cost": 1.65e-05,
+     "deescalation_sufficiency": 0.84,
+     "estimated_savings_fraction": -6.5,
+     "cost_estimate": "Downshifts and throughput candidates use mean eligible-endpoint cost. Provider choice, cache reuse and output length remain estimates, not next-turn guarantees",
+     "estimated_input_tokens": 17,
+     "estimated_output_tokens": 128,
+     "evaluations": [
+      {
+       "model": "deepseek/deepseek-v4.1-flash-20260910",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 7.95e-06,
+       "estimated_response_ms": 833.9885057471264
+      },
+      {
+       "model": "deepseek/deepseek-v4.1-flash-20260910",
+       "effort": "max",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 1.165e-05,
+       "estimated_response_ms": 856.9770114942529
+      },
+      {
+       "model": "deepseek/deepseek-v4.1-flash-20260910",
+       "effort": "low",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 5.175e-06,
+       "estimated_response_ms": 816.7471264367816
+      },
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 3.7e-06,
+       "estimated_response_ms": 2816.3333333333335
+      },
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "low",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 2.2e-06,
+       "estimated_response_ms": 2776.3333333333335
+      },
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "medium",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 2.7e-06,
+       "estimated_response_ms": 2789.6666666666665
+      },
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "xhigh",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 4.7e-06,
+       "estimated_response_ms": 2843
+      },
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "max",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 5.7e-06,
+       "estimated_response_ms": 2869.6666666666665
+      },
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "low",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00022,
+       "estimated_response_ms": 3452.230769230769
+      },
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "medium",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00027,
+       "estimated_response_ms": 3471.4615384615386
+      },
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00037,
+       "estimated_response_ms": 3509.923076923077
+      },
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "xhigh",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00047,
+       "estimated_response_ms": 3548.3846153846152
+      },
+      {
+       "model": "anthropic/claude-fable-5.1-20260831",
+       "effort": "max",
+       "quality": "unknown",
+       "admitted": false,
+       "reason": "model_exclusion",
+       "estimated_cost": 0.00057,
+       "estimated_response_ms": 3586.846153846154
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "low",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 9.24e-05
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "medium",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.0001134
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.0001554
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "xhigh",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.0001974
+      },
+      {
+       "model": "anthropic/claude-opus-5.5-20260921",
+       "effort": "max",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.0002394
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "low",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 4.565e-05
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "medium",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 5.6025e-05
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 7.6775e-05
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "xhigh",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 9.7525e-05
+      },
+      {
+       "model": "anthropic/claude-sonnet-5.5-20260928",
+       "effort": "max",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 0.000118275
+      },
+      {
+       "model": "google/gemini-3.8-flash-20260902",
+       "effort": "medium",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 2.025e-05,
+       "estimated_response_ms": 2150.276595744681
+      },
+      {
+       "model": "google/gemini-3.8-flash-20260902",
+       "effort": "low",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 1.65e-05,
+       "estimated_response_ms": 2139.6382978723404
+      },
+      {
+       "model": "google/gemini-3.8-flash-20260902",
+       "effort": "high",
+       "quality": "unknown",
+       "admitted": true,
+       "reason": "heuristic",
+       "estimated_cost": 2.775e-05,
+       "estimated_response_ms": 2171.553191489362
+      }
+     ],
+     "candidates": [
+      {
+       "model": "openai/gpt-6-luna-20260922",
+       "effort": "low",
+       "tier": "basic",
+       "estimated_cost": 2.2e-06
+      }
+     ],
+     "input_modalities": [
+      "text"
+     ],
+     "classification_input_modalities": [
+      "text"
+     ],
+     "resolved_models": [
+      "openai/gpt-6-luna-20260922"
+     ],
+     "provider_allowlist_fallback_models": [],
+     "models": [
+      "anthropic/claude-haiku-4.5",
+      "anthropic/claude-sonnet-5.5",
+      "anthropic/claude-opus-5.5",
+      "anthropic/claude-fable-5.1",
+      "openai/gpt-6-luna*",
+      "google/gemini-*flash*",
+      "deepseek/*flash*"
+     ]
+    }
+   }
+  ]
+ }
+}

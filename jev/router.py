@@ -1,89 +1,52 @@
-"""Router do JEV: um modelo free decide onde corre cada tarefa, com que modelo e esforço.
+"""Router do JEV: o Jev da TypeSafe (`typesafe/jev-router`, via OpenRouter) decide o modelo e o
+esforço de cada tarefa.
 
-Qualquer falha (rate limit, timeout, JSON inválido, decisão incoerente) cai para o standard
-Anthropic, ou seja, o que o Claude Code usaria sem o JEV. Os modelos Anthropic correm sempre
-pela subscrição (`claude -p`); o OpenRouter só serve modelos free.
+O Jev lê a tarefa, classifica o tipo e a dificuldade e escolhe o candidato mais barato que chega,
+com o esforço de raciocínio. Não tem modo "só decidir": executa sempre no modelo escolhido. Por isso
+pedimos-lhe 1 token. A decisão (o modelo e o esforço) vem nos metadados do OpenRouter, e o custo dela
+é o custo do Jev, que entra no caminho JEV.
+
+O Jev decide entre Anthropic e free:
+- escolhe um modelo Anthropic: a tarefa corre pela subscrição (`claude -p`) com o modelo e o esforço dele;
+- escolhe um dos modelos baratos (o pool dele não tem modelos free; os baratos são a forma de dizer
+  "isto não precisa da Anthropic"): a tarefa corre num modelo free, para poupar;
+- escolhe barato numa tarefa que mexe em ficheiros: um free não tem ferramentas, por isso corre na
+  Anthropic mais barata (haiku), com o esforço do Jev.
+Os modelos free nunca decidem nada: só executam.
+
+Qualquer falha (erro, metadados em falta, um modelo fora da lista permitida, um esforço
+desconhecido) cai para o standard Anthropic.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
+import urllib.request
 from dataclasses import asdict, dataclass
+from fnmatch import fnmatchcase
 
-import litellm
-
-litellm.suppress_debug_info = True  # senão imprime avisos no stdout, que o mod lê como JSON
-ROUTER_MODEL = "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
-ROUTER_TIMEOUT_S = 60
-ANTHROPIC_MODELS = ("haiku", "sonnet", "opus", "fable")
+# Sem litellm aqui: importá-lo custa ~1,1 s, e a decisão está no caminho de cada prompt.
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+JEV_MODEL = "typesafe/jev-router"
+ROUTER_TIMEOUT_S = 15  # o Jev decide em 1-4 s; se não responder, standard já
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
-# Executores free: só os bem cotados (maiores, de fornecedores sólidos)
-FREE_MODELS = (
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "google/gemma-4-31b-it:free",
-)
+_EFFORT_ALIASES = {"minimal": "low", "none": "low"}
 
-SYSTEM_PROMPT = """You are JEV, the router of a Claude Code setup. For each task you choose WHERE it runs, \
-aiming for the cheapest option that will still do the job well. You never do the task yourself.
-
-## Options
-
-A) runner "openrouter-free": cost $0. A free model with NO tools: it cannot read files, see the \
-repository, run commands or browse. Use it ONLY for self-contained text work where everything needed \
-is in the task text: general or conceptual questions, explaining a concept, translating, rewriting or \
-drafting text given in full.
-   model: "nvidia/nemotron-3-ultra-550b-a55b:free" (best quality, the default),
-          "nvidia/nemotron-3-super-120b-a12b:free" (faster),
-          "google/gemma-4-31b-it:free" (short, simple text).
-   effort: null.
-
-B) runner "anthropic": Claude Code with tools (reads the repo, searches, edits files when allowed). \
-Every run first pays ~23k tokens of fixed context (about $0.02 on haiku, $0.10 on opus). \
-List price per 1M tokens, input/output:
-   - "haiku"  $1/$5: small, well-defined jobs. Typos, one-line fixes, finding where something is, explaining one file.
-   - "sonnet" $2/$10: everyday coding. Features or refactors across a few files, writing tests, debugging with a clear lead.
-   - "opus"   $4/$20: hard reasoning. Architecture, subtle or cross-cutting bugs, large multi-file changes, security-sensitive work.
-   - "fable"  $10/$50: only for the hardest long-horizon problems that opus would likely fail.
-   effort (thinking depth; higher means more output tokens and more cost): "low" | "medium" | "high" | "xhigh" | "max".
-   Typical pairs: haiku+low, sonnet+medium, opus+high. Use xhigh or max only when the task clearly needs deep reasoning.
-
-## Rules
-1. If the task refers to files, code, this project or repo, paths, the codebase, errors on the user's \
-machine, or anything that must be looked up: runner "anthropic".
-2. Otherwise, if the task is self-contained text: runner "openrouter-free". Use \
-"nvidia/nemotron-3-ultra-550b-a55b:free" for any answer longer than a line or two; \
-"google/gemma-4-31b-it:free" only for very short replies such as a one-line translation.
-3. Minimums. Never go below these, whatever else the task looks like:
-   - writing or changing tests: at least "sonnet" with "medium";
-   - investigating a bug whose cause is unknown: at least "sonnet" with "medium";
-   - any design, redesign or architecture work: at least "opus" with "high".
-4. Above the minimums, pick the cheapest model and the lowest effort that will clearly succeed. The \
-user's default is opus at xhigh; matching that is only right for genuinely hard tasks.
-5. est_output_tokens: your estimate of how many tokens the work will produce.
-6. rationale: one short sentence in European Portuguese (pt-PT) explaining the choice.
-
-## Examples
-- "qual a diferença entre TCP e UDP?" -> openrouter-free, nvidia/nemotron-3-ultra-550b-a55b:free, null
-- "corrige o typo 'recieve' no README.md" -> anthropic, haiku, low
-- "escreve testes para o módulo de pagamentos" -> anthropic, sonnet, medium
-- "descobre porque é que o login falha só em produção" -> anthropic, opus, high
-- "traduz para inglês: 'bom dia a todos'" -> openrouter-free, google/gemma-4-31b-it:free, null
-
-Reply with the JSON object only."""
-
-SCHEMA = {
-    "type": "object",
-    "additionalProperties": False,
-    "required": ["runner", "model", "effort", "rationale", "est_output_tokens"],
-    "properties": {
-        "runner": {"type": "string", "enum": ["anthropic", "openrouter-free"]},
-        "model": {"type": "string", "enum": [*ANTHROPIC_MODELS, *FREE_MODELS]},
-        "effort": {"type": ["string", "null"], "enum": [*EFFORTS, None]},
-        "rationale": {"type": "string"},
-        "est_output_tokens": {"type": "integer"},
-    },
+# Anthropic: o que o Jev escolher aqui corre pela subscrição
+ANTHROPIC_MODELS = {
+    "anthropic/claude-haiku-4.5": "haiku",
+    "anthropic/claude-sonnet-5.5": "sonnet",
+    "anthropic/claude-opus-5.5": "opus",
+    "anthropic/claude-fable-5.1": "fable",
 }
+# Os modelos baratos do pool do Jev: quando ele escolhe um destes, a tarefa é simples e corre num free
+CHEAP_SIGNALS = ("openai/gpt-6-luna*", "google/gemini-*flash*", "deepseek/*flash*")
+FREE_EXECUTOR = "nvidia/nemotron-3-ultra-550b-a55b:free"  # o free mais bem cotado (550B)
+JEV_POOL = (*ANTHROPIC_MODELS, *CHEAP_SIGNALS)
+# Tarefas que precisam de ferramentas (ler/editar o repo, correr comandos): um free não as consegue fazer
+_TOOL_TASK_PREFIXES = ("code:", "agent:")
+_TOOL_TASKS = {"devops", "security_audit"}
 
 
 @dataclass(frozen=True)
@@ -94,7 +57,7 @@ class Decision:
     rationale: str
     est_output_tokens: int = 0
     is_standard: bool = False
-    router_model: str = ROUTER_MODEL
+    router_model: str = JEV_MODEL
     router_cost_usd: float = 0.0
     router_error: str | None = None
 
@@ -102,54 +65,94 @@ class Decision:
         return asdict(self)
 
 
-def standard(router_error: str | None = None) -> Decision:
+def standard(router_error: str | None = None, router_cost_usd: float = 0.0) -> Decision:
     """O que o Claude Code usaria sem o JEV (por defeito: opus com o effortLevel xhigh das settings)."""
     return Decision(
         runner="anthropic",
         model=os.environ.get("JEV_STANDARD_MODEL", "opus"),
         effort=os.environ.get("JEV_STANDARD_EFFORT", "xhigh"),
-        rationale="fallback: o cérebro free falhou, uso o standard" if router_error else "standard",
+        rationale="fallback: o Jev não decidiu dentro das regras, uso o standard" if router_error else "standard",
         is_standard=True,
+        router_cost_usd=router_cost_usd,
         router_error=router_error,
     )
 
 
-def _check(raw: dict) -> None:
-    runner, model, effort = raw["runner"], raw["model"], raw.get("effort")
-    if runner == "anthropic":
-        if model not in ANTHROPIC_MODELS:
-            raise ValueError(f"modelo Anthropic desconhecido: {model!r}")
-        if effort not in EFFORTS:
-            raise ValueError(f"esforço inválido: {effort!r}")
-    elif runner == "openrouter-free":
-        if model not in FREE_MODELS:
-            raise ValueError(f"modelo free fora da lista: {model!r}")
-    else:
-        raise ValueError(f"runner desconhecido: {runner!r}")
+def _undated(slug: str) -> str:
+    """'anthropic/claude-sonnet-5.5-20260928' -> 'anthropic/claude-sonnet-5.5' (mantém o ':free')."""
+    return re.sub(r"-\d{8}(?=(:free)?$)", "", slug)
 
 
-def decide(task: str, *, complete=litellm.completion) -> Decision:
+def _effort(value: str | None) -> str:
+    effort = _EFFORT_ALIASES.get(value, value)
+    if effort not in EFFORTS:
+        raise ValueError(f"esforço desconhecido do Jev: {value!r}")
+    return effort
+
+
+def _is_cheap(slug: str) -> bool:
+    return any(fnmatchcase(slug, pattern) for pattern in CHEAP_SIGNALS)
+
+
+def _needs_tools(task_type: str) -> bool:
+    return task_type.startswith(_TOOL_TASK_PREFIXES) or task_type in _TOOL_TASKS
+
+
+def _why(data: dict) -> str:
+    answers = data.get("answers") or {}
+    task = (answers.get("task") or {}).get("choice", "?")
+    probs = (answers.get("difficulty") or {}).get("probabilities") or {}
+    difficulty = max(probs, key=probs.get) if probs else "?"
+    gain = (answers.get("big_model_gain") or {}).get("noul")
+    parts = [f"Jev: {task}", f"dificuldade {difficulty}/4"]
+    if gain is not None:
+        parts.append(f"ganho de um modelo maior {gain:.2f}")
+    return " · ".join(parts)
+
+
+def _post(body: dict, headers: dict) -> dict:
+    req = urllib.request.Request(OPENROUTER_URL, data=json.dumps(body).encode(), headers={
+        "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+        "Content-Type": "application/json", **headers})
+    with urllib.request.urlopen(req, timeout=ROUTER_TIMEOUT_S) as r:
+        return json.loads(r.read())
+
+
+def decide(task: str, *, post=_post) -> Decision:
+    cost = 0.0
     try:
-        resp = complete(
-            model=ROUTER_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Task:\n{task}"},
-            ],
-            response_format={"type": "json_schema",
-                             "json_schema": {"name": "jev_decision", "strict": True, "schema": SCHEMA}},
-            timeout=ROUTER_TIMEOUT_S,
+        resp = post(
+            {"model": JEV_MODEL, "messages": [{"role": "user", "content": task}], "max_tokens": 1,
+             "plugins": [{"id": "jev-router", "allowed_models": list(JEV_POOL)}]},
+            {"X-OpenRouter-Metadata": "enabled"},
         )
-        raw = json.loads(resp.choices[0].message.content)
-        _check(raw)
-        free = raw["runner"] == "openrouter-free"
+        cost = float((resp.get("usage") or {}).get("cost") or 0.0)
+        meta = resp.get("openrouter_metadata") or {}
+        data = next((p.get("data") or {} for p in meta.get("pipeline") or [] if p.get("name") == "jev-router"), None)
+        if not data:
+            raise ValueError("a resposta não traz a decisão do Jev (metadados em falta)")
+        # Com vários candidatos vem `selection_probabilities`; com um só, apenas `candidates`
+        ranked = data.get("selection_probabilities") or data.get("candidates") or []
+        top = max(ranked, key=lambda c: c.get("probability") or 0, default=None)
+        if not top:
+            raise ValueError(f"o Jev não admitiu nenhum modelo permitido (serviu {resp.get('model')})")
+        slug, effort = _undated(top["model"]), _effort(top.get("effort"))
+        task_type = ((data.get("answers") or {}).get("task") or {}).get("choice") or ""
+        why = _why(data)
+        if slug in ANTHROPIC_MODELS:
+            runner, model = "anthropic", ANTHROPIC_MODELS[slug]
+        elif _is_cheap(slug) and _needs_tools(task_type):
+            runner, model = "anthropic", "haiku"
+            why += " · barato, mas mexe em ficheiros: haiku"
+        elif _is_cheap(slug):
+            runner, model = "openrouter-free", FREE_EXECUTOR
+            why += " · barato: corre num free"
+        else:
+            raise ValueError(f"o Jev escolheu {slug}, fora dos modelos permitidos")
         return Decision(
-            runner=raw["runner"],
-            model=raw["model"],
-            effort=None if free else raw["effort"],
-            rationale=str(raw.get("rationale", ""))[:300],
-            est_output_tokens=max(0, int(raw.get("est_output_tokens") or 0)),
-            router_cost_usd=float((getattr(resp, "_hidden_params", None) or {}).get("response_cost") or 0.0),
+            runner=runner, model=model, effort=effort, rationale=why,
+            est_output_tokens=int(data.get("estimated_output_tokens") or 0),
+            router_cost_usd=cost,
         )
-    except Exception as exc:  # regra do utilizador: qualquer falha do cérebro free cai para o standard
-        return standard(f"{type(exc).__name__}: {str(exc)[:160]}")
+    except Exception as exc:  # regra do utilizador: qualquer falha cai para o standard
+        return standard(f"{type(exc).__name__}: {str(exc)[:160]}", router_cost_usd=cost)

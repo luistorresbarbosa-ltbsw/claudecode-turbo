@@ -103,12 +103,14 @@ def test_summarize_totals_including_net_loss():
         "jev_usd": pytest.approx(0.45),
         "saved_usd": pytest.approx(-0.05),
         "saved_pct": pytest.approx(-12.5),
+        "speed": {"jev_median_ms": 100, "standard_median_ms": None, "standard_measured": 0},
     }
 
 
 def test_summarize_empty_ledger_does_not_divide_by_zero():
     assert ledger.summarize([]) == {
         "tasks": 0, "failed": 0, "standard_usd": 0.0, "jev_usd": 0.0, "saved_usd": 0.0, "saved_pct": 0.0,
+        "speed": {"jev_median_ms": None, "standard_median_ms": None, "standard_measured": 0},
     }
 
 
@@ -127,6 +129,7 @@ def test_summarize_counts_failed_tasks_on_the_jev_side_only():
         "jev_usd": pytest.approx(0.08),
         "saved_usd": pytest.approx(0.22),
         "saved_pct": pytest.approx(73.3),
+        "speed": {"jev_median_ms": 100, "standard_median_ms": None, "standard_measured": 0},
     }
 
 
@@ -150,3 +153,24 @@ def test_non_finite_costs_are_skipped(tmp_path, bad):
 def test_append_refuses_to_write_a_non_finite_cost(tmp_path):
     with pytest.raises(ValueError):
         ledger.append(_rec(jev=float("nan")), home=tmp_path)
+
+
+def _timed(jev_ms, std_ms=None, kind="estimated"):
+    rec = _rec(kind=kind)
+    rec["jev"]["duration_ms"] = jev_ms
+    rec["standard"]["duration_ms"] = std_ms
+    return rec
+
+
+def test_summarize_reports_speed_as_medians():
+    recs = [_timed(4000), _timed(10000), _timed(8000, 41000, "measured"), _timed(6000, 30000, "measured")]
+
+    speed = ledger.summarize(recs)["speed"]
+
+    assert speed == {"jev_median_ms": 7000, "standard_median_ms": 35500, "standard_measured": 2}
+
+
+def test_summarize_speed_without_measured_standard_has_no_comparison():
+    assert ledger.summarize([_timed(5000)])["speed"] == {
+        "jev_median_ms": 5000, "standard_median_ms": None, "standard_measured": 0,
+    }
