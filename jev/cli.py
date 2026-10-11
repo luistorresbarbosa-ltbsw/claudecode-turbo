@@ -40,6 +40,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("record", help="para o mod: regista um turno (JSON no stdin)")
     pil = sub.add_parser("pilot", help="o piloto: standard vs JEV no projeto fatura").add_subparsers(dest="pilot_cmd", required=True)
     prun = pil.add_parser("run", help="corre os dois braços, tarefa a tarefa, e no fim o juiz")
+    prun.add_argument("--project", default="fatura", help="a pasta do projeto em pilot/ (por defeito, fatura)")
     prun.add_argument("--tasks", help="ids separados por vírgulas (por defeito, todas)")
     prun.add_argument("--max-min", type=float, default=10, help="envelope de tempo de cada braço, em minutos")
     prun.add_argument("--max-usd-task", type=float, default=1.0)
@@ -175,13 +176,15 @@ def _pilot(args) -> int:
 
     from jev import pilot_run
 
-    root = pilot_run.PILOT_ROOT
+    root = pilot_run.REPO / "pilot" / args.project
+    if not (root / "tasks.json").is_file():
+        return _fail(f"não há piloto '{args.project}' em pilot/ (falta pilot/{args.project}/tasks.json)")
     tasks = json.loads((root / "tasks.json").read_text(encoding="utf-8"))
     if args.tasks:
         wanted = [t.strip() for t in args.tasks.split(",")]
         tasks = [t for t in tasks if t["id"] in wanted]
     variant = "anthropic" if args.anthropic_only else "anthropic+free"
-    pilot_id = f"fatura-{'anthropic-' if args.anthropic_only else ''}" + datetime.now().strftime("%Y%m%d-%H%M")
+    pilot_id = f"{args.project}-{'anthropic-' if args.anthropic_only else ''}" + datetime.now().strftime("%Y%m%d-%H%M")
     print(f"piloto {pilot_id}: {len(tasks)} tarefas · {args.max_min:g} min por braço · "
           f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total · pool do Jev: {variant}", flush=True)
     pilot_run.run_pilot(tasks, pilot_id=pilot_id, seed=root / "seed", inject_root=root / "inject",

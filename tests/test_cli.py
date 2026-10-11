@@ -206,3 +206,8 @@ def test_dry_run_estimate_includes_jevs_decision_cost(capsys):
     est = json.loads(capsys.readouterr().out)["estimate"]
     # 200×$5 + 13803×$0.10 + 9683×$2 (Haiku, por milhão) = 0.0217463, mais a decisão do Jev
     assert est["jev_usd"] == pytest.approx(0.0217463 + 0.002)
+
+
+def test_pilot_refuses_a_project_that_does_not_exist(capsys):
+    assert cli.main(["pilot", "run", "--project", "nao-existe"]) == 2
+    assert "nao-existe" in capsys.readouterr().err
