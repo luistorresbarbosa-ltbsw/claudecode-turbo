@@ -7,7 +7,7 @@ leves e menos esforço respondem mais depressa, e o JEV mede o custo e a velocid
 contra o teu Claude Code standard (opus · xhigh).
 
 Não há comando: escreves como sempre. A linha de estado mostra a decisão, por exemplo
-`JEV: haiku · low · 14.2 s · poupado $0.1604 (73.9%)`.
+`JEV: sonnet · medium · 17.3 s · poupado $0.1340 (64.9%)`.
 
 ## Como funciona
 
@@ -22,7 +22,8 @@ Não há comando: escreves como sempre. A linha de estado mostra a decisão, por
    - O Jev escolhe **um barato**: a tarefa é simples e responde um **free** (Nemotron Ultra), a $0. O
      prompt não gasta quota Anthropic, e a resposta fica na conversa para os turnos seguintes.
    - Barato numa tarefa que **mexe em ficheiros**: um free não tem ferramentas, por isso vai para o
-     **haiku**, com o esforço do Jev.
+     **sonnet**, com o esforço do Jev. (Ia para o haiku, mas no primeiro piloto o haiku falhou a
+     maioria destas tarefas.)
    - **Subagentes:** o Jev decide com a tarefa do agente. O modelo vai na chamada `Agent` e o esforço
      nos passos do subagente. Um subagente nunca vai para um free (usa ferramentas).
    - Os modelos free só executam; nunca decidem.
@@ -55,6 +56,19 @@ JEV_HOME=dashboard/demo uv run jev-dashboard --open   # com dados de demonstraç
 Fora da sessão: `uv run jev ledger` (totais) e `uv run jev run "<tarefa>"`, que corre uma tarefa
 avulsa num `claude -p` (`--edits`, `--ab`, `--dry`).
 
+## Piloto
+
+O mesmo projeto corre duas vezes, uma no Claude Code standard e outra com o JEV, com tetos de tempo e
+de custo. No fim, um juiz Opus (pela subscrição) compara os dois resultados às cegas. A spec está em
+`docs/superpowers/specs/2026-10-11-piloto-jev-design.md`.
+
+```bash
+uv run jev pilot run --project fatura --max-min 10 --max-usd-task 1 --max-usd-total 4.5
+uv run jev pilot run --project fatura --anthropic-only   # pool do Jev só com modelos Anthropic
+```
+
+`--no-judge` salta o juiz. O dashboard mostra o piloto na vista "Piloto", atualizada em direto.
+
 ## Garantias e limites
 
 - **Na sessão, o JEV só escolhe o modelo e o esforço:** as permissões e as ferramentas são as tuas.
@@ -72,8 +86,9 @@ avulsa num `claude -p` (`--edits`, `--ab`, `--dry`).
   próprio Claude Code: a escrita de cache de 1h custa 2× o input, e o cache read do Sonnet 5.5
   é $0.20/M.
 
-Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`) e
-`JEV_STANDARD_EFFORT` (por defeito `xhigh`).
+Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`),
+`JEV_STANDARD_EFFORT` (por defeito `xhigh`) e `JEV_POOL` (`anthropic` deixa o pool do Jev só com
+modelos Anthropic, sem respostas free).
 
 ## Desenvolvimento
 

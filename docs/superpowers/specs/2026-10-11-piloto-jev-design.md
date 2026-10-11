@@ -49,7 +49,7 @@ fatura/
 ### 2.2 Tarefas
 
 Os prompts são iguais nos dois braços e correm por esta ordem. **As tarefas de texto não mencionam
-ficheiros**: se mencionassem, o Jev classificava-as como `code:file_read_write` e iam para o haiku em
+ficheiros**: se mencionassem, o Jev classificava-as como `code:file_read_write` e iam para o sonnet em
 vez de um free. Um free não escreve ficheiros, por isso em ambos os braços é o harness que grava a
 resposta em `docs/`. As tarefas são **independentes entre si**: cada uma
 só depende do ponto de partida e dos seus próprios ficheiros injetados, para que uma falha não arraste
@@ -164,7 +164,8 @@ Se o passo 1 ou o 2 falharem, o piloto não arranca.
   mensagem; ao matar, fica com o custo até ali.
 - **Braço jev:** o Jev decide. Se escolhe Anthropic, corre o mesmo comando com o `--model` e o `--effort`
   dele. Se escolhe um modelo barato, corre num free (Nemotron Ultra, via litellm). Se escolhe barato numa
-  tarefa de ficheiros, corre no haiku com o esforço dele. **O custo de cada decisão do Jev conta no
+  tarefa de ficheiros, corre no sonnet com o esforço dele (no primeiro piloto ia para o haiku, que
+  falhou a maioria destas tarefas). **O custo de cada decisão do Jev conta no
   envelope do braço jev.** Se uma execução falhar, repete no standard e gasta do envelope do JEV. Se o
   Jev classificar mal uma tarefa de código como texto, ela vai para um free, fica entregue só em texto e
   chumba na aceitação. É informação sobre o Jev.
