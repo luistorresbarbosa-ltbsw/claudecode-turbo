@@ -74,3 +74,15 @@ def test_judging_a_pilot_records_a_judge_row(tmp_path):
     [p] = pilot.read_all(home=tmp_path)
     assert len(calls) == 2 and p["judge"]["cost_usd"] == 0.5 and p["judge"]["model"] == "opus"
     assert {c["id"] for c in p["judge"]["criteria"]} >= {"legibilidade"}
+
+
+def test_the_judge_row_says_how_each_pass_went(tmp_path):
+    ws = _workspaces(tmp_path)
+    pilot.append({"v": 1, "type": "meta", "pilot": "p1", "started": "x", "tasks": []}, home=tmp_path)
+    replies = iter([{"status": "done", "cost_usd": 0.3, "structured": _verdicts(("legibilidade", "A")), "result": ""},
+                    {"status": "error", "cost_usd": 0.1, "structured": None, "result": "", "error": "timeout"}])
+
+    row = pilot_run.judge_pilot("p1", ws, home=tmp_path, run_judge=lambda prompt: next(replies))
+
+    assert [(p["a"], p["ok"]) for p in row["passes"]] == [("standard", True), ("jev", False)]
+    assert row["passes"][1]["error"] == "timeout"

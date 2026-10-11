@@ -111,7 +111,7 @@ Prompts:
   com o Python do braço: `python -m pytest <caminho absoluto>` na pasta do braço.
   Os testes afirmam factos e não forma. Por exemplo, a T7 verifica que a solução respeita as regras e
   que o objetivo é o ótimo conhecido, não que o texto da explicação é igual ao meu.
-  - T1: as 9 taxas presentes (continente 23/13/6, Madeira 22/12/5, Açores 16/9/4; **a confirmar por ti**),
+  - T1: as 9 taxas presentes (continente 23/13/6, Madeira 22/12/**4** (desde 1 out 2024, DLR 6/2024/M), Açores 16/9/4),
     e há uma tabela.
   - T2: as 9 taxas certas em `TAXAS`.
   - T3: NIFs válidos (ex.: 123456789) e inválidos (controlo errado, 8 ou 10 dígitos, letras, prefixos 0 e 4).

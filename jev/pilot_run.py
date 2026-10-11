@@ -135,7 +135,8 @@ def save_text_answer(workspace: Path, rel_path: str, text: str) -> None:
 def accept(test_file: Path, workspace: Path, *, python: Path | str = REPO_PYTHON) -> dict:
     """Corre os testes escondidos da tarefa contra a cópia do braço. A tarefa passa se passarem todos."""
     proc = subprocess.run([str(python), "-m", "pytest", str(test_file), "-q", "-p", "no:cacheprovider"],
-                          cwd=workspace, env=_env(PYTHONPATH=str(workspace)), capture_output=True, text=True,
+                          cwd=workspace, env=_env(PYTHONPATH=str(workspace), PYTHONDONTWRITEBYTECODE="1"),
+                          capture_output=True, text=True,
                           timeout=300)
     out = proc.stdout + proc.stderr
     count = lambda word: sum(int(n) for n in re.findall(rf"(\d+) {word}", out))
@@ -183,6 +184,9 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
         shutil.copytree(seed, workspace, dirs_exist_ok=True)
         if git:
             _git(workspace, "init", "-q")
+            exclude = workspace / ".git" / "info" / "exclude"
+            exclude.parent.mkdir(parents=True, exist_ok=True)
+            exclude.write_text(".venv/\n__pycache__/\n.pytest_cache/\n", encoding="utf-8")
             _git(workspace, "add", "-A")
             _git(workspace, "commit", "-q", "-m", "ponto de partida")
     pilot.append({"v": 1, "type": "meta", "pilot": pilot_id, "started": _now(),
@@ -314,7 +318,7 @@ def run_claude_judge(prompt: str) -> dict:
 
 def judge_pilot(pilot_id: str, workspaces: dict, *, home: Path | None = None, run_judge=run_claude_judge) -> dict:
     criteria = "\n".join(f"- {c['id']}: {c['claim']}" for c in CRITERIA)
-    by_order, cost = {}, 0.0
+    by_order, cost, passes = {}, 0.0, []
     for order in (ARMS, ARMS[::-1]):
         r = run_judge(JUDGE_PROMPT.format(criteria=criteria, material=judge_material(workspaces, order=order)))
         cost += r.get("cost_usd") or 0.0
@@ -325,7 +329,10 @@ def judge_pilot(pilot_id: str, workspaces: dict, *, home: Path | None = None, ru
             except json.JSONDecodeError:
                 out = None
         by_order[order] = out
+        ok = r.get("status") == "done" and isinstance(out, dict)
+        passes.append({"a": order[0], "ok": ok, "cost_usd": r.get("cost_usd") or 0.0,
+                       "error": None if ok else (r.get("error") or "sem veredictos legíveis")})
     row = {"v": 1, "type": "judge", "pilot": pilot_id, "model": "opus", "cost_usd": round(cost, 9),
-           "criteria": aggregate_verdicts(by_order), "ts": _now()}
+           "criteria": aggregate_verdicts(by_order), "passes": passes, "ts": _now()}
     pilot.append(row, home=home)
     return row

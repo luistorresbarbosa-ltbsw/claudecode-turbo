@@ -1,0 +1,56 @@
+[
+  {
+    "id": "T1",
+    "title": "Glossário de IVA",
+    "kind": "text",
+    "prompt": "Escreve um glossário curto, em português de Portugal, das taxas de IVA em vigor em Portugal: continente, Madeira e Açores, com as taxas normal, intermédia e reduzida de cada região e dois exemplos de bens ou serviços por taxa. Usa uma tabela em Markdown.",
+    "output_file": "docs/IVA.md",
+    "inject": []
+  },
+  {
+    "id": "T2",
+    "title": "Bug da Madeira",
+    "kind": "code",
+    "prompt": "Os testes de IVA da Madeira falham. Descobre porquê e corrige.",
+    "inject": []
+  },
+  {
+    "id": "T3",
+    "title": "Validar NIF",
+    "kind": "code",
+    "prompt": "Acrescenta fatura/nif.py com valido(nif: str) -> bool, que valida um NIF português: 9 dígitos, prefixo permitido e dígito de controlo correto. Aceita espaços entre os dígitos. Escreve testes.",
+    "inject": []
+  },
+  {
+    "id": "T4",
+    "title": "Totais da fatura",
+    "kind": "code",
+    "prompt": "Acrescenta fatura/totais.py com calcular(f: Fatura) -> Totais, sendo Totais um dataclass com estes campos:\n- linhas: lista com o total sem IVA de cada linha, pela ordem da fatura: quantidade × preco_unitario × (1 − desconto_pct/100), arredondado a 2 casas uma única vez, no fim (desconto_pct é uma percentagem: Decimal(\"12.5\") quer dizer 12,5 %);\n- por_taxa: dict com o código da taxa (\"NOR\", \"INT\" ou \"RED\") -> (base, iva), só com as taxas que aparecem na fatura; a base é a soma dos totais das linhas dessa taxa e o iva calcula-se sobre essa base, com a taxa da região da fatura (fatura.iva.TAXAS), e arredonda-se a 2 casas;\n- sem_iva: a soma das bases;\n- iva: a soma do IVA de todas as taxas;\n- total: sem_iva + iva.\nUsa Decimal e ROUND_HALF_UP. Escreve testes.",
+    "inject": []
+  },
+  {
+    "id": "T5",
+    "title": "JSON + CLI",
+    "kind": "code",
+    "prompt": "Acrescenta fatura/io.py com para_json(f: Fatura) -> str e de_json(texto: str) -> Fatura, com os valores decimais como strings, e um comando `python -m fatura total ficheiro.json` que lê a fatura desse ficheiro e imprime o total com IVA (descontos e taxas da região incluídos) numa só linha, exatamente assim: 'Total: 1 234,56 €' (espaço como separador de milhares, vírgula decimal, sempre 2 casas decimais e um espaço antes do €).\n\nO formato JSON é exatamente este: as chaves são os nomes dos campos de Fatura e de Linha, e quantidade, preco_unitario e desconto_pct são strings com o número escrito com ponto decimal, nunca números JSON:\n\n{\n  \"numero\": \"FT 2026/7\",\n  \"regiao\": \"PT\",\n  \"linhas\": [\n    {\n      \"descricao\": \"Pastel de nata\",\n      \"quantidade\": \"12\",\n      \"preco_unitario\": \"1.10\",\n      \"taxa\": \"RED\",\n      \"desconto_pct\": \"0\"\n    }\n  ]\n}\n\nde_json(para_json(f)) tem de devolver uma fatura igual a f, e os decimais nunca passam por float.",
+    "inject": []
+  },
+  {
+    "id": "T6",
+    "title": "O cêntimo que falta",
+    "kind": "code",
+    "prompt": "Um cliente reportou que a nota de crédito parcial da fatura FT 2026/31 (exemplos/ft-2026-31.json, creditar 3 unidades da linha 2) dá um total 1 cêntimo abaixo do devido. Descobre a causa e corrige sem mudar o resto do comportamento.",
+    "inject": [
+      "fatura/notas_credito.py",
+      "exemplos/ft-2026-31.json"
+    ]
+  },
+  {
+    "id": "T8",
+    "title": "Email ao cliente",
+    "kind": "text",
+    "prompt": "Escreve um email curto e cordial, em português de Portugal, para a Pastelaria Aurora, Lda. a explicar que a transferência de 1 234,56 € recebida a 3 de outubro liquidou as faturas FT 2026/14 (612,40 €) e FT 2026/15 (634,86 €), esta última com desconto de pronto pagamento de 2%.",
+    "output_file": "docs/email-aurora.md",
+    "inject": []
+  }
+]

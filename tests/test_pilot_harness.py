@@ -211,3 +211,23 @@ def test_a_crashing_pilot_is_still_closed_so_it_never_looks_like_it_is_running(t
 
     [p] = pilot.read_all(home=tmp_path / "home")
     assert p["end"] is not None and "o claude rebentou" in p["end"]["stopped"]
+
+
+def test_the_venv_an_agent_creates_never_lands_in_the_arm_commits(tmp_path):
+    class VenvArms(FakeArms):
+        def __call__(self, arm, task, workspace, **kw):
+            (workspace / ".venv" / "lib").mkdir(parents=True, exist_ok=True)
+            (workspace / ".venv" / "lib" / "x.py").write_text("lixo")
+            (workspace / "fatura" / "nova.py").write_text("x = 1\n")
+            return super().__call__(arm, task, workspace, **kw)
+
+    seed = tmp_path / "seed"
+    (seed / "fatura").mkdir(parents=True)
+    (seed / "fatura" / "__init__.py").write_text("")
+    pilot_run.run_pilot(TASKS[:1], pilot_id="p1", seed=seed, inject_root=tmp_path / "i", acceptance_root=tmp_path / "a",
+                        home=tmp_path / "home", run_arm=VenvArms(), git=True,
+                        accept=lambda *a, **k: {"ok": True, "passed": 1, "failed": 0})
+
+    ws = pilot.pilots_dir(tmp_path / "home") / "p1" / "standard"
+    tracked = subprocess.run(["git", "ls-files"], cwd=ws, capture_output=True, text=True).stdout.split()
+    assert "fatura/nova.py" in tracked and not any(f.startswith(".venv") for f in tracked)

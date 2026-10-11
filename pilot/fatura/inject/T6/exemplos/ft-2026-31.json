@@ -1,0 +1,34 @@
+{
+  "numero": "FT 2026/31",
+  "regiao": "PT",
+  "linhas": [
+    {
+      "descricao": "Café em grão, lote da casa (kg)",
+      "quantidade": "20",
+      "preco_unitario": "16.40",
+      "taxa": "NOR",
+      "desconto_pct": "0"
+    },
+    {
+      "descricao": "Chávena de café em porcelana",
+      "quantidade": "24",
+      "preco_unitario": "12.50",
+      "taxa": "NOR",
+      "desconto_pct": "0"
+    },
+    {
+      "descricao": "Açúcar em pacotes (caixa de 1000)",
+      "quantidade": "6",
+      "preco_unitario": "21.30",
+      "taxa": "RED",
+      "desconto_pct": "12.5"
+    },
+    {
+      "descricao": "Vinho tinto do Douro (garrafa de 0,75 l)",
+      "quantidade": "12",
+      "preco_unitario": "7.85",
+      "taxa": "INT",
+      "desconto_pct": "0"
+    }
+  ]
+}

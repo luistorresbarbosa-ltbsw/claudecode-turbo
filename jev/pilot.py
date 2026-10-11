@@ -8,7 +8,8 @@ piloto em $JEV_HOME/pilots/<id>.jsonl, com três tipos de linha:
            cost_usd, wall_ms, models: {model_id: cost_usd}, jev: {decisions, decision_cost_usd} | null,
            acceptance: {ok, passed, failed}}
     judge {pilot, model, cost_usd, criteria: [{id, label, result: standard|jev|tie|both_bad|inconclusive,
-           verdicts: [{a, winner, reason}]}]}   (o juiz às cegas, duas passagens com a ordem trocada)
+           verdicts: [{a, winner, reason}]}], passes: [{a, ok, cost_usd, error}]}
+          (o juiz às cegas, duas passagens com a ordem trocada; `passes` diz como correu cada uma)
     end   {pilot, finished, stopped: null | motivo}
 
 O custo é o `total_cost_usd` que o próprio Claude Code reporta (preço de lista), mais, no braço JEV,

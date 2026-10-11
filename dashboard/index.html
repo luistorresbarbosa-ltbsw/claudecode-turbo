@@ -312,6 +312,29 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 .i-ring-glyph { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .i-run { fill: var(--jev); animation: pulse 1.4s ease-in-out infinite; }
 
+/* vista Piloto: o juiz */
+.judge-sub { margin-top: 2px; color: var(--ink-2); font-size: 13px; }
+.judge-note { display: flex; gap: 9px; align-items: flex-start; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--plane); color: var(--ink); font-size: 13.5px; }
+.judge-note .ico { margin-top: 3px; }
+.jtable { min-width: 780px; table-layout: fixed; }
+.jtable thead th { vertical-align: top; }
+.jtable thead th:first-child { width: 20%; }
+.jtable thead th:nth-child(2) { width: 15%; }
+.jtable thead th .sub { display: block; margin-top: 2px; font-weight: 450; color: var(--muted); }
+.jtable tbody th { padding: 11px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--hair); font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+.vd-one + .vd-one { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair); }
+.vd-map { margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+.vd-why { margin: 7px 0 0; color: var(--ink); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
+.vd-none { margin: 0; color: var(--muted); }
+.who { color: var(--muted); font-size: 12px; }
+.res { display: inline-flex; align-items: center; gap: 7px; padding: 1px 11px 1px 8px; border-radius: 999px; background: var(--plane); color: var(--ink); font-size: 13px; font-weight: 650; line-height: 22px; white-space: nowrap; }
+.res.sm { padding: 0 9px 0 7px; font-size: 12px; line-height: 20px; }
+.res .key { width: 14px; }
+.res-tie, .res-both_bad, .res-other { font-weight: 550; }
+.res-other { max-width: 100%; white-space: normal; overflow-wrap: anywhere; border-radius: 12px; line-height: 1.35; padding-block: 3px; }
+.res-inconclusive { font-weight: 550; background: transparent; outline: 1px dashed var(--muted); outline-offset: -1px; }
+.i-ring-eq { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; }
+
 @media (prefers-reduced-motion: reduce) {
   .row-new td, .cell-new { animation: none; }
   #content, #pilot-content { transition: none; }
@@ -346,6 +369,12 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
   .ptable td.parm::before { content: attr(data-arm); display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 600; }
   .ptable td:first-child { padding-left: 16px; }
   .ptable td { padding-inline: 16px; }
+  .jtable, .jtable tbody { display: block; min-width: 0; }
+  .jtable thead { display: none; }
+  .jtable tr { display: block; padding: 12px 16px 4px; border-bottom: 1px solid var(--hair); }
+  .jtable tbody th, .jtable td { display: block; padding: 0 0 12px; border: 0; }
+  .jtable tbody tr:hover td { background: transparent; }
+  .jtable td.vd::before { content: attr(data-pass); display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 600; }
 }
 </style>
 </head>
@@ -439,6 +468,13 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
           </table>
         </div>
       </section>
+      <section class="sec" aria-labelledby="judge-h">
+        <div class="sec-head">
+          <h2 id="judge-h">Juiz</h2>
+          <p class="sec-meta" id="judge-meta"></p>
+        </div>
+        <div id="judge"></div>
+      </section>
     </div>
   </div>
   <noscript><p class="note">Este dashboard precisa de JavaScript.</p></noscript>
@@ -464,10 +500,11 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     tabDay: $('tab-day'), tabPilot: $('tab-pilot'), tabDot: $('tab-dot'), viewDay: $('view-day'), viewPilot: $('view-pilot'),
     pilotProblem: $('pilot-problem'), pilotEmpty: $('pilot-empty'), pilotContent: $('pilot-content'),
     pilotHead: $('pilot-head'), score: $('score'), pilotBody: $('ptasks-body'),
+    judge: $('judge'), judgeMeta: $('judge-meta'),
   };
   const state = { rows: [], series: [], summary: {}, view: 'chart', shown: PAGE, seen: new Set(), loaded: false, lastText: null, std: null,
     page: location.hash === '#piloto' ? 'pilot' : 'day',
-    pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map() };
+    pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map(), judgeSeen: new Map() };
 
   // ---------------------------------------------------------------- DOM
   // Tudo o que vem do ledger entra como texto (nós de texto ou atributos): nunca como HTML.
@@ -595,6 +632,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     's-skipped': () => [s('circle', { class: 'i-ring', cx: 7, cy: 7, r: 5.8 }), s('path', { class: 'i-ring-glyph', d: 'M4.6 7h4.8' })],
     's-running': () => [s('circle', { class: 'i-ring-jev', cx: 7, cy: 7, r: 5.8 }), s('circle', { class: 'i-run', cx: 7, cy: 7, r: 2.4 })],
     's-pending': () => [s('circle', { class: 'i-ring-faint', cx: 7, cy: 7, r: 5.8 })],
+    eq: () => [s('circle', { class: 'i-ring', cx: 7, cy: 7, r: 5.8 }), s('path', { class: 'i-ring-eq', d: 'M4.8 5.8h4.4M4.8 8.2h4.4' })],
     's-none': () => [s('circle', { class: 'i-ring', cx: 7, cy: 7, r: 5.8 }), s('path', { class: 'i-ring-glyph', d: 'M5.6 5.8c0-.9.7-1.5 1.5-1.5s1.5.6 1.5 1.4c0 1.2-1.5 1.1-1.5 2.4M7.1 9.9v.1' })],
   };
   ICONS['s-fail'] = ICONS.failed;
@@ -1228,6 +1266,96 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
         caps.length > 0 && h('span', {}, `Teto: ${joinPt(caps)}`)));
   }
 
+  // ---------------------------------------------------------------- juiz
+  // O juiz é o Opus, às cegas: recebe os dois projetos como "Projeto A" e "Projeto B" e avalia duas vezes, com a
+  // ordem trocada (jev/pilot_run.py). Os motivos falam em A e B, por isso mostra-se sempre quem era quem.
+  const WHO = { standard: 'Standard', jev: 'JEV' };
+  const otherArm = (arm) => (arm === 'standard' ? 'jev' : arm === 'jev' ? 'standard' : null);
+  const armKey = (arm) => h('i', { class: `key key-${arm === 'standard' ? 'std' : 'jev'}` });
+
+  // O resultado de um critério, ou o vencedor de uma passagem. "inconclusive" vem do registo em inglês.
+  function resultChip(result, opts = {}) {
+    const r = str(result);
+    const known = {
+      standard: () => [armKey('standard'), 'Standard'], jev: () => [armKey('jev'), 'JEV'],
+      tie: () => [icon('eq'), 'empate'], both_bad: () => [icon('failed'), 'ambos maus'], inconclusive: () => [icon('s-none'), 'inconclusivo'],
+    }[r];
+    return h('span', { class: `res res-${known ? r : 'other'}${opts.sm ? ' sm' : ''}`, title: opts.title || null }, ...(known ? known() : [r || 'sem resultado']));
+  }
+
+  // "Projeto A" -> "Projeto A (Standard)": quem era A nessa passagem. O texto do juiz fica como está.
+  function annotate(reason, a) {
+    const names = { A: WHO[a], B: WHO[otherArm(a)] }, out = [], re = /\b(?:Projeto|projeto|Project|project)\s+([AB])\b/g;
+    let last = 0;
+    for (let m = re.exec(reason); m; m = re.exec(reason)) {
+      const end = m.index + m[0].length;
+      out.push(reason.slice(last, end));
+      if (names[m[1]]) out.push(h('span', { class: 'who' }, ` (${names[m[1]]})`));
+      last = end;
+    }
+    out.push(reason.slice(last));
+    return out;
+  }
+
+  function verdictBlock(v, showMap) {
+    const a = str(v.a), why = str(v.reason);
+    return h('div', { class: 'vd-one' },
+      showMap && h('div', { class: 'vd-map' }, `Projeto A = ${WHO[a] || a || '?'}${WHO[otherArm(a)] ? `, B = ${WHO[otherArm(a)]}` : ''}`),
+      resultChip(v.winner, { sm: true }),
+      why ? h('p', { class: 'vd-why', title: why }, annotate(why, a)) : h('p', { class: 'vd-why vd-none' }, 'sem motivo'));
+  }
+
+  function judgeRow(c, fresh) {
+    const cr = obj(c), vs = Array.isArray(cr.verdicts) ? cr.verdicts.map(obj) : [], n = vs.length, res = str(cr.result);
+    // Cada veredicto vai para a coluna de quem era o A nessa passagem (não pela posição na lista: se faltar a
+    // 1.ª passagem, o veredicto que sobra é da 2.ª). Um "a" estranho ocupa o lugar que estiver vazio.
+    const slots = { standard: null, jev: null }, extras = [];
+    for (const v of vs) { const a = str(v.a); if (a in slots && !slots[a]) slots[a] = v; else extras.push(v); }
+    for (const arm of ['standard', 'jev']) if (!slots[arm] && extras.length) slots[arm] = extras.shift();
+    const cell = (arm, i) => h('td', { class: 'vd', 'data-pass': `${i + 1}.ª passagem · A = ${WHO[arm]}, B = ${WHO[otherArm(arm)]}` },
+      slots[arm]
+        ? [verdictBlock(slots[arm], str(slots[arm].a) !== arm), i === 1 && extras.map((x) => verdictBlock(x, true))]
+        : h('p', { class: 'vd-none' }, 'sem veredicto nesta passagem'));
+    const title = res === 'inconclusive'
+      ? (n === 2 ? 'O vencedor mudou com a ordem das passagens: o juiz não é consistente neste critério.' : `Só há ${n} de 2 veredictos: o critério fica inconclusivo.`)
+      : n !== 2 ? null
+      : res === 'standard' || res === 'jev' ? `O juiz escolheu o ${WHO[res]} nas duas passagens, com a ordem trocada.`
+      : res === 'tie' ? 'Equivalentes nas duas passagens.'
+      : res === 'both_bad' ? 'O juiz considerou que nenhum dos dois cumpre o critério, nas duas passagens.' : null;
+    return h('tr', { class: fresh ? 'row-new' : null },
+      h('th', { scope: 'row' }, str(cr.label) || str(cr.id) || '—'),
+      h('td', {}, resultChip(res, { title })),
+      cell('standard', 0), cell('jev', 1));
+  }
+
+  function drawJudge(pl) {
+    const j = pl.judge && typeof pl.judge === 'object' ? pl.judge : null;
+    const seen = state.judgeSeen.get(pl.id), fresh = !!j && seen === false;   // apareceu com a vista aberta
+    state.judgeSeen.set(pl.id, !!j);
+    const cost = j && typeof j.cost_usd === 'number' && isFinite(j.cost_usd) ? j.cost_usd : null;
+    const at = j && isFinite(Date.parse(j.ts)) ? when(Date.parse(j.ts)) : null;
+    fill(els.judgeMeta,
+      cost !== null && h('span', { title: 'O custo do juiz não entra no custo dos braços.' }, `Custou ${money(cost)}`),
+      at && h('span', { title: at.full }, `Julgado ${at.day} às ${at.time}`));
+    if (!j) {
+      fill(els.judge, h('p', { class: 'judge-note' }, icon('info'), pl.end ? 'Sem juiz neste piloto.' : 'O juiz corre no fim do piloto.'));
+      return;
+    }
+    const crit = Array.isArray(j.criteria) ? j.criteria : [], model = str(j.model) ? prettyModel(str(j.model)) : '';
+    fill(els.judge,
+      h('p', { class: 'judge-sub', title: 'O juiz recebeu o código e os textos dos dois braços como «Projeto A» e «Projeto B», sem saber qual era qual, e avaliou duas vezes, trocando a ordem. Se o vencedor muda com a ordem, o critério fica inconclusivo. O juiz qualifica: não decide o vencedor do piloto.' },
+        `${model ? model[0].toUpperCase() + model.slice(1) : 'O juiz'} pela subscrição, às cegas, 2 passagens com a ordem trocada`),
+      crit.length
+        ? h('div', { class: 'table-wrap' }, h('table', { class: 'jtable' },
+          h('caption', { class: 'sr' }, 'Veredictos do juiz, critério a critério'),
+          h('thead', {}, h('tr', {},
+            h('th', { scope: 'col' }, 'Critério'), h('th', { scope: 'col' }, 'Resultado'),
+            h('th', { scope: 'col' }, '1.ª passagem', h('span', { class: 'sub' }, 'A = Standard, B = JEV')),
+            h('th', { scope: 'col' }, '2.ª passagem', h('span', { class: 'sub' }, 'A = JEV, B = Standard')))),
+          h('tbody', {}, crit.map((c) => judgeRow(c, fresh)))))
+        : h('p', { class: 'judge-note' }, icon('info'), 'O juiz não devolveu critérios.'));
+  }
+
   function drawPilots() {
     const list = state.pilots;
     els.tabDot.hidden = !(Array.isArray(list) && list.some((x) => !x.end));
@@ -1243,6 +1371,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     drawPilotHead(pl, plan, rowsBy);
     drawScore(pl, plan, rowsBy);
     drawPilotTasks(pl, plan, rowsBy);
+    drawJudge(pl);
   }
 
   function tickElapsed() {                         // "há 12 min" avança a cada leitura, mesmo sem linhas novas
