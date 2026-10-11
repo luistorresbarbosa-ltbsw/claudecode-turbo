@@ -1,0 +1,60 @@
+[
+  {
+    "id": "T1",
+    "title": "Tabela de precedência",
+    "kind": "text",
+    "prompt": "Escreve uma explicação curta, em português de Portugal e para quem não é programador, da ordem pela qual se aplicam os operadores aritméticos (precedência) e de como se agrupam vários operadores do mesmo nível seguidos (associatividade), como na notação matemática habitual, para estes operadores: ^ (potência), − unário (o sinal de menos à frente de um número, como em −5), * e / (multiplicação e divisão), + e − (soma e subtração). Usa uma tabela em Markdown, do operador que se aplica primeiro para o último, com a associatividade de cada um, e mostra passo a passo quanto dão 2^3^2, −2^2 e 100 − 20 − 5.",
+    "output_file": "docs/precedencia.md",
+    "inject": []
+  },
+  {
+    "id": "T2",
+    "title": "Potência à direita",
+    "kind": "code",
+    "prompt": "Bug: `2^3^2` dá 64, mas devia dar 512. A potência associa à direita, como na matemática: `2^3^2` é `2^(3^2)`. Corrige.",
+    "inject": []
+  },
+  {
+    "id": "T3",
+    "title": "Erros com posição",
+    "kind": "code",
+    "prompt": "Os erros de sintaxe não dizem onde está o erro. Muda-os para que a mensagem do ErroSintaxe (`str(erro)`) seja exatamente\n\nlinha L, coluna C: inesperado 'T'\n\nem que:\n- L e C são a linha e a coluna, ambas a contar de 1, do primeiro carácter do token onde o analisador deu pelo erro;\n- T é o texto desse token, tal como está no programa;\n- se o erro for no fim do programa, a mensagem acaba em `inesperado fim do programa`, sem plicas, e a posição é a do carácter a seguir ao último;\n- um carácter que não pertence à linguagem, como `$`, também é um erro de sintaxe, e T é esse carácter.\n\nPor exemplo, `1 + * 2` dá `linha 1, coluna 5: inesperado '*'` e `(1 + 2` dá `linha 1, coluna 7: inesperado fim do programa`.",
+    "inject": []
+  },
+  {
+    "id": "T4",
+    "title": "Divisão inteira",
+    "kind": "code",
+    "prompt": "Acrescenta à linguagem dois operadores:\n- `a // b`, a divisão inteira: o maior inteiro menor ou igual a a/b, ou seja, arredonda sempre para baixo, também nos negativos (`-7 // 2` dá -4);\n- `a % b`, o resto: a − b × (a // b), que tem o sinal de b (`-7 % 2` dá 1 e `7 % -2` dá -1).\n\nFuncionam com quaisquer números, não só com inteiros (`7.5 // 2` dá 3 e `7.5 % 2` dá 1.5), e os resultados são exatos, como no resto da aritmética. Têm a mesma precedência de `*` e `/` e associam à esquerda, como eles. Dividir por zero com qualquer um dos dois é um ErroExecucao, como já acontece com `/`. Escreve testes.",
+    "inject": []
+  },
+  {
+    "id": "T5",
+    "title": "Âmbito léxico",
+    "kind": "code",
+    "prompt": "Bug: as funções estão a usar as variáveis de quem as chama, e não as do sítio onde foram definidas. Este programa\n\nlet x = 1 in\nlet f = fn y => x + y in\nlet x = 100 in\nf(10)\n\ndá 110, mas devia dar 11. E `let somar = fn a => fn b => a + b in somar(2)(3)` dá ErroExecucao (variável 'a' não definida) em vez de 5. O README diz que o âmbito é léxico: corrige.",
+    "inject": []
+  },
+  {
+    "id": "T6",
+    "title": "Chamadas em cauda",
+    "kind": "code",
+    "prompt": "Bug: uma recursão em cauda com 100 000 níveis rebenta com RecursionError. Por exemplo:\n\nlet rec contar = fn n => if n == 0 then 0 else contar(n - 1) in\ncontar(100000)\n\nFaz com que as chamadas em posição de cauda não façam crescer a pilha do Python, qualquer que seja a profundidade (aumentar o limite de recursão não resolve), sem mudar o resultado de nenhum programa. Uma chamada está em posição de cauda quando o seu valor é o valor da função onde aparece: o corpo de uma função está em posição de cauda e, quando um `if` ou um `let` estão em posição de cauda, também o estão os ramos `then` e `else` do `if` e o corpo do `let` (a parte depois do `in`). Isto vale para qualquer chamada nessa posição, e não só para uma função que se chama a si própria. A recursão que não é em cauda pode continuar limitada. O exemplo tem de correr em menos de 10 segundos.",
+    "inject": []
+  },
+  {
+    "id": "T7",
+    "title": "Inferência de tipos",
+    "kind": "code",
+    "prompt": "Acrescenta inferência de tipos Hindley–Milner, com polimorfismo no let, num módulo novo, calc/tipos.py, com:\n- `inferir(programa: str) -> str`: o tipo do programa, escrito na forma canónica abaixo, sem o correr;\n- `ErroTipo`: a exceção que `inferir` lança quando o programa não tem tipo.\n\nOs tipos são `num`, `bool`, funções `A -> B` e variáveis de tipo. As regras:\n- os números são `num`; `true` e `false` são `bool`;\n- `+ - * / ^` e o menos unário recebem `num` e dão `num`; `< <= > >=` recebem dois `num` e dão `bool`; `==` e `!=` recebem dois valores do mesmo tipo, seja ele qual for, e dão `bool`;\n- `if c then a else b`: `c` é `bool`, e `a` e `b` têm o mesmo tipo, que é o tipo do `if`;\n- `fn x => e` tem o tipo `A -> B`, em que `A` é o tipo de `x` e `B` o de `e`; dentro de `e`, `x` não é polimórfico;\n- `f(e)`: `f` tem de ser uma função que recebe o tipo de `e`, e o resultado é o tipo que `f` devolve;\n- `let x = e1 in e2`: o tipo de `e1` generaliza-se nas variáveis de tipo que não estão presas ao contexto, e cada uso de `x` em `e2` instancia-o com variáveis novas (polimorfismo no let);\n- `let rec f = fn x => e1 in e2`: dentro de `e1`, `f` não é polimórfico; em `e2`, generaliza-se como no `let`.\n\nForma canónica: `->` associa à direita e só leva parênteses quando o lado esquerdo é uma função, como em `(num -> num) -> num`; não há parênteses por fora; há um espaço de cada lado de `->`; as variáveis de tipo chamam-se `a`, `b`, `c`, ... pela ordem em que aparecem, da esquerda para a direita. Por exemplo, `fn x => x` tem o tipo `a -> a`, `fn f => fn x => f(x)` tem o tipo `(a -> b) -> a -> b` e `let id = fn x => x in id(1)` tem o tipo `num`.\n\nErros, sempre ErroTipo: quando dois tipos não casam, a mensagem diz os dois na forma canónica (em `1 + true`, fala de `num` e de `bool`); quando um tipo se teria de conter a si próprio, como em `fn x => x(x)`, a mensagem diz que o tipo seria infinito; uma variável que não está definida também é um erro, e a mensagem diz o nome dela. Escreve testes.",
+    "inject": []
+  },
+  {
+    "id": "T8",
+    "title": "Léxico vs dinâmico",
+    "kind": "text",
+    "prompt": "Explica, em português de Portugal e para quem está a aprender a programar, a diferença entre âmbito léxico e âmbito dinâmico, com este exemplo: a função custo(n) devolve n × taxa e foi definida num sítio onde existe uma variável taxa que vale 3; outra função, faturar, tem uma variável local também chamada taxa, que vale 7, e chama custo(5). Diz quanto dá custo(5) com cada uma das duas regras, e porquê, e inclui uma tabela em Markdown com o resultado de cada regra.",
+    "output_file": "docs/ambito.md",
+    "inject": []
+  }
+]

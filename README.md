@@ -73,6 +73,13 @@ uv run jev pilot run --project fatura --anthropic-only   # pool do Jev só com m
 `pilot/<projeto>/regras.md` (no fatura, as críticas do juiz às primeiras corridas). O juiz não o lê:
 é igual nos dois. O dashboard mostra o piloto na vista "Piloto", atualizada em direto.
 
+Há dois projetos: `fatura` (faturação portuguesa) e `calc` (uma pequena linguagem de expressões, com
+tarefas que vão de um bug de associatividade à inferência de tipos Hindley–Milner). Cada um tem as
+tarefas (`tasks.json`), o ponto de partida (`seed/`), os testes escondidos (`acceptance/`), uma
+solução de referência (`reference/`) e um `validate.py`, que confirma que o ponto de partida chumba
+todas as tarefas e a referência passa todas. Um `juiz.json` diz ao juiz o que é o projeto e o que
+cada critério quer dizer nele.
+
 ## Garantias e limites
 
 - **Na sessão, o JEV só escolhe o modelo e o esforço:** as permissões e as ferramentas são as tuas.

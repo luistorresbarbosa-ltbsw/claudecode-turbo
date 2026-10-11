@@ -1,0 +1,9 @@
+{
+  "projeto": "o interpretador de uma pequena linguagem de expressões em Python (calc: analisador léxico, analisador sintático e avaliador)",
+  "criterios": {
+    "legibilidade": "Nomes claros, funções com um propósito, sem código morto nem duplicado; a gramática e as regras da linguagem leem-se no código.",
+    "robustez": "Os erros do programa são do tipo certo (ErroSintaxe, ErroExecucao, ErroTipo) e dizem o que falhou; nenhum erro interno do Python (RecursionError, KeyError, ZeroDivisionError) chega a quem usa a linguagem; os números continuam exatos (Fraction).",
+    "testes": "Os testes que o projeto escreveu cobrem os casos-limite que importam (associatividade, divisão inteira com negativos, âmbito das funções, recursão profunda, erros de tipo e de sintaxe com a posição).",
+    "textos": "Os textos em docs/ são exatos, claros, em português de Portugal e com o tom certo para o leitor pedido."
+  }
+}
