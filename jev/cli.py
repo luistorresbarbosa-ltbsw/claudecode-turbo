@@ -38,6 +38,13 @@ def _parser() -> argparse.ArgumentParser:
     route = sub.add_parser("route", help="para o mod: o Jev decide o prompt do stdin (JSON na saída)")
     route.add_argument("--agent", action="store_true", help="a tarefa é de um subagente (nunca vai para um free)")
     sub.add_parser("record", help="para o mod: regista um turno (JSON no stdin)")
+    pil = sub.add_parser("pilot", help="o piloto: standard vs JEV no projeto fatura").add_subparsers(dest="pilot_cmd", required=True)
+    prun = pil.add_parser("run", help="corre os dois braços, tarefa a tarefa, e no fim o juiz")
+    prun.add_argument("--tasks", help="ids separados por vírgulas (por defeito, todas)")
+    prun.add_argument("--max-min", type=float, default=10, help="envelope de tempo de cada braço, em minutos")
+    prun.add_argument("--max-usd-task", type=float, default=1.0)
+    prun.add_argument("--max-usd-total", type=float, default=9.0)
+    prun.add_argument("--no-judge", action="store_true")
     return p
 
 
@@ -161,6 +168,26 @@ def _record(payload: dict) -> dict:
     return {"record": rec, "summary": ledger.summarize(ledger.read_all())}
 
 
+def _pilot(args) -> int:
+    from datetime import datetime
+
+    from jev import pilot_run
+
+    root = pilot_run.PILOT_ROOT
+    tasks = json.loads((root / "tasks.json").read_text(encoding="utf-8"))
+    if args.tasks:
+        wanted = [t.strip() for t in args.tasks.split(",")]
+        tasks = [t for t in tasks if t["id"] in wanted]
+    pilot_id = "fatura-" + datetime.now().strftime("%Y%m%d-%H%M")
+    print(f"piloto {pilot_id}: {len(tasks)} tarefas · {args.max_min:g} min por braço · "
+          f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total", flush=True)
+    pilot_run.run_pilot(tasks, pilot_id=pilot_id, seed=root / "seed", inject_root=root / "inject",
+                        acceptance_root=root / "acceptance", max_min_arm=args.max_min,
+                        max_usd_task=args.max_usd_task, max_usd_total=args.max_usd_total,
+                        judge=not args.no_judge, log=lambda msg: print(msg, flush=True))
+    return 0
+
+
 def _fail(msg: str) -> int:
     print(f"jev: {msg}", file=sys.stderr)
     return 2
@@ -180,6 +207,8 @@ def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=N
         out = _route(text.strip(), agent=args.agent, decide=decide, run_free=run_free or dispatch.run_free)
         print(json.dumps(out, ensure_ascii=False))
         return 0
+    if args.cmd == "pilot":
+        return _pilot(args)
     if args.cmd == "ledger":
         summary = ledger.summarize(ledger.read_all())
         print(json.dumps(summary) if args.json else _ledger_text(summary))
