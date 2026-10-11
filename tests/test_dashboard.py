@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from jev import dashboard, ledger
+from jev import dashboard, ledger, pilot
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INDEX_HTML = REPO_ROOT / "dashboard" / "index.html"
@@ -186,10 +186,11 @@ def test_unreadable_ledger_is_a_json_500_not_a_dropped_connection(server, jev_ho
     assert "error" in reply.json()
 
 
-def test_api_responses_are_never_cached(server):
+@pytest.mark.parametrize("path", ["/api/ledger", "/api/pilots"])
+def test_api_responses_are_never_cached(server, path):
     """Falha se o browser ou um proxy puderem reutilizar uma resposta: os números
     ficariam desatualizados depois de uma tarefa nova."""
-    assert "no-store" in get(server, "/api/ledger").headers["Cache-Control"]
+    assert "no-store" in get(server, path).headers["Cache-Control"]
 
 
 # ---------------------------------------------------------------- routing
@@ -198,6 +199,7 @@ def test_api_responses_are_never_cached(server):
     "/nope",
     "/api",
     "/api/ledger/",
+    "/api/pilots/",
     "/index.html",
     "/../pyproject.toml",
     "/dashboard/demo/ledger.jsonl",
@@ -208,7 +210,7 @@ def test_every_other_path_is_404(server, path):
     assert get(server, path).status == 404
 
 
-@pytest.mark.parametrize("path", ["/?x=1", "/api/ledger?_=1760000000"])
+@pytest.mark.parametrize("path", ["/?x=1", "/api/ledger?_=1760000000", "/api/pilots?_=1760000000"])
 def test_query_string_does_not_change_routing(server, path):
     """Falha se um cache-buster (?_=...) transformar rotas válidas em 404."""
     assert get(server, path).status == 200
@@ -267,7 +269,7 @@ def test_server_does_not_answer_on_the_lan_address(server):
         socket.create_connection((lan_ip, server.server_port), timeout=2).close()
 
 
-@pytest.mark.parametrize("path", ["/", "/api/ledger"])
+@pytest.mark.parametrize("path", ["/", "/api/ledger", "/api/pilots"])
 @pytest.mark.parametrize("host, allowed", [
     ("127.0.0.1:{port}", True),
     ("localhost:{port}", True),
@@ -282,6 +284,78 @@ def test_requests_with_a_foreign_host_header_are_refused(server, path, host, all
     reply = get(server, path, headers={"Host": host.format(port=server.server_port)})
 
     assert reply.status == (200 if allowed else 403)
+
+
+# ------------------------------------------------------------- /api/pilots
+
+def _pilot_meta(pid="p1", started="2026-10-11T12:00:00Z"):
+    return {"v": 1, "type": "meta", "pilot": pid, "started": started,
+            "tasks": [{"id": "T1", "title": "Primeira", "kind": "code"}],
+            "max_usd_per_task": 1.0, "max_usd_total": 9.0}
+
+
+def _pilot_task(pid, arm, cost, ok=True):
+    return {"v": 1, "type": "task", "pilot": pid, "arm": arm, "task": "T1", "title": "Primeira", "kind": "code",
+            "status": "done", "cost_usd": cost, "wall_ms": 1500, "models": {"claude-sonnet-5-5": cost},
+            "jev": {"decisions": [{"model": "haiku", "effort": "low", "rationale": "Jev: x", "scope": "agent"}],
+                    "decision_cost_usd": 0.001} if arm == "jev" else None,
+            "acceptance": {"ok": ok, "passed": 1 if ok else 0, "failed": 0 if ok else 1}}
+
+
+def test_api_pilots_returns_every_pilot_newest_first_with_all_their_rows(server, jev_home):
+    """Falha se o endpoint filtrar ou reescrever linhas (a decisão do Jev, o scope do subagente, os
+    modelos cobrados, a aceitação) ou devolver os pilotos pela ordem errada."""
+    standard, jev = _pilot_task("novo", "standard", 0.30), _pilot_task("novo", "jev", 0.05, ok=False)
+    end = {"v": 1, "type": "end", "pilot": "novo", "finished": "2026-10-11T10:00:00Z", "stopped": "orçamento total"}
+    pilot.append(_pilot_meta("velho", "2026-10-10T09:00:00Z"), home=jev_home)
+    pilot.append(_pilot_meta("novo", "2026-10-11T09:00:00Z"), home=jev_home)
+    for row in (standard, jev, end):
+        pilot.append(row, home=jev_home)
+
+    reply = get(server, "/api/pilots")
+
+    assert reply.status == 200
+    assert reply.headers["Content-Type"].startswith("application/json")
+    novo, velho = reply.json()["pilots"]
+    assert (novo["id"], velho["id"]) == ("novo", "velho")
+    assert novo["tasks"] == [standard, jev]
+    assert novo["end"] == end
+    assert velho["tasks"] == [] and velho["end"] is None  # ainda a correr: sem linha end
+
+
+def test_pilot_rows_written_while_the_server_runs_show_up_without_restart(server, jev_home):
+    """Falha se os pilotos forem lidos uma só vez: o dashboard é visto a encher-se em direto."""
+    pilot.append(_pilot_meta(), home=jev_home)
+    assert get(server, "/api/pilots").json()["pilots"][0]["tasks"] == []
+
+    pilot.append(_pilot_task("p1", "standard", 0.30), home=jev_home)
+    pilot.append({"v": 1, "type": "end", "pilot": "p1", "finished": "2026-10-11T10:00:00Z", "stopped": None}, home=jev_home)
+
+    [p] = get(server, "/api/pilots").json()["pilots"]
+    assert [t["arm"] for t in p["tasks"]] == ["standard"]
+    assert p["end"]["finished"] == "2026-10-11T10:00:00Z"
+
+
+def test_no_pilots_gives_an_empty_list(server, jev_home):
+    """Falha se a primeira utilização (sem pasta pilots/) der 500 ou null."""
+    assert not jev_home.exists()
+
+    reply = get(server, "/api/pilots")
+
+    assert reply.status == 200
+    assert reply.json() == {"pilots": []}
+
+
+def test_unreadable_pilot_store_is_a_json_500_not_a_dropped_connection(server, jev_home):
+    """Falha se um registo ilegível rebentar a thread do pedido: a vista Piloto ficava sem
+    resposta e sem dizer porquê. Um diretório com nome de .jsonl é ilegível em qualquer sistema."""
+    (jev_home / "pilots" / "partido.jsonl").mkdir(parents=True)
+
+    reply = get(server, "/api/pilots")
+
+    assert reply.status == 500
+    assert reply.headers["Content-Type"].startswith("application/json")
+    assert "error" in reply.json()
 
 
 # --------------------------------------------------------------------- CLI

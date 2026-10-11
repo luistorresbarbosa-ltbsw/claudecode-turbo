@@ -4,8 +4,9 @@ Serve só em 127.0.0.1 e só com a stdlib:
 
     GET /            dashboard/index.html
     GET /api/ledger  {"records": [...], "summary": {...}}, relido a cada pedido
+    GET /api/pilots  {"pilots": [...]}, os pilotos do mais recente para o mais antigo, relidos a cada pedido
 
-O ledger é o contrato partilhado (ver jev/ledger.py). Aqui só se lê.
+O ledger e os pilotos são contratos partilhados (ver jev/ledger.py e jev/pilot.py). Aqui só se lê.
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from jev import ledger
+from jev import ledger, pilot
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8787
@@ -28,6 +29,11 @@ INDEX_HTML = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
 # seu domínio para 127.0.0.1 e ler o ledger no browser do utilizador; o que a denuncia é
 # o cabeçalho Host, por isso só aceitamos os nomes que o próprio utilizador digita.
 LOCAL_HOSTNAMES = {"127.0.0.1", "localhost"}
+
+
+def _ledger_payload() -> dict:
+    records = ledger.read_all()
+    return {"records": records, "summary": ledger.summarize(records)}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,7 +46,9 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/":
             self._send_page()
         elif route == "/api/ledger":
-            self._send_ledger()
+            self._send_json(_ledger_payload)
+        elif route == "/api/pilots":
+            self._send_json(lambda: {"pilots": pilot.read_all()})
         else:
             self._reply(HTTPStatus.NOT_FOUND, "Não encontrado.")
 
@@ -61,16 +69,12 @@ class Handler(BaseHTTPRequestHandler):
                                f"Não encontrei a página do dashboard em {INDEX_HTML}")
         self._reply(HTTPStatus.OK, html, "text/html; charset=utf-8")
 
-    def _send_ledger(self) -> None:
+    def _send_json(self, build) -> None:
         try:
-            records = ledger.read_all()
-            payload = {"records": records, "summary": ledger.summarize(records)}
-            status = HTTPStatus.OK
-        except (OSError, ValueError) as exc:  # sem permissão, bytes que não são UTF-8...
-            payload = {"error": f"{type(exc).__name__}: {exc}"}
-            status = HTTPStatus.INTERNAL_SERVER_ERROR
-        self._reply(status, json.dumps(payload, ensure_ascii=False),
-                    "application/json; charset=utf-8")
+            payload, status = build(), HTTPStatus.OK
+        except (OSError, ValueError) as exc:  # sem permissão, um diretório onde devia haver um ficheiro...
+            payload, status = {"error": f"{type(exc).__name__}: {exc}"}, HTTPStatus.INTERNAL_SERVER_ERROR
+        self._reply(status, json.dumps(payload, ensure_ascii=False), "application/json; charset=utf-8")
 
     def _reply(self, status: HTTPStatus, body: str | bytes,
                content_type: str = "text/plain; charset=utf-8") -> None:

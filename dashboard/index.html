@@ -93,19 +93,26 @@ h1 { font-size: 22px; line-height: 1.2; font-weight: 650; letter-spacing: -0.015
 [hidden] { display: none !important; }
 
 /* a conta: Standard - JEV = Poupado */
-.band { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 22px 40px; margin-top: 28px; padding: 26px 0 28px; border-block: 1px solid var(--hair); }
-.eq { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 22px; min-width: 0; }
+.band { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 22px 32px; margin-top: 28px; padding: 26px 0 28px; border-block: 1px solid var(--hair); }
+.eq { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; min-width: 0; }
 .fig { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .fig-label { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 13px; font-weight: 500; }
 .fig-value { display: flex; align-items: baseline; gap: 12px; font-size: clamp(26px, 3.2vw, 34px); line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
 .fig-sub { color: var(--muted); font-size: 12.5px; }
 .op { color: var(--muted); font-size: 28px; line-height: 1; font-weight: 400; padding-bottom: 27px; }
-.fig-result .fig-value { font-size: clamp(40px, 6.2vw, 62px); }
-.fig-result .fig-pct { font-size: clamp(18px, 2.4vw, 24px); letter-spacing: -0.01em; }
+.fig-result .fig-value { font-size: clamp(40px, 5.8vw, 58px); }
+.fig-result .fig-pct { font-size: clamp(18px, 2.2vw, 22px); letter-spacing: -0.01em; }
 .fig-result.is-gain .fig-value { color: var(--gain-ink); }
 .fig-result.is-loss .fig-value { color: var(--loss-ink); }
 .fig-result .fig-sub { font-size: 13px; color: var(--ink-2); }
 .fig-count { text-align: right; align-items: flex-end; }
+.side { display: flex; flex: 1 1 auto; justify-content: space-between; align-items: flex-end; gap: 22px 28px; min-width: 0; }
+.fig-speed .fig-value { gap: 10px; }
+.fig-unit { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); }
+.fig-vs { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
+.fig-vs.is-gain { color: var(--gain-ink); }
+.fig-vs.is-loss { color: var(--loss-ink); }
+.fig-vs.is-even { color: var(--ink-2); }
 /* valores com muitos dígitos (milhares de $): letra mais pequena em vez de partir a linha */
 .band[data-size="l"] .fig-value { font-size: clamp(22px, 2.7vw, 28px); }
 .band[data-size="l"] .fig-result .fig-value { font-size: clamp(34px, 5vw, 50px); }
@@ -167,7 +174,7 @@ h2 { font-size: 15px; font-weight: 650; letter-spacing: -0.005em; }
 
 /* tabelas */
 .table-wrap { margin: 10px -10px 0; overflow-x: auto; }
-table { width: 100%; min-width: 800px; border-collapse: collapse; font-size: 13.5px; }
+table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 13.5px; }
 caption { text-align: left; padding: 0 10px 8px; color: var(--muted); font-size: 12.5px; caption-side: top; }
 thead th { padding: 8px 10px; text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--axis); }
 tbody td { padding: 11px 10px; vertical-align: top; border-bottom: 1px solid var(--hair); }
@@ -177,6 +184,7 @@ tbody tr:hover td { background: var(--plane); }
 .when b { font-weight: 500; color: var(--ink); margin-right: 6px; }
 .task { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; max-width: 44ch; }
 .model { font-weight: 600; overflow-wrap: anywhere; }
+.choice { min-width: 250px; }
 .effort { color: var(--ink-2); }
 .pick { display: flex; align-items: center; flex-wrap: wrap; gap: 0 8px; }
 .pick-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; margin-top: 5px; }
@@ -199,9 +207,15 @@ tbody tr:hover td { background: var(--plane); }
 .i-critical { fill: var(--critical); }
 .i-glyph { fill: none; stroke: var(--glyph); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .i-glyph-light { fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; }
+.i-glyph-ink { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
 .cost-sub { display: flex; justify-content: flex-end; margin-top: 5px; }
 .zero { color: var(--muted); }
+.void { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.time-jev.is-gain, .time-jev.is-loss { font-weight: 650; }
+.time-jev.is-gain { color: var(--gain-ink); }
+.time-jev.is-loss { color: var(--loss-ink); }
+.time-sub { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 16px; }
 .diff { width: 1%; }
 thead th.diff { padding-right: calc(10px + 12px + 92px); }
 .delta { display: inline-grid; grid-template-columns: 6.4em 92px; align-items: center; gap: 12px; }
@@ -222,9 +236,86 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 #content.is-stale { opacity: 0.5; }
 .row-new td { animation: arrived 2.6s ease-out; }
 @keyframes arrived { from { background: color-mix(in srgb, var(--jev) 18%, transparent); } to { background: transparent; } }
+/* separadores */
+.tabs { display: flex; gap: 26px; margin-top: 18px; }
+.tabs button { position: relative; padding: 6px 0 8px; border: 0; background: transparent; color: var(--ink-2); font-size: 14px; font-weight: 550; cursor: pointer; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 650; }
+.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--jev); }
+.tab-dot { display: inline-block; width: 7px; height: 7px; margin-left: 7px; border-radius: 50%; background: var(--jev); vertical-align: 1px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* vista Piloto: cabeçalho */
+.pilot-head { margin-top: 20px; padding-top: 22px; border-top: 1px solid var(--hair); }
+.pilot-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.pilot-title h2 { font-size: 20px; letter-spacing: -0.015em; }
+.pilot-title select { max-width: 100%; padding: 4px 8px; border: 1px solid var(--axis); border-radius: 6px; background: var(--plane); color: var(--ink); font: inherit; font-size: 13px; }
+.pilot-state { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.pilot-state.is-running { color: var(--ink); }
+.pilot-state .sub { font-weight: 450; color: var(--muted); }
+.run-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--jev); flex: none; animation: pulse 1.4s ease-in-out infinite; }
+.pilot-meta { display: flex; flex-wrap: wrap; gap: 2px 20px; margin-top: 6px; color: var(--ink-2); font-size: 13px; }
+.pilot-problem { display: flex; gap: 10px; align-items: flex-start; margin-top: 20px; padding: 12px 14px; border-radius: 8px; background: var(--plane); font-size: 13.5px; }
+.pilot-problem .ico { margin-top: 3px; }
+#pilot-content { transition: opacity 0.2s; }
+#pilot-content.is-stale { opacity: 0.5; }
+
+/* vista Piloto: scorecard */
+.score { width: calc(100% + 20px); min-width: 0; margin: 8px -10px 0; table-layout: fixed; }
+.score thead th:first-child, .ptable thead th:first-child { width: 24%; }
+.score th, .score td { padding: 12px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--hair); }
+.score thead th { padding: 4px 10px 8px; border-bottom-color: var(--axis); color: var(--ink-2); font-size: 13px; }
+.score thead th .key { margin-right: 8px; vertical-align: 3px; }
+.score tbody th { width: 27%; color: var(--ink-2); font-size: 13.5px; font-weight: 500; }
+.sc-val { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 20px; line-height: 1.25; font-weight: 650; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+.sc.is-worse .sc-val { font-weight: 500; color: var(--ink-2); }
+.sc-sub { margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.sc-bar { max-width: 320px; height: 6px; margin-top: 9px; border-radius: 3px; background: var(--hair); }
+.sc-bar i { display: block; height: 100%; border-radius: 0 3px 3px 0; min-width: 2px; }
+.bar-std { background: var(--std); }
+.bar-jev { background: var(--jev); }
+.best { display: inline-flex; align-items: center; gap: 4px; padding: 0 8px 0 5px; border-radius: 999px; background: var(--plane); color: var(--ink); font-size: 11.5px; font-weight: 600; letter-spacing: 0; line-height: 18px; }
+.pips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 9px; }
+.pip { width: 11px; height: 11px; border-radius: 2px; }
+.pip-pass.std { background: var(--std); }
+.pip-pass.jev { background: var(--jev); }
+.pip-fail { background: var(--loss); }
+.pip-skip { background: var(--hair); }
+.pip-todo { box-shadow: inset 0 0 0 1px var(--axis); }
+.score-note { display: flex; gap: 9px; align-items: flex-start; max-width: 760px; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--plane); color: var(--ink); font-size: 13px; }
+.score-note .ico { margin-top: 3px; }
+
+/* vista Piloto: tabela por tarefa */
+.ptable { min-width: 780px; table-layout: fixed; }
+.ptable thead th .key { margin-right: 8px; vertical-align: 3px; }
+.task-id { margin-right: 3px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.task-title { overflow-wrap: anywhere; }
+.task-kind { margin-top: 5px; }
+.arm-main { display: grid; grid-template-columns: 112px 72px 84px; align-items: baseline; gap: 4px 10px; }
+.arm-cost, .arm-time { text-align: right; font-variant-numeric: tabular-nums; }
+.arm-time { color: var(--ink-2); }
+.arm-extra { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 7px; }
+.arm-models { margin-top: 6px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.state { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; white-space: nowrap; }
+.state.is-running, .state.is-pending, .state.is-skipped, .state.is-none { font-weight: 450; color: var(--muted); }
+.state.is-running { color: var(--ink-2); }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 0 8px 0 6px; border-radius: 999px; background: var(--plane); color: var(--ink); font-size: 11.5px; line-height: 18px; white-space: nowrap; }
+.chip b { font-weight: 600; }
+.chip em { font-style: normal; color: var(--muted); }
+.cell-new { animation: arrived 2.6s ease-out; }
+.i-ok { fill: var(--gain); }
+.i-check { fill: none; stroke: var(--gain-ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.i-ring { fill: none; stroke: var(--muted); stroke-width: 1.4; }
+.i-ring-faint { fill: none; stroke: var(--axis); stroke-width: 1.4; }
+.i-ring-jev { fill: none; stroke: var(--jev); stroke-width: 1.4; }
+.i-ring-glyph { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.i-run { fill: var(--jev); animation: pulse 1.4s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .row-new td { animation: none; }
-  #content { transition: none; }
+  .row-new td, .cell-new { animation: none; }
+  #content, #pilot-content { transition: none; }
+  .run-dot, .tab-dot, .i-run { animation: none; }
 }
 
 @media (max-width: 780px) {
@@ -232,7 +323,10 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
   .band { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 18px; padding: 22px 0 24px; }
   .eq { display: contents; }
   .op { display: none; }
+  .band { align-items: start; }
   .fig-result { order: -1; grid-column: 1 / -1; }
+  .side { display: contents; }
+  .fig-speed { grid-column: 1 / -1; }
   .fig-count { grid-column: 1 / -1; justify-self: start; text-align: left; align-items: flex-start; }
   .fig-value, .band[data-size] .fig-value { font-size: 26px; }
   .fig-result .fig-value, .band[data-size] .fig-result .fig-value { font-size: 46px; }
@@ -240,6 +334,18 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
   .band[data-size="xl"] .fig-result .fig-value { font-size: 30px; }
   .table-wrap { margin-inline: -16px; }
   thead th:first-child, tbody td:first-child { padding-left: 16px; }
+  .score { margin-left: -10px; font-size: 13px; }
+  .score tbody th { width: 30%; }
+  .sc-val { font-size: 17px; }
+  .ptable, .ptable tbody { display: block; min-width: 0; }
+  .ptable thead { display: none; }
+  .ptable tr { display: block; padding: 12px 0 4px; border-bottom: 1px solid var(--hair); }
+  .ptable td { display: block; padding: 0 0 12px; border: 0; }
+  .ptable tbody tr:hover td { background: transparent; }
+  .score thead th:first-child { width: 30%; }
+  .ptable td.parm::before { content: attr(data-arm); display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 600; }
+  .ptable td:first-child { padding-left: 16px; }
+  .ptable td { padding-inline: 16px; }
 }
 </style>
 </head>
@@ -253,6 +359,12 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     <p class="live" id="live" role="status" title="O ledger é relido a cada 5 segundos"><span class="dot" aria-hidden="true"></span><span id="live-text">A carregar…</span></p>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Vistas">
+    <button type="button" role="tab" id="tab-day" aria-controls="view-day" aria-selected="true" data-page="day">Dia a dia</button>
+    <button type="button" role="tab" id="tab-pilot" aria-controls="view-pilot" aria-selected="false" tabindex="-1" data-page="pilot">Piloto<i class="tab-dot" id="tab-dot" title="Há um piloto a correr" hidden></i></button>
+  </nav>
+
+  <div id="view-day" role="tabpanel" aria-labelledby="tab-day">
   <div class="problem" id="problem" role="alert" hidden></div>
 
   <section class="empty" id="empty" hidden>
@@ -290,6 +402,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
               <th scope="col" class="num">JEV</th>
               <th scope="col" class="num">Standard</th>
               <th scope="col" class="num diff">Diferença</th>
+              <th scope="col" class="num" title="O que esperaste por tarefa: a decisão do Jev mais a execução. O tempo do standard só existe quando foi medido.">Tempo</th>
             </tr>
           </thead>
           <tbody id="tasks-body"></tbody>
@@ -297,6 +410,36 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       </div>
       <button type="button" class="more" id="more" hidden></button>
     </section>
+  </div>
+  </div>
+
+  <div id="view-pilot" role="tabpanel" aria-labelledby="tab-pilot" hidden>
+    <p class="pilot-problem" id="pilot-problem" role="alert" hidden></p>
+    <section class="empty" id="pilot-empty" hidden>
+      <p class="empty-title">Ainda não há pilotos.</p>
+    </section>
+    <div id="pilot-content" hidden>
+      <div class="pilot-head" id="pilot-head"></div>
+      <section class="sec" aria-labelledby="score-h">
+        <div class="sec-head"><h2 id="score-h">Resultado</h2></div>
+        <div id="score"></div>
+      </section>
+      <section class="sec" aria-labelledby="ptasks-h">
+        <div class="sec-head"><h2 id="ptasks-h">Tarefas</h2></div>
+        <div class="table-wrap">
+          <table class="ptable">
+            <thead>
+              <tr>
+                <th scope="col">Tarefa</th>
+                <th scope="col"><i class="key key-std"></i>Standard</th>
+                <th scope="col"><i class="key key-jev"></i>JEV</th>
+              </tr>
+            </thead>
+            <tbody id="ptasks-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </div>
   <noscript><p class="note">Este dashboard precisa de JavaScript.</p></noscript>
 </main>
@@ -318,8 +461,13 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     live: $('live'), liveText: $('live-text'), problem: $('problem'), empty: $('empty'), content: $('content'),
     band: $('band'), legend: $('legend'), plot: $('plot'), plotTable: $('plot-table'),
     body: $('tasks-body'), meta: $('tasks-meta'), more: $('more'),
+    tabDay: $('tab-day'), tabPilot: $('tab-pilot'), tabDot: $('tab-dot'), viewDay: $('view-day'), viewPilot: $('view-pilot'),
+    pilotProblem: $('pilot-problem'), pilotEmpty: $('pilot-empty'), pilotContent: $('pilot-content'),
+    pilotHead: $('pilot-head'), score: $('score'), pilotBody: $('ptasks-body'),
   };
-  const state = { rows: [], series: [], summary: {}, view: 'chart', shown: PAGE, seen: new Set(), loaded: false, lastText: null, std: null };
+  const state = { rows: [], series: [], summary: {}, view: 'chart', shown: PAGE, seen: new Set(), loaded: false, lastText: null, std: null,
+    page: location.hash === '#piloto' ? 'pilot' : 'day',
+    pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map() };
 
   // ---------------------------------------------------------------- DOM
   // Tudo o que vem do ledger entra como texto (nós de texto ou atributos): nunca como HTML.
@@ -365,15 +513,34 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     const m = /^claude-([a-z]+)-(\d+)-(\d+)(?:-\d{8})?$/.exec(id);
     return m ? `${m[1]} ${m[2]}.${m[3]}` : id;
   }
+  function fmtDuration(ms) {                       // 850 ms · 3,8 s · 17 s · 1 min 5 s · 1 h 3 min
+    if (ms == null || !isFinite(ms)) return '—';
+    if (ms < 1000) return `${Math.round(ms)} ms`;
+    const sec = ms / 1000;
+    if (Number(sec.toFixed(1)) < 10) return `${nf(1).format(sec)} s`;
+    if (Math.round(sec) < 60) return `${Math.round(sec)} s`;
+    const total = Math.round(sec), min = Math.floor(total / 60), rest = total % 60;
+    if (min < 60) return rest ? `${min} min ${rest} s` : `${min} min`;
+    const hrs = Math.floor(min / 60), mm = min % 60;
+    return mm ? `${hrs} h ${mm} min` : `${hrs} h`;
+  }
+  const fmtRatio = (x) => (x >= 10 ? nf(0) : nf(1)).format(x) + '×';
 
   // ------------------------------------------------------------- dados
   const obj = (v) => (v && typeof v === 'object' ? v : {});
   const str = (v) => (typeof v === 'string' ? v : v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
   const num = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
+  // Duração em ms, ou null. O standard só tem tempo quando foi medido: nunca se inventa um.
+  const msOf = (v, min) => (typeof v === 'number' && isFinite(v) && v >= min ? v : null);
+  function median(values) {
+    const v = values.filter((x) => x != null).sort((a, b) => a - b), mid = v.length >> 1;
+    return v.length ? (v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2) : null;
+  }
 
   function toRow(rec, index) {
     const dec = obj(rec.decision), jev = obj(rec.jev), std = obj(rec.standard);
     const jevCost = num(jev.cost_usd), stdCost = num(std.cost_usd);
+    const failed = jev.ok === false;
     const fb = jev.fallback;                         // chave em falta = null (registos antigos)
     return {
       key: str(rec.id) + '#' + index,
@@ -383,11 +550,16 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       rationale: str(dec.rationale), routerModel: str(dec.router_model),
       routerError: dec.router_error == null ? null : str(dec.router_error),
       jevCost, stdCost,
-      saved: typeof rec.savings_usd === 'number' && isFinite(rec.savings_usd) ? rec.savings_usd : stdCost - jevCost,
+      // A regra do ledger: numa tarefa falhada o standard "evitado" não conta, só o custo do JEV. Calcula-se
+      // aqui, e não se lê de savings_usd, para bater com o resumo e com o gráfico até em registos antigos.
+      saved: failed ? -jevCost : stdCost - jevCost,
       jevModelId: str(jev.model_id),
-      failed: jev.ok === false,
+      failed,
       fallback: fb ? { from: str(obj(fb).from), reason: str(obj(fb).reason) } : null,
       stdKind: str(std.kind), stdModelId: str(std.model_id), stdEffort: str(std.effort),
+      jevMs: msOf(jev.duration_ms, 0),
+      stdMs: std.kind === 'measured' ? msOf(std.duration_ms, 1) : null,
+      scope: str(dec.scope),                       // "agent": turno de subagente; em falta ou "main": prompt do utilizador
     };
   }
 
@@ -413,7 +585,19 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     router: () => [s('path', { class: 'i-warn', d: 'M7 1.2 13.2 12.2H.8z' }), s('path', { class: 'i-glyph', d: 'M7 5v3.3M7 10.1v.1' })],
     fallback: () => [s('circle', { class: 'i-serious', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph', d: 'M5.7 4.4 4 6.1l1.7 1.7M4.2 6.1h3.7a2 2 0 0 1 0 4H6' })],
     failed: () => [s('circle', { class: 'i-critical', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph-light', d: 'M4.9 4.9l4.2 4.2M9.1 4.9 4.9 9.1' })],
+    agent: () => [s('path', { class: 'i-glyph-ink', d: 'M4.2 2.4v5.6a1.6 1.6 0 0 0 1.6 1.6h4M8.2 7.2l2.1 2.4-2.1 2.4' })],
+    check: () => [s('path', { class: 'i-check', d: 'M3.2 7.4l2.4 2.4 5-5.4' })],
+    info: () => [s('circle', { class: 'i-ring', cx: 7, cy: 7, r: 5.8 }), s('path', { class: 'i-ring-glyph', d: 'M7 6.4v3.4M7 4.2v.1' })],
+    's-ok': () => [s('circle', { class: 'i-ok', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph-light', d: 'M4.3 7.2l1.9 1.9 3.6-3.9' })],
+    's-error': () => [s('circle', { class: 'i-critical', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph-light', d: 'M7 3.9v3.9M7 10.1v.1' })],
+    's-budget': () => [s('circle', { class: 'i-warn', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph', d: 'M7 3.2v7.6M8.9 5.2c-.4-.7-1-1-1.9-1-1 0-1.8.5-1.8 1.3 0 1.9 3.7.9 3.7 2.8 0 .8-.8 1.4-1.9 1.4-.9 0-1.6-.4-2-1.1' })],
+    's-timeout': () => [s('circle', { class: 'i-warn', cx: 7, cy: 7, r: 6.3 }), s('path', { class: 'i-glyph', d: 'M7 3.8V7l2.3 1.5' })],
+    's-skipped': () => [s('circle', { class: 'i-ring', cx: 7, cy: 7, r: 5.8 }), s('path', { class: 'i-ring-glyph', d: 'M4.6 7h4.8' })],
+    's-running': () => [s('circle', { class: 'i-ring-jev', cx: 7, cy: 7, r: 5.8 }), s('circle', { class: 'i-run', cx: 7, cy: 7, r: 2.4 })],
+    's-pending': () => [s('circle', { class: 'i-ring-faint', cx: 7, cy: 7, r: 5.8 })],
+    's-none': () => [s('circle', { class: 'i-ring', cx: 7, cy: 7, r: 5.8 }), s('path', { class: 'i-ring-glyph', d: 'M5.6 5.8c0-.9.7-1.5 1.5-1.5s1.5.6 1.5 1.4c0 1.2-1.5 1.1-1.5 2.4M7.1 9.9v.1' })],
   };
+  ICONS['s-fail'] = ICONS.failed;
   const icon = (kind) => s('svg', { class: 'ico', viewBox: '0 0 14 14', width: 13, height: 13, 'aria-hidden': 'true' }, ICONS[kind]());
 
   // ---------------------------------------------------------- escalas
@@ -449,6 +633,40 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     return r && r.stdModelId ? [prettyModel(r.stdModelId), r.stdEffort].filter(Boolean).join(', ') : 'o que usarias sem JEV';
   }
 
+  // Velocidade: a mediana do tempo que esperaste por tarefa. A comparação com o standard é entre as MESMAS
+  // tarefas, as que o standard correu de facto (--ab, ou o Jev a escolher o standard): a mediana do JEV em
+  // todas as tarefas não é termo de comparação, porque inclui as tarefas em que o standard nunca correu.
+  function speedFig() {
+    const sp = obj(state.summary.speed), rows = state.rows;
+    const jevMedian = typeof sp.jev_median_ms === 'number' ? sp.jev_median_ms : median(rows.map((r) => r.jevMs));
+    const measured = typeof sp.standard_measured === 'number' ? sp.standard_measured : rows.filter((r) => r.stdMs != null).length;
+    const pairs = rows.filter((r) => r.stdMs != null && r.jevMs != null), n = pairs.length;
+    const pj = median(pairs.map((r) => r.jevMs)), ps = median(pairs.map((r) => r.stdMs));
+
+    let below;
+    if (jevMedian == null) {
+      below = h('span', { class: 'fig-sub' }, 'sem tempos registados');
+    } else if (!n) {
+      below = h('span', { class: 'fig-sub', title: 'O tempo do standard só existe quando ele correu de facto (por exemplo com /jev --ab). Não há estimativa de tempo.' },
+        measured > 0 ? `standard medido em ${measured}, sem tempo do JEV para comparar` : 'o standard ainda não foi medido');
+    } else {
+      const ratio = pj > 0 && ps > 0 ? ps / pj : null;
+      const kind = ratio === null ? 'even' : ratio >= 1.05 ? 'gain' : ratio <= 1 / 1.05 ? 'loss' : 'even';
+      const text = ratio === null ? 'sem tempo para comparar'
+        : kind === 'gain' ? `${fmtRatio(ratio)} mais rápido que o standard`
+        : kind === 'loss' ? `${fmtRatio(1 / ratio)} mais lento que o standard`
+        : 'tão rápido como o standard';
+      const title = `Em ${n} ${n === 1 ? 'tarefa' : 'tarefas'} com o standard medido, o JEV esperou ${fmtDuration(pj)} e o standard ${fmtDuration(ps)} (medianas). O tempo do standard nunca é estimado.\n`
+        + `A mediana do JEV em todas as tarefas (${fmtDuration(jevMedian)}) fica fora da comparação: inclui tarefas em que o standard não correu.`;
+      below = [h('span', { class: `fig-vs is-${kind}`, title }, text),
+        h('span', { class: 'fig-sub', title }, `em ${n} ${n === 1 ? 'tarefa medida' : 'tarefas medidas'}`)];
+    }
+    return h('div', { class: 'fig fig-speed', title: 'Mediana do tempo que esperaste por tarefa: a decisão do Jev mais a execução.' },
+      h('span', { class: 'fig-label' }, 'Velocidade (mediana)'),
+      h('span', { class: 'fig-value' }, h('span', {}, fmtDuration(jevMedian)), jevMedian != null && h('span', { class: 'fig-unit' }, 'por tarefa')),
+      below);
+  }
+
   function drawBand() {
     const sm = state.summary, rows = state.rows;
     const total = num(sm.tasks) || rows.length, std = num(sm.standard_usd), jev = num(sm.jev_usd);
@@ -457,6 +675,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     const kind = saved > EPS ? 'gain' : saved < -EPS ? 'loss' : 'even';
     const sub = { gain: 'o JEV saiu mais barato que o standard', loss: 'o JEV saiu mais caro que o standard', even: 'o JEV custou o mesmo que o standard' }[kind];
     const first = rows.length ? dayMonth(rows[0].t) : '';
+    const failedN = typeof sm.failed === 'number' ? sm.failed : rows.filter((r) => r.failed).length;
     const longest = Math.max(usd(std, d).length, usd(jev, d).length, usd(saved, d, true).length);
     els.band.dataset.size = longest >= 13 ? 'xl' : longest >= 10 ? 'l' : 'm';
     els.band.replaceChildren(
@@ -464,28 +683,31 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
         h('div', { class: 'fig fig-std' },
           h('span', { class: 'fig-label' }, h('i', { class: 'key key-std' }), 'Standard'),
           h('span', { class: 'fig-value' }, usd(std, d)),
-          h('span', { class: 'fig-sub' }, stdLabel() + (num(sm.failed) ? ` · sem ${num(sm.failed)} falhada${num(sm.failed) > 1 ? 's' : ''}` : ''))),
+          h('span', { class: 'fig-sub', title: failedN ? 'O standard só conta as tarefas que o JEV concluiu: numa tarefa falhada o standard “evitado” não conta.' : null },
+            stdLabel() + (failedN ? ` · sem ${failedN} falhada${failedN > 1 ? 's' : ''}` : ''))),
         h('span', { class: 'op', 'aria-hidden': 'true' }, MINUS),
         h('div', { class: 'fig fig-jev' },
           h('span', { class: 'fig-label' }, h('i', { class: 'key key-jev' }), 'JEV'),
           h('span', { class: 'fig-value' }, usd(jev, d)),
-          h('span', { class: 'fig-sub' }, 'execução e decisão')),
+          h('span', { class: 'fig-sub', title: 'A execução mais a decisão do Jev (typesafe/jev-router).' }, 'execução e decisão')),
         h('span', { class: 'op', 'aria-hidden': 'true' }, '='),
         h('div', { class: `fig fig-result is-${kind}` },
           h('span', { class: 'fig-label' }, 'Poupado'),
           h('span', { class: 'fig-value' }, h('span', {}, usd(saved, d, true)), h('span', { class: 'fig-pct' }, pct(spct, true))),
           h('span', { class: 'fig-sub' }, sub))),
-      h('div', { class: 'fig fig-count' },
-        h('span', { class: 'fig-label' }, 'Tarefas'),
-        h('span', { class: 'fig-value' }, String(total)),
-        h('span', { class: 'fig-sub' }, first ? `desde ${first}` : '')));
+      h('div', { class: 'side' },
+        speedFig(),
+        h('div', { class: 'fig fig-count' },
+          h('span', { class: 'fig-label' }, 'Tarefas'),
+          h('span', { class: 'fig-value' }, String(total)),
+          h('span', { class: 'fig-sub' }, first ? `desde ${first}` : ''))));
   }
 
   // ---------------------------------------------------------- gráfico
   function drawLegend() {
     const gain = state.series.some((p, i) => p.std - p.jev > EPS), loss = state.series.some((p) => p.std - p.jev < -EPS);
     fill(els.legend,
-      h('li', {}, h('i', { class: 'key key-std' }), `Standard (${stdLabel()})`),
+      h('li', { title: state.rows.some((r) => r.failed) ? 'O standard só conta as tarefas que o JEV concluiu.' : null }, h('i', { class: 'key key-std' }), `Standard (${stdLabel()})`),
       h('li', {}, h('i', { class: 'key key-jev' }), 'JEV'),
       gain && h('li', {}, h('i', { class: 'swatch swatch-gain' }), 'JEV poupou'),
       loss && h('li', {}, h('i', { class: 'swatch swatch-loss' }), 'JEV gastou mais'));
@@ -700,9 +922,14 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     const title = [r.model && `Modelo: ${r.model}${r.jevModelId && r.jevModelId !== r.model ? ` (${r.jevModelId})` : ''}`,
       r.rationale && `Porquê: ${r.rationale}`].filter(Boolean).join('\n');
     const tags = [];
+    if (r.scope === 'agent') {
+      tags.push(h('span', { class: 'tag', title: 'Turno de um subagente: o Claude Code delegou esta parte a um agente, não foi um prompt teu.\nUm subagente usa ferramentas, por isso nunca corre num modelo free.' },
+        icon('agent'), 'subagente'));
+    }
     if (r.routerError !== null) {
-      tags.push(h('span', { class: 'tag', title: `O cérebro free${r.routerModel ? ` (${r.routerModel})` : ''} falhou: ${r.routerError}.\nA decisão passou a ser o standard.` },
-        icon('router'), 'router falhou'));
+      const who = r.routerModel === 'typesafe/jev-router' || !r.routerModel ? 'O Jev' : `O router (${r.routerModel})`;
+      tags.push(h('span', { class: 'tag', title: `${who}${r.routerModel === 'typesafe/jev-router' ? ' (typesafe/jev-router)' : ''} falhou: ${r.routerError}.\nA decisão passou a ser o standard.` },
+        icon('router'), 'Jev falhou'));
     }
     if (r.fallback) {
       tags.push(h('span', { class: 'tag', title: `A execução falhou em ${r.fallback.from || 'o modelo escolhido'}${r.fallback.reason ? ` (${r.fallback.reason})` : ''} e foi repetida no standard${r.jevModelId ? ` (${r.jevModelId})` : ''}.\nO custo do JEV soma as duas tentativas.` },
@@ -731,15 +958,28 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     const shown = Number(r.saved.toFixed(4)), kind = kindOf(shown);
     const width = maxAbs > 0 ? Math.min(100, (Math.abs(shown) / maxAbs) * 100) : 0;
     const pctOf = r.stdCost > 0 ? (Math.abs(r.saved) / r.stdCost) * 100 : null;
-    const title = [
-      kind === 'gain' ? 'O JEV custou menos que o standard' : kind === 'loss' ? 'O JEV custou mais que o standard' : 'O JEV custou o mesmo que o standard',
-      pctOf !== null && kind !== 'even' ? ` (${nf(1).format(pctOf)}%)` : '', '.',
-      r.failed ? '\nA tarefa falhou: esta diferença não corresponde a um resultado entregue.' : '',
-    ].join('');
+    const title = r.failed
+      ? 'A tarefa falhou: o custo do JEV conta, mas o standard “evitado” não conta.\nPor isso a diferença é só o custo do JEV.'
+      : [kind === 'gain' ? 'O JEV custou menos que o standard' : kind === 'loss' ? 'O JEV custou mais que o standard' : 'O JEV custou o mesmo que o standard',
+        pctOf !== null && kind !== 'even' ? ` (${nf(1).format(pctOf)}%)` : '', '.'].join('');
     return h('div', { class: `delta is-${kind}`, title },
       h('span', { class: 'delta-num' }, usd(r.saved, 4, true)),
       h('span', { class: 'track', 'aria-hidden': 'true' },
         kind !== 'even' && h('i', { class: `bar bar-${kind}`, style: `width:${(width / 2).toFixed(2)}%` })));
+  }
+
+  // O tempo que esperaste (decisão do Jev + execução). O do standard só aparece quando foi medido.
+  function timeCell(r) {
+    const both = r.jevMs != null && r.stdMs != null;
+    const faster = both && r.stdMs / Math.max(r.jevMs, 1) >= 1.05, slower = both && r.jevMs / r.stdMs >= 1.05;
+    const kind = faster ? 'gain' : slower ? 'loss' : null;
+    const title = both
+      ? `O JEV esperou ${fmtDuration(r.jevMs)}; o standard, medido, ${fmtDuration(r.stdMs)}`
+        + (faster ? ` (${fmtRatio(r.stdMs / Math.max(r.jevMs, 1))} mais rápido).` : slower ? ` (${fmtRatio(r.jevMs / r.stdMs)} mais lento).` : '.')
+      : r.jevMs != null ? 'O que esperaste: a decisão do Jev mais a execução. O standard não foi medido, por isso não tem tempo.' : 'Sem tempo registado.';
+    return h('td', { class: 'num', title },
+      h('div', { class: kind ? `time-jev is-${kind}` : 'time-jev' }, r.jevMs != null ? fmtDuration(r.jevMs) : h('span', { class: 'zero' }, '—')),
+      h('div', { class: 'time-sub' }, 'standard ', r.stdMs != null ? fmtDuration(r.stdMs) : '—'));
   }
 
   function drawTasks() {
@@ -752,29 +992,273 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       return h('tr', { class: r.isNew ? 'row-new' : null },
         h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
         h('td', {}, h('div', { class: 'task', title: r.task }, r.task)),
-        h('td', {}, choiceCell(r)),
+        h('td', { class: 'choice' }, choiceCell(r)),
         h('td', { class: 'num', title: r.fallback ? 'Soma as duas tentativas: a que falhou e a repetição no standard.' : null }, costText(r.jevCost, 4)),
         h('td', { class: 'num' },
-          h('div', {}, costText(r.stdCost, 4)),
+          h('div', {}, r.failed
+            ? h('span', { class: 'void', title: 'A tarefa falhou: o standard “evitado” não conta.' }, costText(r.stdCost, 4))
+            : costText(r.stdCost, 4)),
           r.stdKind === 'measured' || r.stdKind === 'estimated'
             ? h('div', { class: 'cost-sub' }, r.stdKind === 'measured'
               ? h('span', { class: 'badge badge-measured', title: 'Medido: a mesma tarefa correu mesmo no standard.' }, 'medido')
               : h('span', { class: 'badge badge-estimated', title: 'Estimado: o standard não correu; é uma estimativa a preço de lista.' }, 'estimado'))
             : null),
-        h('td', { class: 'num diff' }, deltaCell(r, maxAbs)));
+        h('td', { class: 'num diff' }, deltaCell(r, maxAbs)),
+        timeCell(r));
     }));
 
     const failed = state.rows.filter((r) => r.failed).length;
     const falls = state.rows.filter((r) => r.fallback).length;
     const routers = state.rows.filter((r) => r.routerError !== null).length;
+    const agents = state.rows.filter((r) => r.scope === 'agent').length;
     fill(els.meta,
       failed > 0 && h('span', { title: 'Tarefas que falharam, mesmo depois do fallback' }, icon('failed'), `${failed} ${failed === 1 ? 'falhou' : 'falharam'}`),
       falls > 0 && h('span', { title: 'Execuções repetidas no standard depois de falharem' }, icon('fallback'), `${falls} ${falls === 1 ? 'fallback' : 'fallbacks'}`),
-      routers > 0 && h('span', { title: 'O cérebro free falhou e a decisão passou a ser o standard' }, icon('router'), `${routers} ${routers === 1 ? 'router falhou' : 'routers falharam'}`));
+      routers > 0 && h('span', { title: 'O Jev falhou e a decisão passou a ser o standard' }, icon('router'), `${routers} ${routers === 1 ? 'decisão do Jev falhou' : 'decisões do Jev falharam'}`),
+      agents > 0 && h('span', { title: 'Turnos de subagentes' }, icon('agent'), `${agents} ${agents === 1 ? 'subagente' : 'subagentes'}`));
 
     const rest = newestFirst.length - shown.length;
     els.more.hidden = rest <= 0;
     els.more.textContent = `Mostrar mais ${Math.min(PAGE, rest)} (faltam ${rest})`;
+  }
+
+  // ---------------------------------------------------------------- piloto
+  // O piloto corre o mesmo projeto nos dois braços, tarefa a tarefa (jev/pilot.py). O harness escreve uma linha
+  // por braço por tarefa, e a vista enche-se em direto: o braço que ainda não escreveu está "a correr…".
+  const ARMS = ['standard', 'jev'];
+  const ARM_NAME = { standard: 'Standard', jev: 'JEV' };
+    const passedRow = (r) => !!r && r.status !== 'skipped' && obj(r.acceptance).ok === true;
+  const money = (x) => usd(x, x < 10 ? 3 : 2);
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const joinPt = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} e ${list[list.length - 1]}` : list[0]);
+
+  function pilotPlan(pl) {                         // todas as tarefas previstas (o meta) e as que só aparecem nas linhas
+    const seen = new Map();
+    const add = (id, t) => { id = str(id); if (id && !seen.has(id)) seen.set(id, { id, title: str(obj(t).title), kind: str(obj(t).kind) }); };
+    for (const t of Array.isArray(obj(pl.meta).tasks) ? pl.meta.tasks : []) add(obj(t).id, t);
+    for (const t of Array.isArray(pl.tasks) ? pl.tasks : []) add(obj(t).task, t);
+    return [...seen.values()];
+  }
+  function armRows(pl, arm) {                      // a última linha de cada tarefa neste braço
+    const rows = new Map();
+    for (const t of Array.isArray(pl.tasks) ? pl.tasks : []) if (obj(t).arm === arm) rows.set(str(t.task), t);
+    return rows;
+  }
+  function armStats(rows) {
+    const all = [...rows.values()], ran = all.filter((r) => r.status !== 'skipped');
+    const passed = ran.filter(passedRow).length, cost = all.reduce((a, r) => a + num(r.cost_usd), 0);
+    return { ran: ran.length, passed, cost, ms: ran.reduce((a, r) => a + num(r.wall_ms), 0),
+      costPer: passed ? cost / passed : null, median: median(ran.map((r) => num(r.wall_ms))) };
+  }
+
+  const METRICS = [
+    { key: 'passed', label: 'Tarefas concluídas', hint: 'Tarefas cuja aceitação passou, em quantas o braço já correu. Uma tarefa não iniciada não conta como corrida.' },
+    { key: 'cost', label: 'Custo total', clause: 'gastou menos', hint: 'Soma do custo de todas as tarefas do braço, as falhadas incluídas. No JEV inclui as decisões do Jev.' },
+    { key: 'ms', label: 'Tempo total', clause: 'demorou menos', hint: 'Soma do tempo real de cada tarefa (wall_ms). No JEV inclui a decisão do Jev.' },
+    { key: 'costPer', label: 'Custo por tarefa concluída', clause: 'saiu mais barato por tarefa concluída', hint: 'Custo total a dividir pelas tarefas concluídas. As que falharam também custaram.' },
+    { key: 'median', label: 'Tempo mediano por tarefa', clause: 'foi mais rápido por tarefa', hint: 'A mediana do tempo das tarefas que o braço correu.' },
+  ];
+
+  // Quem é melhor em cada métrica. Nunca se dá a vitória em custo ou tempo a quem concluiu menos tarefas (diz-se
+  // os dois factos), e enquanto o piloto corre só se compara quando os dois braços já fizeram as mesmas tarefas.
+  function compareArms(S, J, ended) {
+    const better = {}, notes = [];
+    if (!ended && S.ran !== J.ran) {
+      notes.push(`O Standard já fez ${plural(S.ran, 'tarefa', 'tarefas')} e o JEV ${J.ran}: só se compara quando os dois tiverem feito as mesmas.`);
+      return { better, notes };
+    }
+    if (S.passed !== J.passed) better.passed = S.passed > J.passed ? 'standard' : 'jev';
+    const blocked = { standard: [], jev: [] };
+    for (const m of METRICS.slice(1)) {
+      const a = S[m.key], b = J[m.key];
+      if (a == null || b == null || a === b) continue;
+      const lead = a < b ? 'standard' : 'jev', mine = lead === 'standard' ? S : J, theirs = lead === 'standard' ? J : S;
+      if (mine.passed < theirs.passed) blocked[lead].push(m.clause); else better[m.key] = lead;
+    }
+    for (const arm of ARMS) {
+      if (!blocked[arm].length) continue;
+      const mine = arm === 'standard' ? S : J, theirs = arm === 'standard' ? J : S;
+      notes.push(`O ${ARM_NAME[arm]} ${joinPt(blocked[arm])}, mas concluiu menos tarefas (${mine.passed} contra ${theirs.passed}): por isso não o marco como melhor nisso.`);
+    }
+    return { better, notes };
+  }
+
+  function armState(row, ctx) {
+    if (!row) {
+      if (ctx.ended) return { kind: 'none', label: 'sem registo', title: 'O piloto terminou sem registar este braço nesta tarefa.' };
+      if (ctx.running) return { kind: 'running', label: 'a correr…', title: 'O harness ainda não escreveu o resultado deste braço.' };
+      return { kind: 'pending', label: 'por correr', title: 'Ainda não começou.' };
+    }
+    if (row.status === 'skipped') return { kind: 'skipped', label: 'não iniciada', title: 'O envelope de tempo ou de custo acabou antes desta tarefa.' };
+    const acc = obj(row.acceptance), p = num(acc.passed), f = num(acc.failed);
+    const tests = `${plural(p, 'teste passou', 'testes passaram')}, ${plural(f, 'falhou', 'falharam')}`;
+    const err = row.error ? `\n${str(row.error)}` : '';
+    if (acc.ok === true) return { kind: 'ok', label: 'ok', title: `A aceitação passou: ${tests}.` + (row.status !== 'done' ? `\nO claude -p terminou com o estado "${str(row.status)}".` : '') };
+    if (row.status === 'budget') return { kind: 'budget', label: 'orçamento', title: `O teto de custo da tarefa acabou antes de terminar. A aceitação falhou: ${tests}.${err}` };
+    if (row.status === 'timeout') return { kind: 'timeout', label: 'tempo', title: `O tempo acabou antes de a tarefa terminar. A aceitação falhou: ${tests}.${err}` };
+    if (row.status === 'error') return { kind: 'error', label: 'erro', title: `O claude -p terminou com erro. A aceitação falhou: ${tests}.${err}` };
+    return { kind: 'fail', label: 'falhou', title: `A tarefa terminou, mas a aceitação falhou: ${tests}.` };
+  }
+
+  function firstMissing(plan, rowsBy) {          // a 1.ª célula sem linha, pela ordem do harness: é a que está a correr
+    for (let i = 0; i < plan.length; i++) {
+      for (const arm of i % 2 === 0 ? ARMS : [...ARMS].reverse()) if (!rowsBy[arm].has(plan[i].id)) return `${plan[i].id}:${arm}`;
+    }
+    return null;
+  }
+
+  const currentPilot = () => {
+    const list = state.pilots || [];
+    return list.find((x) => x.id === state.pilotPick) || list[0] || null;   // por omissão, o mais recente
+  };
+
+  function drawScore(pl, plan, rowsBy) {
+    const stats = { standard: armStats(rowsBy.standard), jev: armStats(rowsBy.jev) };
+    const { better, notes } = compareArms(stats.standard, stats.jev, !!pl.end);
+    const max = (key) => Math.max(0, ...ARMS.map((a) => stats[a][key] || 0));
+    const main = {
+      passed: (st) => `${st.passed} de ${st.ran}`,
+      cost: (st) => money(st.cost),
+      ms: (st) => fmtDuration(st.ms),
+      costPer: (st) => (st.costPer == null ? '—' : money(st.costPer)),
+      median: (st) => (st.median == null ? '—' : fmtDuration(st.median)),
+    };
+    const subs = {
+      passed: () => `${plural(plan.length, 'prevista', 'previstas')}`,
+      costPer: (st) => (st.costPer == null ? 'nenhuma concluída' : `${money(st.cost)} ÷ ${st.passed}`),
+      median: (st) => (st.ran ? `em ${plural(st.ran, 'tarefa', 'tarefas')}` : ''),
+    };
+    const pips = (arm) => h('div', { class: 'pips', 'aria-hidden': 'true' }, plan.map((t) => {
+      const r = rowsBy[arm].get(t.id), st = armState(r, { ended: !!pl.end, running: false });
+      const cls = passedRow(r) ? `pip pip-pass ${arm === 'standard' ? 'std' : 'jev'}` : !r ? 'pip pip-todo' : r.status === 'skipped' ? 'pip pip-skip' : 'pip pip-fail';
+      return h('i', { class: cls, title: `${t.id}: ${r ? st.label : 'por correr'}` });
+    }));
+    const cell = (arm, m) => {
+      const st = stats[arm], win = better[m.key], isBest = win === arm, isWorse = !!win && win !== arm;
+      const top = max(m.key), value = st[m.key];
+      return h('td', { class: `sc${isWorse ? ' is-worse' : ''}` },
+        h('div', { class: 'sc-val' }, h('span', {}, main[m.key](st)),
+          isBest && h('span', { class: 'best', title: 'O melhor neste ponto, dentro do que é justo comparar.' }, icon('check'), 'melhor')),
+        subs[m.key] && h('div', { class: 'sc-sub' }, subs[m.key](st)),
+        m.key === 'passed' ? pips(arm)
+          : value != null && top > 0 && h('div', { class: 'sc-bar', 'aria-hidden': 'true' },
+            h('i', { class: arm === 'standard' ? 'bar-std' : 'bar-jev', style: `width:${((value / top) * 100).toFixed(1)}%` })));
+    };
+    fill(els.score,
+      h('table', { class: 'score' },
+        h('caption', { class: 'sr' }, 'Resultado do piloto: Standard e JEV, lado a lado'),
+        h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, h('span', { class: 'sr' }, 'Métrica')),
+          h('th', { scope: 'col' }, h('i', { class: 'key key-std' }), 'Standard'),
+          h('th', { scope: 'col' }, h('i', { class: 'key key-jev' }), 'JEV'))),
+        h('tbody', {}, METRICS.map((m) => h('tr', {},
+          h('th', { scope: 'row', title: m.hint }, m.label), cell('standard', m), cell('jev', m))))),
+      notes.map((n) => h('p', { class: 'score-note' }, icon('info'), n)));
+  }
+
+  function decisionChips(row) {
+    const ds = Array.isArray(obj(row.jev).decisions) ? row.jev.decisions : [];
+    const groups = new Map();
+    for (const d of ds) {
+      const dd = obj(d), agent = str(dd.scope) === 'agent', key = [agent, str(dd.model), str(dd.effort)].join('|');
+      const g = groups.get(key) || { agent, model: str(dd.model), effort: str(dd.effort), n: 0, why: [] };
+      g.n++;
+      if (dd.rationale) g.why.push(str(dd.rationale));
+      groups.set(key, g);
+    }
+    const all = [...groups.values()], shown = all.slice(0, 6);
+    return [...shown.map((g) => h('span', { class: 'chip',
+        title: `O Jev escolheu ${g.model || '?'}${g.effort ? ` com esforço ${g.effort}` : ''}${g.agent ? ' para um subagente' : ''}.${g.why.length ? `\n${[...new Set(g.why)].join('\n')}` : ''}` },
+      g.agent && icon('agent'), h('b', {}, shortModel(g.model) || '?'), g.effort && `· ${g.effort}`, g.n > 1 && `×${g.n}`, g.agent && h('em', {}, 'subagente'))),
+      all.length > shown.length && h('span', { class: 'chip', title: all.slice(6).map((g) => `${g.model} · ${g.effort}`).join('\n') }, `+${all.length - shown.length}`)];
+  }
+
+  function armCell(row, st, arm, isNew) {
+    const done = !!row && row.status !== 'skipped';
+    const billed = Object.entries(obj(row && row.models)).sort((a, b) => num(b[1]) - num(a[1]));
+    const decisionCost = num(obj(row && row.jev).decision_cost_usd);
+    return h('td', { class: `parm${isNew ? ' cell-new' : ''}`, 'data-arm': ARM_NAME[arm] },
+      h('div', { class: 'arm-main' },
+        h('span', { class: `state is-${st.kind}`, title: st.title }, icon(`s-${st.kind}`), st.label),
+        h('span', { class: 'arm-cost', title: arm === 'jev' && done && decisionCost ? `Inclui ${usd(decisionCost, 4)} das decisões do Jev.` : null }, done ? usd(num(row.cost_usd), 4) : ''),
+        h('span', { class: 'arm-time' }, done ? fmtDuration(num(row.wall_ms)) : '')),
+      arm === 'jev' && done && h('div', { class: 'arm-extra' }, decisionChips(row)),
+      billed.length > 0 && h('div', { class: 'arm-models' }, 'cobrado: ', billed.map(([id, c], i) => (i ? ' · ' : '') + `${prettyModel(id)} ${usd(num(c), 4)}`).join('')));
+  }
+
+  function drawPilotTasks(pl, plan, rowsBy) {
+    const ended = !!pl.end, seen = state.pilotSeen.get(pl.id), now = new Set();
+    const running = ended ? null : firstMissing(plan, rowsBy);
+    fill(els.pilotBody, plan.map((t) => h('tr', {},
+      h('td', { class: 'ptask' },
+        h('span', { class: 'task-id' }, t.id), ' ', h('span', { class: 'task-title' }, t.title),
+        t.kind && h('div', { class: 'task-kind' }, h('span', { class: 'badge' }, t.kind))),
+      ARMS.map((arm) => {
+        const row = rowsBy[arm].get(t.id), other = rowsBy[arm === 'standard' ? 'jev' : 'standard'].get(t.id);
+        const st = armState(row, { ended, running: !ended && (`${t.id}:${arm}` === running || (!!other && other.status !== 'skipped')) });
+        const key = `${t.id}:${arm}`;
+        if (row) now.add(key);
+        return armCell(row, st, arm, !!seen && !!row && !seen.has(key));
+      }))));
+    state.pilotSeen.set(pl.id, now);
+  }
+
+  function drawPilotHead(pl, plan, rowsBy) {
+    const list = state.pilots, m = obj(pl.meta), end = pl.end;
+    const started = Date.parse(m.started), finished = end ? Date.parse(obj(end).finished) : NaN;
+    const w = when(started), wf = when(finished);
+    const stopped = end && obj(end).stopped ? str(end.stopped) : '';
+    const select = list.length > 1 && h('select', { 'aria-label': 'Escolher piloto', id: 'pilot-select' },
+      list.map((x) => { const wx = when(Date.parse(obj(x.meta).started)); const o = h('option', { value: x.id }, `${x.id} · ${wx.day} ${wx.time}${x.end ? '' : ' · a correr…'}`); o.selected = x.id === pl.id; return o; }));
+    if (select) select.addEventListener('change', () => { state.pilotPick = select.value === list[0].id ? null : select.value; drawPilots(); });
+    const ranBoth = (t) => ARMS.every((a) => rowsBy[a].has(t.id) && rowsBy[a].get(t.id).status !== 'skipped');
+    const done = plan.filter(ranBoth).length;
+    const caps = [m.max_usd_per_task != null && `${usd(num(m.max_usd_per_task), 2)} por tarefa`, m.max_usd_total != null && `${usd(num(m.max_usd_total), 2)} no total`,
+      m.max_min_arm != null && `${nf(0).format(num(m.max_min_arm))} min por braço`].filter(Boolean);
+    fill(els.pilotHead,
+      h('div', { class: 'pilot-title' },
+        h('h2', {}, 'Piloto'), select || h('code', {}, pl.id),
+        end
+          ? h('span', { class: 'pilot-state', title: isFinite(finished) ? `Terminou ${wf.day} às ${wf.time}${isFinite(started) ? ` (durou ${fmtDuration(finished - started)})` : ''}` : null },
+            icon('check'), 'terminado', stopped && h('span', { class: 'sub' }, `parado: ${stopped}`))
+          : h('span', { class: 'pilot-state is-running', title: 'O harness ainda não escreveu a linha final.' }, h('i', { class: 'run-dot' }), 'a correr…')),
+      h('div', { class: 'pilot-meta' },
+        h('span', { title: w.full }, isFinite(started) ? `Começou ${w.day} às ${w.time}` : 'Sem data de início'),
+        !end && isFinite(started) && h('span', { id: 'pilot-elapsed', 'data-started': String(started) }, `há ${fmtDuration(Date.now() - started)}`),
+        plan.length > 0 && h('span', {}, `${done} de ${plural(plan.length, 'tarefa', 'tarefas')} corridas pelos dois braços`),
+        caps.length > 0 && h('span', {}, `Teto: ${joinPt(caps)}`)));
+  }
+
+  function drawPilots() {
+    const list = state.pilots;
+    els.tabDot.hidden = !(Array.isArray(list) && list.some((x) => !x.end));
+    if (state.page !== 'pilot') return;
+    const err = state.pilotsError;
+    els.pilotProblem.hidden = !err;
+    fill(els.pilotProblem, err && [icon('failed'), h('span', {}, err)]);
+    els.pilotEmpty.hidden = !(Array.isArray(list) && !list.length);
+    const pl = currentPilot();
+    els.pilotContent.hidden = !pl;
+    if (!pl) return;
+    const plan = pilotPlan(pl), rowsBy = { standard: armRows(pl, 'standard'), jev: armRows(pl, 'jev') };
+    drawPilotHead(pl, plan, rowsBy);
+    drawScore(pl, plan, rowsBy);
+    drawPilotTasks(pl, plan, rowsBy);
+  }
+
+  function tickElapsed() {                         // "há 12 min" avança a cada leitura, mesmo sem linhas novas
+    const el = document.getElementById('pilot-elapsed');
+    if (el) el.textContent = `há ${fmtDuration(Date.now() - Number(el.dataset.started))}`;
+  }
+
+  function setPage(page) {
+    state.page = page;
+    for (const [tab, view, name] of [[els.tabDay, els.viewDay, 'day'], [els.tabPilot, els.viewPilot, 'pilot']]) {
+      tab.setAttribute('aria-selected', String(page === name));
+      tab.tabIndex = page === name ? 0 : -1;
+      view.hidden = page !== name;
+    }
+    if (page === 'pilot') drawPilots();
+    else if (state.rows.length) drawView();
   }
 
   // ------------------------------------------------------- ciclo de vida
@@ -808,26 +1292,25 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     fill(els.problem, msg && [icon('failed'), h('p', {}, msg)]);
   }
 
-  async function poll() {
-    if (document.hidden) return schedule();
-    let text;
-    try {
-      const res = await fetch('/api/ledger', { cache: 'no-store' });
-      text = await res.text();
-      if (!res.ok) {
-        let reason = `HTTP ${res.status}`;
-        try { reason = JSON.parse(text).error || reason; } catch (_) { /* resposta que não é JSON */ }
-        showProblem(`Não consegui ler o ledger: ${reason}`);
-        setLive(false, 'Ledger ilegível');
-        return schedule();
-      }
-    } catch (_) {
+  async function fetchText(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    return { ok: res.ok, status: res.status, text: await res.text() };
+  }
+  const reasonOf = (r) => { try { return JSON.parse(r.text).error || `HTTP ${r.status}`; } catch (_) { return `HTTP ${r.status}`; } };
+
+  function readLedger(res) {
+    if (res.status === 'rejected') {
       showProblem(state.loaded ? '' : 'Não consegui falar com o servidor do dashboard. Confirma que o jev-dashboard continua a correr.');
       setLive(false, 'Sem ligação ao servidor. A tentar de novo…');
-      return schedule();
+      return;
+    }
+    if (!res.value.ok) {
+      showProblem(`Não consegui ler o ledger: ${reasonOf(res.value)}`);
+      setLive(false, 'Ledger ilegível');
+      return;
     }
     try {
-      if (text !== state.lastText) { render(JSON.parse(text)); state.lastText = text; }
+      if (res.value.text !== state.lastText) { render(JSON.parse(res.value.text)); state.lastText = res.value.text; }
       showProblem('');
       const n = new Date();
       setLive(true, `Lido às ${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`);
@@ -836,6 +1319,40 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       showProblem(`Erro ao desenhar o dashboard: ${err.message}`);
       setLive(false, 'Erro ao desenhar');
     }
+  }
+
+  // Os pilotos têm a sua própria leitura: se falhar, o Dia a dia continua a funcionar.
+  function readPilots(res) {
+    let error = null;
+    if (res.status === 'rejected') error = state.pilots ? '' : 'Não consegui falar com o servidor do dashboard.';
+    else if (res.value.status === 404) error = 'Este servidor ainda não tem /api/pilots: reinicia o jev-dashboard.';
+    else if (!res.value.ok) error = `Não consegui ler os pilotos: ${reasonOf(res.value)}`;
+    els.pilotContent.classList.toggle('is-stale', res.status === 'rejected' && !!state.pilots);
+    if (error !== null) {
+      if (error !== state.pilotsError) { state.pilotsError = error; drawPilots(); }
+      return;
+    }
+    try {
+      if (res.value.text !== state.pilotsText || state.pilotsError) {
+        state.pilots = JSON.parse(res.value.text).pilots;
+        if (!Array.isArray(state.pilots)) throw new Error('a resposta não tem a lista de pilotos');
+        state.pilotsText = res.value.text;
+        state.pilotsError = null;
+        drawPilots();
+      }
+      tickElapsed();
+    } catch (err) {
+      console.error(err);
+      state.pilotsError = `Erro ao desenhar os pilotos: ${err.message}`;
+      drawPilots();
+    }
+  }
+
+  async function poll() {
+    if (document.hidden) return schedule();
+    const [ledgerRes, pilotsRes] = await Promise.allSettled([fetchText('/api/ledger'), fetchText('/api/pilots')]);
+    readLedger(ledgerRes);
+    readPilots(pilotsRes);
     schedule();
   }
   let timer = 0;
@@ -845,6 +1362,21 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     b.addEventListener('click', () => { state.view = b.dataset.view; if (state.rows.length) drawView(); });
   }
   els.more.addEventListener('click', () => { state.shown += PAGE; drawTasks(); });
+  for (const tab of [els.tabDay, els.tabPilot]) {
+    tab.addEventListener('click', () => {
+      const page = tab.dataset.page;
+      history.replaceState(null, '', page === 'pilot' ? '#piloto' : location.pathname + location.search);
+      setPage(page);
+    });
+    tab.addEventListener('keydown', (e) => {         // setas entre separadores
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const other = tab === els.tabDay ? els.tabPilot : els.tabDay;
+      other.focus();
+      other.click();
+    });
+  }
+  window.addEventListener('hashchange', () => setPage(location.hash === '#piloto' ? 'pilot' : 'day'));
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(timer); poll(); } });
   let lastWidth = 0;
   new ResizeObserver(() => {
@@ -852,6 +1384,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     if (w && w !== lastWidth && state.rows.length && state.view === 'chart') { lastWidth = w; drawChart(); }
   }).observe(els.plot);
 
+  setPage(state.page);
   poll();
 })();
 </script>
