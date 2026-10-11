@@ -67,7 +67,9 @@ uv run jev pilot run --project fatura --max-min 10 --max-usd-task 1 --max-usd-to
 uv run jev pilot run --project fatura --anthropic-only   # pool do Jev só com modelos Anthropic
 ```
 
-`--no-judge` salta o juiz. O dashboard mostra o piloto na vista "Piloto", atualizada em direto.
+`--no-judge` salta o juiz. `--claude-md` dá aos dois braços o mesmo CLAUDE.md, feito de
+`pilot/<projeto>/regras.md` (no fatura, as críticas do juiz às primeiras corridas). O juiz não o lê:
+é igual nos dois. O dashboard mostra o piloto na vista "Piloto", atualizada em direto.
 
 ## Garantias e limites
 

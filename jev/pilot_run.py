@@ -195,7 +195,8 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
               home: Path | None = None, run_arm=None, accept=accept, git: bool = True,
               max_usd_task: float = 1.0, max_usd_total: float = 9.0, timeout_s: int = 900,
               judge: bool = False, run_judge=None, max_min_arm: float | None = None,
-              log=lambda msg: None, jev_env: dict | None = None, variant: str | None = None) -> Path:
+              log=lambda msg: None, jev_env: dict | None = None, variant: str | None = None,
+              claude_md: Path | None = None) -> Path:
     if run_arm is None:
         run_arm = functools.partial(run_claude_arm, jev_env=jev_env)
     run_dir = pilot.pilots_dir(home) / pilot_id
@@ -203,6 +204,8 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
     jev_home = run_dir / "jev-home"  # o ledger do mod no braço JEV, à parte do teu ledger do dia a dia
     for workspace in workspaces.values():
         shutil.copytree(seed, workspace, dirs_exist_ok=True)
+        if claude_md:  # as mesmas regras nos dois braços, já no ponto de partida
+            shutil.copyfile(claude_md, workspace / "CLAUDE.md")
         if git:
             _git(workspace, "init", "-q")
             exclude = workspace / ".git" / "info" / "exclude"
@@ -213,7 +216,7 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
     pilot.append({"v": 1, "type": "meta", "pilot": pilot_id, "started": _now(),
                   "tasks": [{"id": t["id"], "title": t["title"], "kind": t["kind"]} for t in tasks],
                   "max_usd_per_task": max_usd_task, "max_usd_total": max_usd_total, "max_min_arm": max_min_arm,
-                  "variant": variant,
+                  "variant": variant, "claude_md": claude_md is not None,
                   "workspaces": {arm: str(ws) for arm, ws in workspaces.items()}}, home=home)
 
     spent, stopped = 0.0, None
@@ -305,6 +308,8 @@ def _project_text(workspace: Path) -> str:
     parts = []
     for path in sorted(Path(workspace).rglob("*")):
         rel = path.relative_to(workspace)  # caminhos relativos: o nome da pasta do braço não passa
+        if rel.as_posix() == "CLAUDE.md":  # igual nos dois braços: é contexto, não trabalho
+            continue
         if path.is_file() and path.suffix in _MATERIAL_SUFFIXES and not set(rel.parts) & _SKIP_DIRS:
             parts.append(f"--- {rel.as_posix()}\n{path.read_text(encoding='utf-8', errors='replace')}")
     return "\n".join(parts)

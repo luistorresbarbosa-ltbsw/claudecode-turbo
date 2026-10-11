@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from jev import cli, ledger, pricing
+from jev import cli, ledger, pilot_run, pricing
 from jev.dispatch import Outcome, RunResult
 from jev.router import Decision, standard
 
@@ -211,3 +211,40 @@ def test_dry_run_estimate_includes_jevs_decision_cost(capsys):
 def test_pilot_refuses_a_project_that_does_not_exist(capsys):
     assert cli.main(["pilot", "run", "--project", "nao-existe"]) == 2
     assert "nao-existe" in capsys.readouterr().err
+
+
+def _project(tmp_path, monkeypatch, *, claude_md):
+    root = tmp_path / "pilot" / "demo"
+    (root / "seed").mkdir(parents=True)
+    (root / "tasks.json").write_text("[]", encoding="utf-8")
+    if claude_md:
+        (root / "regras.md").write_text("# Regras\n", encoding="utf-8")  # no repo não se chama CLAUDE.md
+    monkeypatch.setattr(pilot_run, "REPO", tmp_path)
+    seen = {}
+    monkeypatch.setattr(pilot_run, "run_pilot", lambda tasks, **kw: seen.update(kw))
+    return root, seen
+
+
+def test_pilot_claude_md_goes_to_both_arms_and_shows_in_the_pilot_id(tmp_path, monkeypatch):
+    root, seen = _project(tmp_path, monkeypatch, claude_md=True)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--claude-md", "--no-judge"]) == 0
+
+    assert seen["claude_md"] == root / "regras.md"
+    assert seen["pilot_id"].startswith("demo-claudemd-")
+
+
+def test_pilot_without_the_flag_gives_the_arms_no_claude_md(tmp_path, monkeypatch):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=True)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--no-judge"]) == 0
+
+    assert seen["claude_md"] is None and "claudemd" not in seen["pilot_id"]
+
+
+def test_pilot_claude_md_needs_the_projects_rules_file(tmp_path, monkeypatch, capsys):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--claude-md"]) == 2
+
+    assert "regras.md" in capsys.readouterr().err and not seen

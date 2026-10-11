@@ -48,6 +48,8 @@ def _parser() -> argparse.ArgumentParser:
     prun.add_argument("--no-judge", action="store_true")
     prun.add_argument("--anthropic-only", action="store_true",
                       help="o pool do Jev só com modelos Anthropic (sem respostas free)")
+    prun.add_argument("--claude-md", action="store_true",
+                      help="dá aos dois braços um CLAUDE.md, feito de pilot/<projeto>/regras.md")
     return p
 
 
@@ -183,15 +185,22 @@ def _pilot(args) -> int:
     if args.tasks:
         wanted = [t.strip() for t in args.tasks.split(",")]
         tasks = [t for t in tasks if t["id"] in wanted]
+    # no repo não se chama CLAUDE.md, senão a sessão que mexe em pilot/ também o carregava
+    claude_md = root / "regras.md" if args.claude_md else None
+    if claude_md and not claude_md.is_file():
+        return _fail(f"--claude-md: falta pilot/{args.project}/regras.md")
     variant = "anthropic" if args.anthropic_only else "anthropic+free"
-    pilot_id = f"{args.project}-{'anthropic-' if args.anthropic_only else ''}" + datetime.now().strftime("%Y%m%d-%H%M")
+    pilot_id = (f"{args.project}-{'anthropic-' if args.anthropic_only else ''}{'claudemd-' if claude_md else ''}"
+                + datetime.now().strftime("%Y%m%d-%H%M"))
     print(f"piloto {pilot_id}: {len(tasks)} tarefas · {args.max_min:g} min por braço · "
-          f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total · pool do Jev: {variant}", flush=True)
+          f"${args.max_usd_task:g}/tarefa · ${args.max_usd_total:g} no total · pool do Jev: {variant}"
+          f"{' · CLAUDE.md nos dois braços' if claude_md else ''}", flush=True)
     pilot_run.run_pilot(tasks, pilot_id=pilot_id, seed=root / "seed", inject_root=root / "inject",
                         acceptance_root=root / "acceptance", max_min_arm=args.max_min,
                         max_usd_task=args.max_usd_task, max_usd_total=args.max_usd_total,
                         judge=not args.no_judge, log=lambda msg: print(msg, flush=True),
-                        jev_env={"JEV_POOL": "anthropic"} if args.anthropic_only else None, variant=variant)
+                        jev_env={"JEV_POOL": "anthropic"} if args.anthropic_only else None, variant=variant,
+                        claude_md=claude_md)
     return 0
 
 

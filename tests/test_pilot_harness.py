@@ -250,3 +250,33 @@ def test_the_jev_pool_setting_reaches_only_the_jev_arm(tmp_path):
 
     assert jev["JEV_POOL"] == "anthropic" and "JEV_POOL" not in std
     assert jev["JEV_HOME"] == str(tmp_path)
+
+
+def test_the_claude_md_lands_in_both_arms_in_the_starting_commit(tmp_path):
+    rules = tmp_path / "CLAUDE.md"
+    rules.write_text("# Regras\n- nomes claros\n", encoding="utf-8")
+    seed = tmp_path / "seed"
+    (seed / "fatura").mkdir(parents=True)
+    (seed / "fatura" / "__init__.py").write_text("")
+
+    pilot_run.run_pilot(TASKS[:1], pilot_id="p1", seed=seed, inject_root=tmp_path / "i", acceptance_root=tmp_path / "a",
+                        home=tmp_path / "home", run_arm=FakeArms(), git=True, claude_md=rules,
+                        accept=lambda *a, **k: {"ok": True, "passed": 1, "failed": 0})
+
+    for arm in pilot_run.ARMS:
+        ws = pilot.pilots_dir(tmp_path / "home") / "p1" / arm
+        assert (ws / "CLAUDE.md").read_text(encoding="utf-8") == "# Regras\n- nomes claros\n"
+        added_in = subprocess.run(["git", "log", "--diff-filter=A", "--format=%s", "--", "CLAUDE.md"],
+                                  cwd=ws, capture_output=True, text=True).stdout.strip()
+        assert added_in == "ponto de partida"  # vem no ponto de partida: não é trabalho do braço
+    [p] = pilot.read_all(home=tmp_path / "home")
+    assert p["meta"]["claude_md"] is True
+
+
+def test_without_a_claude_md_no_arm_gets_one_and_the_meta_says_so(tmp_path):
+    run(tmp_path, FakeArms())
+
+    run_dir = pilot.pilots_dir(tmp_path / "home") / "p1"
+    assert not (run_dir / "standard" / "CLAUDE.md").exists() and not (run_dir / "jev" / "CLAUDE.md").exists()
+    [p] = pilot.read_all(home=tmp_path / "home")
+    assert p["meta"]["claude_md"] is False

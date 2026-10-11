@@ -86,3 +86,14 @@ def test_the_judge_row_says_how_each_pass_went(tmp_path):
 
     assert [(p["a"], p["ok"]) for p in row["passes"]] == [("standard", True), ("jev", False)]
     assert row["passes"][1]["error"] == "timeout"
+
+
+def test_the_judge_does_not_read_the_claude_md_both_arms_got(tmp_path):
+    ws = _workspaces(tmp_path)
+    for workspace in ws.values():
+        (workspace / "CLAUDE.md").write_text("REGRAS_IGUAIS_NOS_DOIS\n")
+
+    material = pilot_run.judge_material(ws, order=("standard", "jev"))
+
+    assert "REGRAS_IGUAIS_NOS_DOIS" not in material  # igual nos dois: é contexto, não trabalho
+    assert "CODIGO_DO_PRIMEIRO" in material and "CODIGO_DO_SEGUNDO" in material
