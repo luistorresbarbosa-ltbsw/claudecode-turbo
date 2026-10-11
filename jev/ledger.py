@@ -12,7 +12,7 @@ Cada linha compara o custo do caminho JEV com o do Claude Code "standard":
 
 Fallbacks (qualquer pedido que falhe cai para o standard Anthropic):
 
-    decision.router_error  null, ou o erro do cérebro free; a decisão passou a ser o standard
+    decision.router_error  null, ou o erro do Jev; a decisão passou a ser o standard
     jev.fallback           null, ou {"from": modelo que falhou, "reason": erro} quando a
                            execução foi repetida no standard; jev.cost_usd soma as duas tentativas
     jev.ok                 false quando nem o fallback produziu resposta

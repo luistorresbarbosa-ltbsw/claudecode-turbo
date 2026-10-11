@@ -53,6 +53,8 @@ def read_all(home: str | Path | None = None) -> list[dict]:
         return []
     pilots = []
     for path in folder.glob("*.jsonl"):
+        if not path.is_file():
+            continue
         rows = _rows(path)
         meta = next((r for r in rows if r["type"] == "meta"), None)
         if meta is None:

@@ -19,6 +19,12 @@ ALIASES = {
 _OVERRIDES = {
     "claude-sonnet-5-5": {"cache_read": 0.20e-6},
 }
+# Modelos que a tabela embutida no litellm ainda não traz (preços oficiais, skill claude-api 2026-09-25,
+# confirmados contra o total_cost_usd do Claude Code em tests/test_pricing.py)
+_MISSING_FROM_LITELLM = {
+    "claude-sonnet-5-5": {"input_cost_per_token": 2.0e-6, "output_cost_per_token": 10.0e-6,
+                          "cache_read_input_token_cost": 0.20e-6, "cache_creation_input_token_cost": 2.5e-6},
+}
 
 # Contexto fixo que o Claude Code carrega em cada `claude -p` (system prompt, ferramentas...).
 # Medido a 2026-10-11 com o claude 2.1.287. Serve para estimar o standard de tarefas que
@@ -32,7 +38,9 @@ def _per_token(model: str) -> dict[str, float]:
     import litellm  # aqui e não no topo: importá-lo custa ~1 s, e decidir um prompt não precisa de preços
 
     model_id = ALIASES.get(model, model)
-    info = litellm.model_cost[model_id]  # KeyError de propósito: modelo desconhecido não é grátis
+    info = litellm.model_cost.get(model_id) or _MISSING_FROM_LITELLM.get(model_id)
+    if info is None:
+        raise KeyError(model_id)  # de propósito: um modelo desconhecido não é grátis
     price = {
         "input": info["input_cost_per_token"],
         "output": info["output_cost_per_token"],

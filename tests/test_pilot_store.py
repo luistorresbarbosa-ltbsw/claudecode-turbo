@@ -43,3 +43,10 @@ def test_corrupt_lines_are_skipped_and_no_pilots_dir_means_none(tmp_path):
         f.write(b'{"v": 1, "type": "task", "pilot": "p1", "cost_usd": \xff\n{nao json\n')
 
     assert pilot.read_all(home=tmp_path)[0]["tasks"] == []
+
+
+def test_a_directory_named_like_a_pilot_file_is_ignored(tmp_path):
+    (tmp_path / "pilots" / "estranho.jsonl").mkdir(parents=True)
+    pilot.append({"v": 1, "type": "meta", "pilot": "p1", "started": "x", "tasks": []}, home=tmp_path)
+
+    assert [p["id"] for p in pilot.read_all(home=tmp_path)] == ["p1"]

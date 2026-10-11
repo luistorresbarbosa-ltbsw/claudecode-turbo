@@ -3,7 +3,7 @@
     jev run <tarefa> [--edits] [--ab] [--dry] [--json]   (a tarefa também pode vir do stdin)
     jev ledger [--json]
 
-`run` decide com o cérebro free, executa, compara com o standard e regista no ledger.
+`run` decide com o Jev, executa, compara com o standard e regista no ledger.
 O standard é "medido" quando correu de facto (--ab, ou um fallback) e "estimado" quando são
 os mesmos tokens ao preço do modelo standard. A estimativa é conservadora: não conta o
 thinking extra que o standard (xhigh) faria nem o tokenizer maior do Opus.
@@ -85,7 +85,7 @@ def _report(decision: router.Decision, outcome: dispatch.Outcome, rec: dict, sum
     std, saved = rec["standard"], rec["savings_usd"]
     lines = []
     if decision.router_error:
-        lines.append(f"⚠ o cérebro free falhou ({decision.router_error}); fui pelo standard")
+        lines.append(f"⚠ o Jev falhou ({decision.router_error}); fui pelo standard")
     lines.append(f"JEV → {_label(decision)} · {decision.rationale}")
     if outcome.fallback:
         lines.append(f"⚠ {outcome.fallback['from']} falhou ({outcome.fallback['reason']}); repetido no standard")

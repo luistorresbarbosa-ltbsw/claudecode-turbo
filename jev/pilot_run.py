@@ -191,40 +191,45 @@ def run_pilot(tasks: list[dict], *, pilot_id: str, seed: Path, inject_root: Path
                   "workspaces": {arm: str(ws) for arm, ws in workspaces.items()}}, home=home)
 
     spent, stopped = 0.0, None
-    used_ms = {arm: 0 for arm in ARMS}  # o envelope de tempo é de cada braço
-    for i, task in enumerate(tasks):
-        for arm in (ARMS if i % 2 == 0 else ARMS[::-1]):  # quem vai primeiro alterna
-            left_s = max_min_arm * 60 - used_ms[arm] / 1000 if max_min_arm else timeout_s
-            if stopped or left_s < 10:
-                pilot.append(_row(pilot_id, arm, task), home=home)
-                continue
-            workspace = workspaces[arm]
-            _inject(task, inject_root, workspace)
-            seen = len(ledger.read_all(home=jev_home))
-            r = run_arm(arm, task, workspace, max_usd=round(min(max_usd_task, max_usd_total - spent), 4),
-                        timeout_s=int(min(timeout_s, left_s)), jev_home=jev_home)
-            used_ms[arm] += r["wall_ms"]
-            info = _jev_info(ledger.read_all(home=jev_home)[seen:]) if arm == "jev" else None
-            cost = r["cost_usd"] + (info["decision_cost_usd"] if info else 0.0)
-            spent += cost
-            if task["kind"] == "text" and r.get("result"):
-                save_text_answer(workspace, task["output_file"], r["result"])
-            acceptance = accept(Path(acceptance_root) / f"test_{task['id'].lower()}.py", workspace)
-            if git:
-                _git(workspace, "add", "-A")
-                _git(workspace, "commit", "-q", "-m", f"após {task['id']}")
-            pilot.append(_row(pilot_id, arm, task, status=r["status"], cost_usd=round(cost, 9), wall_ms=r["wall_ms"],
-                              models=r["models"], jev=info, acceptance=acceptance, error=r.get("error")), home=home)
-            chosen = ", ".join(f"{d['model']}·{d['effort']}" for d in (info or {}).get("decisions", [])) or "-"
-            log(f"{task['id']} {arm:<8} {r['status']:<7} ${cost:.4f} {r['wall_ms'] / 1000:6.1f}s "
-                f"aceitação={'ok' if acceptance['ok'] else 'falhou'} jev={chosen}")
-            if spent >= max_usd_total:
-                stopped = "orçamento total"
-    if judge:
-        log("juiz: Opus pela subscrição, às cegas, 2 passagens…")
-        verdict = judge_pilot(pilot_id, workspaces, home=home, run_judge=run_judge or run_claude_judge)
-        log("juiz: " + ", ".join(f"{c['label']}={c['result']}" for c in verdict["criteria"]))
-    pilot.append({"v": 1, "type": "end", "pilot": pilot_id, "finished": _now(), "stopped": stopped}, home=home)
+    try:
+        used_ms = {arm: 0 for arm in ARMS}  # o envelope de tempo é de cada braço
+        for i, task in enumerate(tasks):
+            for arm in (ARMS if i % 2 == 0 else ARMS[::-1]):  # quem vai primeiro alterna
+                left_s = max_min_arm * 60 - used_ms[arm] / 1000 if max_min_arm else timeout_s
+                if stopped or left_s < 10:
+                    pilot.append(_row(pilot_id, arm, task), home=home)
+                    continue
+                workspace = workspaces[arm]
+                _inject(task, inject_root, workspace)
+                seen = len(ledger.read_all(home=jev_home))
+                r = run_arm(arm, task, workspace, max_usd=round(min(max_usd_task, max_usd_total - spent), 4),
+                            timeout_s=int(min(timeout_s, left_s)), jev_home=jev_home)
+                used_ms[arm] += r["wall_ms"]
+                info = _jev_info(ledger.read_all(home=jev_home)[seen:]) if arm == "jev" else None
+                cost = r["cost_usd"] + (info["decision_cost_usd"] if info else 0.0)
+                spent += cost
+                if task["kind"] == "text" and r.get("result"):
+                    save_text_answer(workspace, task["output_file"], r["result"])
+                acceptance = accept(Path(acceptance_root) / f"test_{task['id'].lower()}.py", workspace)
+                if git:
+                    _git(workspace, "add", "-A")
+                    _git(workspace, "commit", "-q", "-m", f"após {task['id']}")
+                pilot.append(_row(pilot_id, arm, task, status=r["status"], cost_usd=round(cost, 9), wall_ms=r["wall_ms"],
+                                  models=r["models"], jev=info, acceptance=acceptance, error=r.get("error")), home=home)
+                chosen = ", ".join(f"{d['model']}·{d['effort']}" for d in (info or {}).get("decisions", [])) or "-"
+                log(f"{task['id']} {arm:<8} {r['status']:<7} ${cost:.4f} {r['wall_ms'] / 1000:6.1f}s "
+                    f"aceitação={'ok' if acceptance['ok'] else 'falhou'} jev={chosen}")
+                if spent >= max_usd_total:
+                    stopped = "orçamento total"
+        if judge:
+            log("juiz: Opus pela subscrição, às cegas, 2 passagens…")
+            verdict = judge_pilot(pilot_id, workspaces, home=home, run_judge=run_judge or run_claude_judge)
+            log("juiz: " + ", ".join(f"{c['label']}={c['result']}" for c in verdict["criteria"]))
+    except BaseException as exc:  # um piloto que rebenta fica fechado: nunca parece "a correr" para sempre
+        stopped = f"erro: {type(exc).__name__}: {exc}"
+        raise
+    finally:
+        pilot.append({"v": 1, "type": "end", "pilot": pilot_id, "finished": _now(), "stopped": stopped}, home=home)
     return run_dir
 
 

@@ -348,10 +348,16 @@ def test_no_pilots_gives_an_empty_list(server, jev_home):
 
 def test_unreadable_pilot_store_is_a_json_500_not_a_dropped_connection(server, jev_home):
     """Falha se um registo ilegível rebentar a thread do pedido: a vista Piloto ficava sem
-    resposta e sem dizer porquê. Um diretório com nome de .jsonl é ilegível em qualquer sistema."""
-    (jev_home / "pilots" / "partido.jsonl").mkdir(parents=True)
-
-    reply = get(server, "/api/pilots")
+    resposta e sem dizer porquê. (Uma pasta com nome de .jsonl já não serve: o read_all salta-a.
+    Um ficheiro sem permissão de leitura serve.)"""
+    store = jev_home / "pilots" / "partido.jsonl"
+    store.parent.mkdir(parents=True)
+    store.write_text('{"v": 1, "type": "meta", "pilot": "p", "started": "x", "tasks": []}\n')
+    store.chmod(0)
+    try:
+        reply = get(server, "/api/pilots")
+    finally:
+        store.chmod(0o600)
 
     assert reply.status == 500
     assert reply.headers["Content-Type"].startswith("application/json")

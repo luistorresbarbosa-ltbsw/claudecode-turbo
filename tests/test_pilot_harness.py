@@ -200,3 +200,14 @@ def test_the_cost_state_line_wins_when_the_session_wrote_it(tmp_path):
 
 def test_no_transcript_means_an_unknown_cost_of_zero(tmp_path):
     assert pilot_run.partial_cost(tmp_path, since=0, projects_dir=tmp_path / "nada") == 0.0
+
+
+def test_a_crashing_pilot_is_still_closed_so_it_never_looks_like_it_is_running(tmp_path):
+    def crashing(arm, task, workspace, **kw):
+        raise RuntimeError("o claude rebentou")
+
+    with pytest.raises(RuntimeError):
+        run(tmp_path, crashing)
+
+    [p] = pilot.read_all(home=tmp_path / "home")
+    assert p["end"] is not None and "o claude rebentou" in p["end"]["stopped"]
