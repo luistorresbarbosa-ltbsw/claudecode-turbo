@@ -1,91 +1,148 @@
-import type { CommandRunResult, ProcessRunResult, Register } from 'claude-code'
+import type { Register, TurnStepInput, TurnUsage } from 'claude-code'
 
-// O núcleo do JEV é Python e vive no repositório; este mod é só a casca do /jev.
+// O núcleo do JEV é Python e vive no repositório. O binário do venv evita o arranque do uv:
+// decidir um prompt custa o tempo do Jev (1-2 s) e pouco mais.
 const REPO = '/Users/luisbarbosa/Developer/repos/personal/claude-mods-jev'
-const CLI = ['uv', 'run', '--project', REPO, 'jev'] as const
-const RUN_TIMEOUT_MS = 600_000 // o máximo do $.process.run; o cli corta o claude -p aos 590 s
+const JEV = `${REPO}/.venv/bin/jev`
+// Prompts escritos pela pessoa: no terminal, pelo telemóvel (bridge) ou num `claude -p` (sdk)
+const ROUTED_ORIGINS = new Set(['composer', 'bridge', 'sdk'])
+type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
-const USAGE = [
-  'uso: /jev [--edits] [--ab] [--dry] <tarefa>',
-  '  --edits   deixa o modelo editar ficheiros (por defeito só lê)',
-  '  --ab      corre também o standard, para medir a diferença a sério',
-  '  --dry     só decide e estima: não corre nem gasta quota',
-  '/jev --ledger   totais acumulados',
-  `dashboard: uv run --project ${REPO} jev-dashboard --open`,
-].join('\n')
-
-type CliOutput = {
-  report: string
-  decision: { model: string; effort: string | null }
-  summary?: { saved_usd: number; saved_pct: number } // ausente no --dry
+type Decision = {
+  runner: 'anthropic' | 'openrouter-free'
+  model: string
+  effort: Effort | null
+  rationale: string
+  is_standard: boolean
 }
-
-// Separa as flags do JEV do início dos argumentos; o resto, tal como foi escrito, é a tarefa.
-// A tarefa segue pelo stdin, por isso um "--help" dentro dela nunca chega ao argv do cli.
-function parse(args: string): { flags: string[]; task: string; isLedger: boolean } {
-  const flags: string[] = []
-  let rest = args.trimStart()
-  let isLedger = false
-  for (;;) {
-    const m = rest.match(/^(--(?:edits|ab|dry|ledger))(?:\s+|$)/)
-    const flag = m?.[1]
-    if (!m || !flag) break
-    if (flag === '--ledger') isLedger = true
-    else flags.push(flag)
-    rest = rest.slice(m[0].length)
-  }
-  return { flags, task: rest.trim(), isLedger }
+type Summary = { tasks: number; saved_usd: number; saved_pct: number }
+type Route = {
+  decision: Decision
+  model_id: string | null
+  decide_ms: number
+  free: { ok: boolean; text: string; model_id: string; duration_ms: number } | null
+  summary?: Summary
 }
+type Routed = { task: string; route: Route; waitMs: number; scope: 'main' | 'agent' }
 
-// O cli escreve o JSON mesmo quando a tarefa falha (sai com 1), por isso lê-se sempre.
-function readCli(stdout: string): CliOutput | undefined {
+let pending: Routed | undefined // decidido no prompt.submit, à espera do turn.start
+const turns = new Map<string, Routed>() // turno principal -> decisão
+const queuedAgents: Routed[] = [] // decididos no tool.call, à espera do 1.º passo do subagente
+const agents = new Map<string, Routed>() // subagente -> decisão
+
+function readJson<T>(text: string): T | undefined {
   try {
-    const out = JSON.parse(stdout)
-    return typeof out?.report === 'string' ? out : undefined
+    return JSON.parse(text) as T
   } catch {
     return undefined
   }
 }
 
-function failure(r: ProcessRunResult): string {
-  const why = (r.stderr.trim() || r.stdout.trim()).slice(-600)
-  return `JEV falhou (exit ${r.exitCode})${why ? `:\n${why}` : ''}`
+function label(d: Decision): string {
+  if (d.is_standard) return 'standard'
+  const model = d.model.split('/').pop() ?? d.model
+  return d.effort ? `${model} · ${d.effort}` : model
 }
 
-function statusOf(out: CliOutput): string {
-  const effort = out.decision.effort ? ` · ${out.decision.effort}` : ''
-  const choice = `JEV: ${out.decision.model.split('/').pop()}${effort}`
-  if (!out.summary) return `${choice} (dry)`
-  return `${choice} · poupado $${out.summary.saved_usd.toFixed(4)} (${out.summary.saved_pct}%)`
+function totals(s: Summary | undefined): string {
+  return s ? ` · poupado $${s.saved_usd.toFixed(4)} (${s.saved_pct}%)` : ''
+}
+
+// O subagente chega ao 1.º passo com o modelo que lhe demos no tool.call: é por aí que se liga à decisão
+function claimAgent(e: TurnStepInput): Routed | undefined {
+  if (!e.agentId) return undefined
+  const known = agents.get(e.agentId)
+  if (known) return known
+  const i = queuedAgents.findIndex(r => r.route.model_id !== null && e.model.startsWith(r.route.model_id))
+  if (i < 0) return undefined
+  const [routed] = queuedAgents.splice(i, 1)
+  if (!routed) return undefined
+  agents.set(e.agentId, routed)
+  return routed
 }
 
 export const register: Register = on => {
-  on('session.start', async ($, e, next) => {
-    await $.command.register({
-      name: 'jev',
-      description: 'O JEV escolhe o modelo e o esforço, corre a tarefa e mostra quanto poupaste',
-      argumentHint: '[--edits] [--ab] [--dry] <tarefa> | --ledger',
-    })
+  on('prompt.submit', async ($, e, next) => {
+    const task = e.text.trim()
+    if (!ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) return next(e)
+
+    $.ui.status('JEV: a decidir…')
+    const ran = await $.process.run([JEV, 'route'], { stdin: task, timeoutMs: 120_000 })
+    const route = readJson<Route>(ran.stdout)
+    if (!route) {
+      $.ui.status('JEV: sem decisão, segue o standard')
+      return next(e)
+    }
+    const d = route.decision
+    if (route.free?.ok) {
+      // O Jev mandou para um free: este prompt não gasta quota Anthropic. O modelo da sessão fica
+      // a saber o que se passou, para os turnos seguintes.
+      $.ui.status(`JEV: ${route.free.model_id.split('/').pop()} (free)${totals(route.summary)}`)
+      try {
+        await $.session.append({
+          message: {
+            type: 'user',
+            content: [{ type: 'text', text: `[JEV] Pedido respondido pelo modelo free ${route.free.model_id}.\nPedido: ${task}\nResposta: ${route.free.text}` }],
+          },
+        })
+      } catch {
+        // dar contexto ao modelo da sessão é um extra; mostrar a resposta é o essencial
+      }
+      return { drop: `${route.free.text}\n\n— JEV: respondido por ${route.free.model_id} (free) · ${d.rationale}` }
+    }
+    pending = { task, route, waitMs: route.decide_ms + (route.free?.duration_ms ?? 0), scope: 'main' }
+    $.ui.status(`JEV: ${label(d)}`)
     return next(e)
   })
 
-  on('command.run', { command: 'jev' }, async ($, e): Promise<CommandRunResult> => {
-    const { flags, task, isLedger } = parse(e.args)
-
-    if (isLedger) {
-      const r = await $.process.run([...CLI, 'ledger'], { timeoutMs: 60_000 })
-      return { text: r.exitCode === 0 ? r.stdout.trim() : failure(r) }
+  on('turn.start', async ($, e, next) => {
+    if (pending) {
+      turns.set(e.turnId, pending)
+      pending = undefined
     }
-    if (!task) return { text: USAGE }
+    return next(e)
+  })
 
-    $.ui.status('JEV: a decidir e a correr…')
-    const r = await $.process.run([...CLI, 'run', '--json', ...flags], { stdin: task, timeoutMs: RUN_TIMEOUT_MS })
-    const out = readCli(r.stdout)
-    if (!out) {
-      $.ui.status(undefined)
-      return { text: failure(r) }
+  // Cada pedido do turno sai com o modelo e o esforço que o Jev escolheu (pela subscrição)
+  on('turn.step', async function* ($, e, next) {
+    const routed = e.agentId ? claimAgent(e) : turns.get(e.turnId)
+    const d = routed?.route.decision
+    if (!routed || !d || d.is_standard || !routed.route.model_id) return yield* next(e)
+    const effort = d.effort ? { effort: d.effort } : {}
+    const model = e.agentId ? {} : { model: routed.route.model_id } // o do subagente já vem do tool.call
+    return yield* next({ ...e, ...model, ...effort })
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const routed = e.agentId ? agents.get(e.agentId) : turns.get(e.turnId)
+    if (routed) {
+      if (e.agentId) agents.delete(e.agentId)
+      else turns.delete(e.turnId)
+      const usage: TurnUsage | null = e.usage ?? null
+      const ran = await $.process.run([JEV, 'record'], {
+        stdin: JSON.stringify({
+          task: routed.task, decision: routed.route.decision, model_id: routed.route.model_id, usage,
+          duration_ms: e.durationMs + routed.waitMs, reason: e.reason, scope: routed.scope,
+        }),
+        timeoutMs: 60_000,
+      })
+      if (!e.agentId) {
+        const out = readJson<{ summary: Summary }>(ran.stdout)
+        const secs = ((e.durationMs + routed.waitMs) / 1000).toFixed(1)
+        $.ui.status(`JEV: ${label(routed.route.decision)} · ${secs} s${totals(out?.summary)}`)
+      }
     }
-    $.ui.status(statusOf(out))
-    return { text: out.report }
+    return next(e)
+  })
+
+  // Subagentes: o Jev escolhe o modelo a partir da tarefa do agente (um subagente nunca vai para um free)
+  on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
+    if (e.subagent_type === 'fork') return next(e) // um fork herda sempre o modelo
+    const ran = await $.process.run([JEV, 'route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
+    const route = readJson<Route>(ran.stdout)
+    const d = route?.decision
+    if (!route || !d || d.is_standard || d.runner !== 'anthropic') return next(e)
+    queuedAgents.push({ task: e.prompt, route, waitMs: route.decide_ms, scope: 'agent' })
+    return next({ ...e, model: d.model as 'sonnet' | 'opus' | 'haiku' | 'fable' })
   })
 }
