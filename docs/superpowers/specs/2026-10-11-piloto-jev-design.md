@@ -8,11 +8,11 @@ Correr o mesmo projeto pequeno em dois braços, com o **mesmo envelope de tempo 
 pelo utilizador, e comparar o que cada um consegue:
 
 - **standard**: Claude Code com o modelo e o esforço por defeito do utilizador (opus · xhigh) em todas as tarefas;
-- **jev**: cada tarefa passa pelo router do JEV, que escolhe entre modelos Anthropic (pela subscrição)
-  e modelos free do OpenRouter, com a regra de fallback para o standard.
+- **jev**: cada tarefa passa pelo Jev (`typesafe/jev-router`), que decide: Anthropic pela subscrição,
+  com o modelo e o esforço dele, ou, nas tarefas simples, um modelo free. Fallback para o standard.
 
-No fim, uma avaliação em duas camadas: **medições objetivas** feitas pelo harness, e um **painel de
-juízes LLM** (Opus 5.5 + Nemotron Ultra) para o que os testes não veem. O dashboard mostra tudo.
+No fim, uma avaliação em duas camadas: **medições objetivas** feitas pelo harness, e um **juiz LLM**
+(Opus 5.5, às cegas e com a ordem trocada) para o que os testes não veem. O dashboard mostra tudo.
 
 ### Critérios de sucesso (do harness, não do JEV)
 
@@ -49,20 +49,21 @@ fatura/
 ### 2.2 Tarefas
 
 Os prompts são iguais nos dois braços e correm por esta ordem. **As tarefas de texto não mencionam
-ficheiros**: se mencionassem, a regra 1 do router mandava-as sempre para a Anthropic. Em ambos os
-braços é o harness que grava a resposta em `docs/`. As tarefas são **independentes entre si**: cada uma
+ficheiros**: se mencionassem, o Jev classificava-as como `code:file_read_write` e iam para o haiku em
+vez de um free. Um free não escreve ficheiros, por isso em ambos os braços é o harness que grava a
+resposta em `docs/`. As tarefas são **independentes entre si**: cada uma
 só depende do ponto de partida e dos seus próprios ficheiros injetados, para que uma falha não arraste
 as seguintes.
 
 | # | Título | Tipo | Espero | Ficheiro de saída / injetado |
 |---|---|---|---|---|
 | T1 | Glossário de IVA | texto | free | → `docs/IVA.md` |
-| T2 | Bug da Madeira | código | haiku | — |
+| T2 | Bug da Madeira | código | haiku (barato + ficheiros) | — |
 | T3 | Validar NIF | código | haiku | — |
 | T4 | Totais da fatura | código | sonnet | — |
-| T5 | JSON + CLI | código | sonnet | — |
+| T5 | JSON + CLI | código | haiku ou sonnet | — |
 | T6 | O cêntimo que falta | código | opus | injeta `fatura/notas_credito.py` + `exemplos/ft-2026-31.json` |
-| T7 | Reconciliação bancária | código | **fable** | — |
+| T7 | Reconciliação bancária | código | **opus** (Fable só se o Jev o admitir) | — |
 | T8 | Email ao cliente | texto | free | → `docs/email-aurora.md` |
 
 A coluna "Espero" é só a minha previsão, para o relatório. **Quem decide é o JEV.**
@@ -126,7 +127,7 @@ Prompts:
 ## 3. Execução: `jev pilot`
 
 ```
-jev pilot preflight                                  # $0: valida o avaliador e mostra a escada do router
+jev pilot preflight                                  # ~$0,01: valida o avaliador e mostra a escada do Jev
 jev pilot run --max-usd 4.5 --max-min 40 [--judge-usd 1]
 jev pilot judge <id>                                 # pode repetir-se sem voltar a correr os braços
 ```
@@ -138,8 +139,8 @@ jev pilot judge <id>                                 # pode repetir-se sem volta
    O teste de tempo da T7 tem de passar com folga na referência (< 0,5 s), para não ser instável.
 2. **Juiz, poucos cêntimos.** Dois projetos iguais → empate. Referência vs. ponto de partida → ganha a
    referência. Textos de lixo → perdem.
-3. **Escada do router, $0.** As 8 tarefas com `--dry`, para vermos se o JEV escolhe mesmo free e Fable
-   antes de pagar.
+3. **Escada do Jev, ~$0,01.** As 8 tarefas com `--dry` (paga-se só a decisão do Jev), para vermos o que
+   ele escolhe antes de pagar a execução.
 
 Se o passo 1 ou o 2 falharem, o piloto não arranca.
 
@@ -161,10 +162,12 @@ Se o passo 1 ou o 2 falharem, o piloto não arranca.
 - **Teto de tempo por execução:** timeout = minutos que sobram do envelope. Um `claude -p` morto não
   reporta custo, por isso corre com `--output-format stream-json` e o harness soma o uso mensagem a
   mensagem; ao matar, fica com o custo até ali.
-- **Braço jev:** o router decide. As execuções Anthropic usam o mesmo comando, com `--model` e `--effort`
-  da decisão; as free usam o litellm. Se uma execução falhar, repete no standard e **gasta do envelope do
-  JEV**. Uma tarefa de código mal encaminhada para free não é "falha" do executor: fica entregue só em
-  texto e chumba na aceitação. É informação sobre o router.
+- **Braço jev:** o Jev decide. Se escolhe Anthropic, corre o mesmo comando com o `--model` e o `--effort`
+  dele. Se escolhe um modelo barato, corre num free (Nemotron Ultra, via litellm). Se escolhe barato numa
+  tarefa de ficheiros, corre no haiku com o esforço dele. **O custo de cada decisão do Jev conta no
+  envelope do braço jev.** Se uma execução falhar, repete no standard e gasta do envelope do JEV. Se o
+  Jev classificar mal uma tarefa de código como texto, ela vai para um free, fica entregue só em texto e
+  chumba na aceitação. É informação sobre o Jev.
 - **Tarefas de texto:** o harness grava a resposta final no ficheiro de saída, nos dois braços.
 - **Depois de cada execução:** corre a aceitação dessa tarefa, faz commit "após Tn" na cópia do braço e
   regista.
@@ -193,13 +196,13 @@ semântica é diferente (os dois lados são medidos e os dois podem falhar). Tip
 | Performance | T7 com 60×30 e T4 com 10k linhas, mediana de 3 execuções (só se a tarefa estiver concluída) |
 | Higiene | `uvx ruff check` (número de avisos); testes do próprio agente a passar; deteção de não-alterações (status done sem diff) |
 
-### 4.2 Painel de juízes, para o que os testes não veem
+### 4.2 Juiz LLM, para o que os testes não veem
 
-- **Juízes:** Opus 5.5 (`claude -p --model opus --effort high --tools ""`) e Nemotron Ultra (litellm).
-  Recebem **o mesmo material**: o código-fonte dos dois projetos (sem `.venv` nem `.git`) e os textos,
+- **Juiz:** Opus 5.5 (`claude -p --model opus --effort high --tools ""`). Os modelos free ficam de fora:
+  não decidem nada, e julgar é decidir. O juiz recebe **o mesmo material** dos dois lados: o código-fonte dos dois projetos (sem `.venv` nem `.git`) e os textos,
   rotulados só "Projeto A" e "Projeto B", com as tarefas e os critérios. O material é tratado como dados
   e não como instruções.
-- **Par-a-par às cegas:** cada juiz avalia duas vezes, com A/B trocados, o que dá 4 veredictos por critério.
+- **Par-a-par às cegas:** o juiz avalia duas vezes, com A/B trocados, o que dá 2 veredictos por critério.
   Respostas possíveis: A, B, empate, ambos maus, com o motivo em ≤ 2 frases. A resposta é JSON
   estruturado.
 - **Critérios**, escritos como afirmações verificáveis:
@@ -212,8 +215,8 @@ semântica é diferente (os dois lados são medidos e os dois podem falhar). Tip
   5. **Textos (T1, T8):** exatos, claros, em pt-PT, com o tom certo.
   - Considerados e deixados de fora: "eficiência" (já medida no benchmark) e "documentação do código"
     (sobrepõe-se a legibilidade).
-- **Agregação:** maioria dos 4 veredictos. Quando os juízes discordam, ou o vencedor muda com a ordem,
-  o critério fica **inconclusivo**.
+- **Agregação:** se os 2 veredictos concordam, é esse. Se o vencedor muda com a ordem, o critério fica
+  **inconclusivo**.
 
 ### 4.3 Veredicto final (regra por defeito, ajustável)
 
@@ -231,7 +234,7 @@ semântica é diferente (os dois lados são medidos e os dois podem falhar). Tip
   - **custo e tempo acumulados por tarefa contra o envelope**, dois gráficos em degraus com uma linha
     por braço;
   - uma tabela por tarefa: escolha do JEV, estado por braço (✓ ✗ ⏱ 💸 —), custo e tempo;
-  - uma tabela do juiz: critério × 4 veredictos, com os motivos no hover.
+  - uma tabela do juiz: critério × 2 veredictos, com os motivos no hover.
 - Estende a página atual, com a mesma linguagem visual e as mesmas garantias: 127.0.0.1, CSP, sem CDNs.
 
 ## 6. Orçamento por defeito
@@ -239,7 +242,8 @@ semântica é diferente (os dois lados são medidos e os dois podem falhar). Tip
 | | |
 |---|---|
 | Envelope por braço | $4,50 e 40 min (definido por ti ao lançar) |
-| Juiz | $1 (o Nemotron é $0) |
+| Juiz | $1 (Opus, duas passagens) |
+| Decisões do Jev | ~$0,01 (8 tarefas + pré-voo; já contam no envelope do braço jev) |
 | Probes e validação | < $0,20 |
 | **Total** | **≤ $10** |
 
@@ -260,13 +264,14 @@ Probe real (~$0,03): o modo hermético com pytest permitido e o resto negado.
 ## 8. Riscos e limitações
 
 - **n = 1 por braço:** é um caso, não uma estatística.
-- **O JEV pode não escolher o Fable na T7.** O preflight mostra-o antes de gastar, e decidimos então.
-- **Viés do juiz** (o Opus a preferir o braço só-Opus): mitigado com o painel, a troca de ordem e as
-  cegas.
+- **O Jev exclui hoje o Fable** ("model_exclusion" nos testes de 2026-10-11), por isso a T7 deve ir para
+  o Opus. O pré-voo mostra-o antes de gastar.
+- **Viés do juiz** (o Opus a preferir o braço só-Opus): mitigado com as cegas e a troca de ordem. Não há
+  segundo juiz de outra família, porque os free não decidem; um segundo juiz pago custaria mais.
 - **Testes escondidos à medida da minha referência:** mitigado ao afirmar factos e não forma, e com a
   validação oráculo/nulo.
-- **Rate limits dos modelos free:** no braço jev, um router que falha cai para o standard e gasta mais
-  envelope. Fica registado.
+- **Rate limits dos modelos free:** no braço jev, uma execução free que falha repete no standard e gasta
+  mais envelope. Fica registado.
 - **O `--restricted` muda o standard de "as settings do utilizador" para "os mesmos valores, passados
   explicitamente"**, o que é equivalente para modelo e esforço. Hooks e CLAUDE.md do utilizador não
   entram em nenhum dos braços.

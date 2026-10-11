@@ -1,54 +1,49 @@
 # JEV
 
-Um mod do Claude Code em que um modelo **gratuito** do OpenRouter decide, para cada tarefa, onde
-ela corre: num modelo Anthropic (e com que esforço) ou num modelo free. Depois corre-a e mostra
-quanto poupaste face ao teu Claude Code standard.
+Um mod do Claude Code em que o **Jev da TypeSafe** (`typesafe/jev-router`, via OpenRouter) decide
+**cada prompt que escreves e cada subagente**: corre num modelo **Anthropic, pela tua subscrição**,
+com o modelo e o esforço que ele escolher, ou, nas tarefas simples, num **modelo free**. Modelos mais
+leves e menos esforço respondem mais depressa, e o JEV mede o custo e a velocidade de cada turno
+contra o teu Claude Code standard (opus · xhigh).
 
-```
-/jev corrige o typo no README
-JEV → haiku · low · correção simples num ficheiro específico
-...
-custo JEV $0.0307 · standard opus · xhigh $0.1178 (estimado) · poupaste $0.0870
-```
+Não há comando: escreves como sempre. A linha de estado mostra a decisão, por exemplo
+`JEV: haiku · low · 14.2 s · poupado $0.1604 (73.9%)`.
 
 ## Como funciona
 
-1. **Decidir:** `nvidia/nemotron-3-super-120b-a12b:free` lê a tarefa e escolhe
-   `anthropic` (`haiku | sonnet | opus | fable` × `low … max`) ou `openrouter-free`
-   (Nemotron Ultra, Nemotron Super ou Gemma 4, só para texto que não toca no repo).
-2. **Executar:** os modelos Anthropic correm com `claude -p`, pela **tua subscrição**. Os free
-   correm via litellm, a $0.
-3. **Comparar:** o custo real contra o **standard**, o modelo por defeito com o teu `effortLevel`.
-   O standard é *medido* quando correu de facto e *estimado* quando se aplicam os mesmos tokens ao
-   preço do Opus.
-4. **Registar:** uma linha por tarefa em `~/.jev/ledger.jsonl`, que o dashboard lê.
+1. **Decidir (o Jev, ~1-4 s, frações de cêntimo).** Ao enviares um prompt, o mod pergunta ao Jev
+   (`jev route`). O Jev classifica a tarefa (tipo, dificuldade 0-4, ganho de um modelo maior) e escolhe
+   o modelo mais barato que chega, com o esforço. O pool que lhe damos tem os modelos Anthropic e três
+   baratos (`gpt-6-luna`, `gemini-*-flash`, `deepseek-*-flash`), que fazem de "free" porque os modelos
+   free não estão no pool do Jev. Pedimos-lhe 1 token: a decisão vem nos metadados do OpenRouter.
+2. **Executar.**
+   - O Jev escolhe **Anthropic**: o mod reescreve o modelo e o esforço de cada pedido do turno
+     (`turn.step`), e a sessão responde com eles, pela tua subscrição.
+   - O Jev escolhe **um barato**: a tarefa é simples e responde um **free** (Nemotron Ultra), a $0. O
+     prompt não gasta quota Anthropic, e a resposta fica na conversa para os turnos seguintes.
+   - Barato numa tarefa que **mexe em ficheiros**: um free não tem ferramentas, por isso vai para o
+     **haiku**, com o esforço do Jev.
+   - **Subagentes:** o Jev decide com a tarefa do agente. O modelo vai na chamada `Agent` e o esforço
+     nos passos do subagente. Um subagente nunca vai para um free (usa ferramentas).
+   - Os modelos free só executam; nunca decidem.
+3. **Registar (`jev record`).** No fim de cada turno: o custo real (preços via litellm, mais a decisão
+   do Jev) e o tempo que esperaste (decisão + turno), contra o standard. Quando o Jev falha e a sessão
+   segue no standard, esse turno fica como **medição real do standard**.
+4. **Ver.** `uv run jev-dashboard --open` mostra o custo e a velocidade, JEV contra standard.
 
-**Fallback:** se o cérebro free falhar, a decisão passa a ser o standard. Se a execução escolhida
-falhar, a tarefa repete no standard e o ledger soma as duas tentativas, porque uma execução
-falhada também custa.
+**Fallback:** se o Jev falhar (erro, timeout de 15 s, um modelo fora do pool) ou o free falhar, a
+sessão segue com o standard, sem mudanças.
+
+**No histórico do OpenRouter**, cada decisão aparece com o modelo que serviu o token (por exemplo
+`gpt-6-luna` ou `claude-sonnet-5.5`) e com `router: typesafe/jev-router`.
 
 ## Uso
 
 ```bash
 uv sync
 echo 'OPENROUTER_API_KEY=sk-or-...' > .env
-```
-
-No Claude Code (o mod está em `mod/jev`):
-
-```bash
 claude --plugin-dir /Users/luisbarbosa/Developer/repos/personal/claude-mods-jev/mod/jev
 ```
-
-| Comando | O que faz |
-|---|---|
-| `/jev <tarefa>` | decide, corre só com leitura e regista |
-| `/jev --edits <tarefa>` | deixa editar ficheiros (`acceptEdits`) |
-| `/jev --ab <tarefa>` | corre também o standard, para medir a diferença a sério (gasta o dobro) |
-| `/jev --dry <tarefa>` | só decide e estima, sem gastar quota |
-| `/jev --ledger` | totais acumulados |
-
-Fora do Claude Code: `uv run jev run "<tarefa>"`, `uv run jev ledger`.
 
 Dashboard (local, só em 127.0.0.1):
 
@@ -57,9 +52,13 @@ uv run jev-dashboard --open
 JEV_HOME=dashboard/demo uv run jev-dashboard --open   # com dados de demonstração
 ```
 
+Fora da sessão: `uv run jev ledger` (totais) e `uv run jev run "<tarefa>"`, que corre uma tarefa
+avulsa num `claude -p` (`--edits`, `--ab`, `--dry`).
+
 ## Garantias e limites
 
-- **Só leitura por defeito.** O `claude -p` corre com `--tools Read,Grep,Glob`, ou seja, sem
+- **Na sessão, o JEV só escolhe o modelo e o esforço:** as permissões e as ferramentas são as tuas.
+- **`jev run` (tarefas avulsas) é só leitura por defeito.** O `claude -p` corre com `--tools Read,Grep,Glob`, ou seja, sem
   Bash. Um probe real confirmou que o `--permission-mode dontAsk` deixa correr Bash, por isso
   não é usado. Com `--edits` juntam-se `Edit` e `Write`. Nunca há `bypassPermissions`.
 - **Só a subscrição.** O `claude -p` filho recebe o ambiente sem `ANTHROPIC_API_KEY` nem
@@ -80,5 +79,5 @@ Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`)
 
 ```bash
 uv run pytest               # núcleo + dashboard (os testes nunca saem para a internet)
-claude plugin test mod/jev  # o mod
+claude plugin test mod/jev  # o mod (simula prompts, turnos e subagentes)
 ```
