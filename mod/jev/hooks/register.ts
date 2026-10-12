@@ -7,6 +7,8 @@ const JEV = `${REPO}/.venv/bin/jev`
 // Prompts escritos pela pessoa: no terminal, pelo telemóvel (bridge) ou num `claude -p` (sdk)
 const ROUTED_ORIGINS = new Set(['composer', 'bridge', 'sdk'])
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+type Model = 'haiku' | 'sonnet' | 'opus' | 'fable'
+const RANK: Record<Model, number> = { haiku: 0, sonnet: 1, opus: 2, fable: 3 }
 
 type Decision = {
   runner: 'anthropic' | 'openrouter-free'
@@ -18,7 +20,7 @@ type Decision = {
 type Summary = { tasks: number; saved_usd: number; saved_pct: number }
 type Route = {
   decision: Decision
-  policy?: 'v1' | 'v2'
+  policy?: 'v1' | 'v2' | 'v3'
   model_id: string | null
   decide_ms: number
   free: { ok: boolean; text: string; model_id: string; duration_ms: number } | null
@@ -40,6 +42,8 @@ let resetPending = false
 // Na v2, o modelo e o esforço da sessão: um turno que não passou pelo Jev (uma notificação) também corre neles,
 // senão ia para o modelo por defeito e a cache reescrevia-se duas vezes (para lá e de volta)
 let sessionModel: { model: string; effort: Effort | null } | undefined
+// Um `/model` escrito por ti fixa o modelo: daí em diante a sessão não passa pelo Jev
+let pinned = false
 const prompts = new Map<string, string>() // turno principal -> o pedido com que começou
 
 function history(): { role: 'user' | 'assistant'; content: string }[] {
@@ -81,7 +85,12 @@ function claimAgent(e: TurnStepInput): Routed | undefined {
 export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     const task = e.text.trim()
-    if (!ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) return next(e)
+    if (ROUTED_ORIGINS.has(e.origin.kind) && /^\/model\b/.test(task)) {
+      pinned = true
+      sessionModel = undefined
+      return next(e)
+    }
+    if (pinned || !ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) return next(e)
 
     $.ui.status('JEV: a decidir…')
     let session: string | undefined
@@ -120,7 +129,7 @@ export const register: Register = on => {
       }
       return { drop: `${route.free.text}\n\n— JEV: respondido por ${route.free.model_id} (free) · ${d.rationale}` }
     }
-    sessionModel = route.policy === 'v2' && !d.is_standard && route.model_id
+    sessionModel = (route.policy === 'v2' || route.policy === 'v3') && !d.is_standard && route.model_id
       ? { model: route.model_id, effort: d.effort }
       : undefined
     pending = { task, route, waitMs: route.decide_ms + (route.free?.duration_ms ?? 0), scope: 'main' }
@@ -161,10 +170,22 @@ export const register: Register = on => {
       if (e.agentId) agents.delete(e.agentId)
       else turns.delete(e.turnId)
       const usage: TurnUsage | null = e.usage ?? null
+      // O que o núcleo guarda da sessão: a resposta (o histórico do próximo prompt) e o contexto C
+      let session: string | undefined
+      let context: number | undefined
+      if (!e.agentId) {
+        try {
+          session = await $.session.id()
+          context = (await $.session.usage()).context.tokens
+        } catch {
+          // sem isto o núcleo decide como antes; não é razão para falhar o turno
+        }
+      }
       const ran = await $.process.run([JEV, 'record'], {
         stdin: JSON.stringify({
           task: routed.task, decision: routed.route.decision, model_id: routed.route.model_id, usage,
           duration_ms: e.durationMs + routed.waitMs, reason: e.reason, scope: routed.scope,
+          session, answer: e.agentId ? undefined : e.answer.slice(-2000), context,
         }),
         timeoutMs: 60_000,
       })
@@ -191,7 +212,9 @@ export const register: Register = on => {
     const route = readJson<Route>(ran.stdout)
     const d = route?.decision
     if (!route || !d || d.is_standard || d.runner !== 'anthropic') return next(e)
+    const declared = e.model as Model | undefined
+    if (declared && declared in RANK && RANK[declared] < (RANK[d.model as Model] ?? 0)) return next(e) // já é mais barato
     queuedAgents.push({ task: e.prompt, route, waitMs: route.decide_ms, scope: 'agent' })
-    return next({ ...e, model: d.model as 'sonnet' | 'opus' | 'haiku' | 'fable' })
+    return next({ ...e, model: d.model as Model })
   })
 }

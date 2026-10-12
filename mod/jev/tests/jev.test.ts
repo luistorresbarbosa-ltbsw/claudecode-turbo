@@ -50,6 +50,7 @@ function engine(on: On, routes: { route?: object; agent?: object; raw?: string; 
   })
   on('prompt.submit', (_$, e) => ({ text: e.text, origin: e.origin }))
   on('session.id', () => ({ value: 'sessao-1' }) as never)
+  on('session.usage', () => ({ value: { context: { tokens: 54_321, window: 200_000 } } }) as never)
   on('session.compact', () => ({ messages: [{ role: 'user', text: 'resumo da conversa', toolUses: [] }] }) as never)
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.step', async function* (_$, e) {
@@ -251,4 +252,45 @@ test('na v2, se o núcleo falhar, o turno cai no standard e não no modelo da se
 
   expect(steps[0]?.model).toBe('claude-sonnet-5-5')
   expect(steps[1]?.model).toBe('claude-opus-5-5') // a regra: qualquer falha cai no standard
+})
+
+// v3: o núcleo guarda o contexto e a última troca por sessão, para sobreviverem a um `claude -p --resume`
+test('o record leva a sessão, a resposta e o contexto', async ($, on) => {
+  const { records } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1', { text: 'acrescenta fatura/io.py', answer: 'Proponho validar os campos. Avanço?' })
+
+  const [rec] = records()
+  expect(rec.session).toBe('sessao-1')
+  expect(rec.answer).toBe('Proponho validar os campos. Avanço?')
+  expect(rec.context).toBe(54_321)
+})
+
+test('na v3, um turno sem decisão também fica na faixa da sessão', async ($, on) => {
+  const { steps } = engine(on, { route: { ...SONNET_LOW, policy: 'v3' } })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1')
+  await typed($, 'tarefa terminada', 'task-notification')
+  await turn($, 't2')
+
+  expect(steps[1]?.model).toBe('claude-sonnet-5-5')
+})
+
+test('um /model escrito por ti fixa o modelo: os prompts seguintes já não passam pelo Jev', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, '/model sonnet')
+  await typed($, 'acrescenta fatura/io.py')
+
+  expect(calls.filter(c => c.argv.includes('route'))).toHaveLength(0)
+})
+
+test('um subagente declarado com um modelo mais barato do que o do Jev fica com o seu', async ($, on) => {
+  const { agentCalls } = engine(on, { agent: SONNET_LOW })
+
+  await $.tool.call({ tool: 'Agent', description: 'procurar', prompt: 'onde está o timeout?', model: 'haiku' } as never)
+
+  expect(agentCalls[0]?.model).toBe('haiku')
 })

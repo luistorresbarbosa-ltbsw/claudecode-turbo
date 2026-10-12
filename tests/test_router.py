@@ -245,3 +245,32 @@ def test_the_v1_pool_keeps_the_cheap_stand_ins_by_default(monkeypatch):
 
 def test_jev_pool_all_brings_the_cheap_stand_ins_back_in_v2(monkeypatch):
     assert _pool_sent(monkeypatch, policy_env="v2", pool_env="all") == set(router.JEV_POOL)
+
+
+# --- v3: a opinião fresca do Jev, sem contaminação, e os sinais que a política precisa ------------------
+
+def test_each_decision_goes_in_a_fresh_router_session():
+    # Sem session_id, o Jev guarda um incumbente por chave da API: sessões e braços contaminavam-se (sonda G2)
+    seen = []
+
+    def spy(body, headers):
+        seen.append(body.get("session_id"))
+        return jev_reply("jev_decision_simple")(body, headers)
+
+    router.decide("x", post=spy)
+    router.decide("x", post=spy)
+
+    assert all(s and s.startswith("jev-") for s in seen) and seen[0] != seen[1]
+
+
+def test_the_decision_carries_the_jevs_signals():
+    d = router.decide("x", post=jev_reply("jev_decision_hard"))
+
+    assert d.signals["task"] == "code:general_impl"
+    assert d.signals["task_changed"] == pytest.approx(0.06, abs=0.01)
+    assert d.signals["difficulty"] == 4 and d.signals["gain"] == pytest.approx(0.55, abs=0.01)
+    assert "opus" in d.signals["admitted"]
+
+
+def test_a_fallback_carries_no_signals():
+    assert router.decide("x", post=failing(TimeoutError("lento"))).signals == {}

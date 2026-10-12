@@ -210,3 +210,71 @@ def test_route_says_which_policy_decided(capsys, monkeypatch):
     monkeypatch.setenv("JEV_POLICY", "v2")
 
     assert routed(SONNET_LOW, capsys=capsys)["policy"] == "v2"
+
+
+# --- v3 na CLI: o histórico sobrevive ao --resume, a faixa segue a tarefa, o arrependimento acumula -------
+
+BOTH = {"sonnet": ["low", "medium", "high"], "opus": ["medium", "high"]}
+OPUS_NEW = Decision(runner="anthropic", model="opus", effort="high", rationale="Jev: code:debugging",
+                    signals={"task_changed": 0.4, "gain": 0.4, "admitted": BOTH})
+SONNET_FOLLOW_UP = Decision(runner="anthropic", model="sonnet", effort="medium", rationale="Jev: code:debugging",
+                            signals={"task_changed": 0.1, "gain": 0.2, "admitted": BOTH})
+SONNET_NEW = Decision(runner="anthropic", model="sonnet", effort="medium", rationale="Jev: code:general_impl",
+                      signals={"task_changed": 0.4, "gain": 0.2, "admitted": BOTH})
+
+
+def turn_v3(decision, *, task="x", context=60_000, answer="feito", output=1000, writes=500, capsys, seen=None):
+    def decide(t, **kw):
+        if seen is not None:
+            seen.append(kw.get("history"))
+        return decision
+    cli.main(["route", "--json"], decide=decide, run_free=free_ok(),
+             stdin=io.StringIO(json.dumps({"task": task, "history": [], "session": "s1"})))
+    out = json.loads(capsys.readouterr().out)
+    usage = {"input_tokens": 2, "output_tokens": output, "cache_read_input_tokens": 30_000,
+             "cache_creation_input_tokens": writes, "model": out["model_id"]}
+    cli.main(["record"], stdin=io.StringIO(json.dumps({
+        "task": task, "decision": out["decision"], "model_id": out["model_id"], "usage": usage, "duration_ms": 1000,
+        "reason": "answer", "scope": "main", "session": "s1", "answer": answer, "context": context})))
+    capsys.readouterr()
+    return out
+
+
+def test_route_uses_the_sessions_last_exchange_when_the_mod_sends_none(capsys):
+    # cada `claude -p --resume` é um processo novo: a última troca tem de estar guardada no núcleo
+    seen = []
+    turn_v3(SONNET_NEW, task="acrescenta fatura/io.py", answer="Proponho validar os campos. Avanço?", capsys=capsys)
+    turn_v3(SONNET_FOLLOW_UP, task="sim, avança", capsys=capsys, seen=seen)
+
+    assert seen[-1] == [{"role": "user", "content": "acrescenta fatura/io.py"},
+                        {"role": "assistant", "content": "Proponho validar os campos. Avanço?"}]
+
+
+def test_route_v3_keeps_the_model_on_a_follow_up(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v3")
+
+    turn_v3(OPUS_NEW, capsys=capsys)
+    out = turn_v3(SONNET_FOLLOW_UP, capsys=capsys)
+
+    assert out["decision"]["model"] == "opus" and "mesma tarefa" in out["decision"]["rationale"]
+
+
+def test_route_v3_follows_the_jev_on_a_new_task_with_a_small_context(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v3")
+
+    turn_v3(OPUS_NEW, context=20_000, capsys=capsys)
+    out = turn_v3(SONNET_NEW, capsys=capsys)
+
+    assert out["decision"]["model"] == "sonnet"
+
+
+def test_record_adds_regret_when_v3_kept_a_bigger_model(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v3")
+
+    turn_v3(OPUS_NEW, capsys=capsys)
+    turn_v3(SONNET_NEW, output=10_000, writes=5_000, capsys=capsys)  # o Jev queria o Sonnet; ficou no Opus
+
+    from jev import policy
+    state = policy.load_state("s1")
+    assert state["context"] == 60_000 and state["last_answer"] == "feito"
+    assert state["regret"] == pytest.approx(0.10 + 0.02 + 0.26)

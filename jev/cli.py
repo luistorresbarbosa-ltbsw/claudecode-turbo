@@ -124,18 +124,24 @@ def _estimated_standard(tokens: dict) -> dict:
 
 
 def _route(task: str, *, history=(), session: str | None = None, reset: bool = False, agent: bool,
-           decide, run_free) -> dict:
+           decide, run_free, context: int | None = None) -> dict:
+    # A sessão (o modelo da faixa, o contexto e a última troca): um subagente começa sem contexto
+    state = None if (agent or not session or reset) else policy.load_state(session)
+    if not history and state and state.get("last_prompt") and state.get("last_answer"):
+        # cada `claude -p --resume` é um processo novo e o mod perde a troca anterior: vem do núcleo
+        history = [{"role": "user", "content": state["last_prompt"]},
+                   {"role": "assistant", "content": state["last_answer"]}]
     started = time.monotonic()
     decision = decide(task, history=history)
     decide_ms = int((time.monotonic() - started) * 1000)
     if agent and decision.runner == "openrouter-free":  # um subagente usa ferramentas: um free não serve
         decision = dataclasses.replace(decision, runner="anthropic", model="sonnet",
                                        rationale=decision.rationale + " · subagente: sonnet")
-    # O modelo da sessão (v2): um subagente começa sem contexto, por isso não tem cache a perder
-    state = None if (agent or not session or reset) else policy.load_state(session)
     if not agent and session:
-        decision = policy.apply(decision, state, policy.current())
-        policy.save_state(session, policy.next_state(decision, state))
+        new_task = policy.is_new_task(decision.signals, task) if state else True
+        decision = policy.apply(decision, state, policy.current(), prompt=task, context=context)
+        policy.save_state(session, {**policy.next_state(decision, state, new_task=new_task),
+                                    "last_prompt": task[:2000], "last_answer": ""})
     out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None, "policy": policy.current(),
            "model_id": None if decision.is_standard else pricing.ALIASES.get(decision.model, decision.model)}
     if decision.runner != "openrouter-free":
@@ -148,8 +154,13 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
         fallback = router.standard(f"o free falhou: {res.error}", router_cost_usd=decision.router_cost_usd)
         out.update(decision=fallback.to_ledger(), model_id=None)
         if session and not agent:  # a sessão vai correr no standard
-            policy.save_state(session, policy.next_state(fallback, state))
+            policy.save_state(session, {**policy.next_state(fallback, state), "last_prompt": task[:2000],
+                                        "last_answer": ""})
         return out
+    if session and not agent:  # a resposta free é a troca que o próximo prompt vai ver
+        saved = policy.load_state(session)
+        if saved:
+            policy.save_state(session, {**saved, "last_answer": res.text[-2000:]})
     # este prompt não vai ter turno Anthropic: regista-se já
     ledger.append(ledger.make_record(
         task=task, decision=decision.to_ledger(),
@@ -184,7 +195,26 @@ def _record(payload: dict) -> dict:
         standard=standard,
     )
     ledger.append(rec)
+    _remember_turn(payload, usage)
     return {"record": rec, "summary": ledger.summarize(ledger.read_all())}
+
+
+def _remember_turn(payload: dict, usage: dict) -> None:
+    """Guarda na sessão o que o turno deixou: a resposta (o histórico do próximo prompt), o contexto e a hora do
+    último pedido; e, se a v3 manteve um modelo maior do que o Jev pedia, o que isso custou (o arrependimento)."""
+    session = payload.get("session")
+    if not session or payload.get("scope") == "agent":
+        return
+    state = policy.load_state(session)
+    if not state:
+        return
+    state = {**state, "last_answer": (payload.get("answer") or "")[-2000:], "updated": time.time()}
+    if payload.get("context") is not None:
+        state["context"] = int(payload["context"])
+    if state.get("held_from"):
+        state = policy.add_regret(state, output_tokens=int(usage.get("output_tokens") or 0),
+                                  write_tokens=int(usage.get("cache_creation_input_tokens") or 0))
+    policy.save_state(session, state)
 
 
 def _pilot(args) -> int:
@@ -243,13 +273,14 @@ def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=N
             from dotenv import load_dotenv
             load_dotenv(REPO_ENV)
             decide = router.decide
-        task, history, session, reset = text.strip(), [], None, False
+        task, history, session, reset, context = text.strip(), [], None, False, None
         if args.json:
             payload = json.loads(text)
             task, history = payload["task"].strip(), payload.get("history") or []
             session, reset = payload.get("session"), bool(payload.get("reset"))
+            context = payload.get("context")
         out = _route(task, history=history, session=session, reset=reset, agent=args.agent, decide=decide,
-                     run_free=run_free or dispatch.run_free)
+                     run_free=run_free or dispatch.run_free, context=context)
         print(json.dumps(out, ensure_ascii=False))
         return 0
     if args.cmd == "pilot":

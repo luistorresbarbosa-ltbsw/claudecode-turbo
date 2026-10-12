@@ -25,7 +25,8 @@ import json
 import os
 import re
 import urllib.request
-from dataclasses import asdict, dataclass
+import uuid
+from dataclasses import asdict, dataclass, field
 from fnmatch import fnmatchcase
 
 from jev import policy
@@ -74,6 +75,9 @@ class Decision:
     router_model: str = JEV_MODEL
     router_cost_usd: float = 0.0
     router_error: str | None = None
+    # O que o Jev disse da tarefa, para a política da sessão (v3): task_changed, difficulty, gain e,
+    # por modelo, os esforços em que o Jev o admite
+    signals: dict = field(default_factory=dict)
 
     def to_ledger(self) -> dict:
         return asdict(self)
@@ -136,6 +140,24 @@ def history_messages(history) -> list[dict]:
     return out
 
 
+def _signals(data: dict) -> dict:
+    answers = data.get("answers") or {}
+
+    def score(name):
+        probs = (answers.get(name) or {}).get("probabilities") or {}
+        return int(max(probs, key=probs.get)) if probs else None
+
+    admitted: dict[str, list[str]] = {}
+    for e in data.get("evaluations") or []:
+        alias = ANTHROPIC_MODELS.get(_undated(e.get("model") or ""))
+        if alias and e.get("admitted") and e.get("effort"):
+            admitted.setdefault(alias, []).append(e["effort"])
+    return {"task": (answers.get("task") or {}).get("choice"),
+            "task_changed": (answers.get("task_changed") or {}).get("noul"),
+            "difficulty": score("difficulty"), "gain": (answers.get("big_model_gain") or {}).get("noul"),
+            "admitted": admitted}
+
+
 def _post(body: dict, headers: dict) -> dict:
     req = urllib.request.Request(OPENROUTER_URL, data=json.dumps(body).encode(), headers={
         "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
@@ -150,6 +172,9 @@ def decide(task: str, *, history=(), post=_post) -> Decision:
         resp = post(
             {"model": JEV_MODEL, "messages": [*history_messages(history), {"role": "user", "content": task}],
              "max_tokens": 1,
+             # uma sessão nova em cada decisão: sem ela, o Jev guarda um incumbente por chave da API e uma
+             # sessão (ou um braço do piloto) herdava o modelo de outra; com ela, dá sempre a opinião fresca
+             "session_id": f"jev-{uuid.uuid4().hex}",
              "plugins": [{"id": "jev-router", "allowed_models": list(_pool())}]},
             {"X-OpenRouter-Metadata": "enabled"},
         )
@@ -180,7 +205,7 @@ def decide(task: str, *, history=(), post=_post) -> Decision:
         return Decision(
             runner=runner, model=model, effort=effort, rationale=why,
             est_output_tokens=int(data.get("estimated_output_tokens") or 0),
-            router_cost_usd=cost,
+            router_cost_usd=cost, signals=_signals(data),
         )
     except Exception as exc:  # regra do utilizador: qualquer falha cai para o standard
         return standard(f"{type(exc).__name__}: {str(exc)[:160]}", router_cost_usd=cost)
