@@ -1,0 +1,289 @@
+{
+ "tarefas": {
+  "calc:T3": {
+   "título": "Erros com posição",
+   "repetições": [
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1719",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1740",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    }
+   ],
+   "gain": [
+    0.37,
+    0.36,
+    0.35
+   ],
+   "sonnet_passa": 3,
+   "jev_passa": 3,
+   "válidas": 3,
+   "juiz_sonnet": 9,
+   "juiz_jev": 1,
+   "custo": {
+    "jev-v3": 1.9328894,
+    "sonnet-high": 0.9149932
+   },
+   "segundos": {
+    "jev-v3": 350.61199999999997,
+    "sonnet-high": 213.034
+   },
+   "ganho": 0.36000000000000004,
+   "aguenta": true
+  },
+  "calc:T5": {
+   "título": "Âmbito léxico",
+   "repetições": [
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1719",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1740",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    }
+   ],
+   "gain": [
+    0.33,
+    0.32,
+    0.34
+   ],
+   "sonnet_passa": 3,
+   "jev_passa": 3,
+   "válidas": 3,
+   "juiz_sonnet": 6,
+   "juiz_jev": 0,
+   "custo": {
+    "jev-v3": 1.1055907999999999,
+    "sonnet-high": 0.834324
+   },
+   "segundos": {
+    "jev-v3": 172.644,
+    "sonnet-high": 191.477
+   },
+   "ganho": 0.33,
+   "aguenta": true
+  },
+  "calc:T6": {
+   "título": "Chamadas em cauda",
+   "repetições": [
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1719",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1740",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    }
+   ],
+   "gain": [
+    0.51,
+    0.49,
+    0.48
+   ],
+   "sonnet_passa": 3,
+   "jev_passa": 3,
+   "válidas": 3,
+   "juiz_sonnet": 5,
+   "juiz_jev": 0,
+   "custo": {
+    "jev-v3": 1.3961215999999999,
+    "sonnet-high": 0.8192208000000001
+   },
+   "segundos": {
+    "jev-v3": 259.998,
+    "sonnet-high": 194.873
+   },
+   "ganho": 0.49333333333333335,
+   "aguenta": true
+  },
+  "calc:T7": {
+   "título": "Inferência de tipos",
+   "repetições": [
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1719",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "calc-anthropic-claudemd-v3-sonnet-high-20261012-1740",
+     "válida": true,
+     "jev": "opus · high",
+     "jev_passa": true,
+     "sonnet_passa": true
+    }
+   ],
+   "gain": [
+    0.51,
+    0.49,
+    0.52
+   ],
+   "sonnet_passa": 3,
+   "jev_passa": 3,
+   "válidas": 3,
+   "juiz_sonnet": 5,
+   "juiz_jev": 2,
+   "custo": {
+    "jev-v3": 3.2159852,
+    "sonnet-high": 2.185228
+   },
+   "segundos": {
+    "jev-v3": 799.164,
+    "sonnet-high": 720.6210000000001
+   },
+   "ganho": 0.5066666666666667,
+   "aguenta": true
+  },
+  "fatura:T2": {
+   "título": "Bug da Madeira",
+   "repetições": [
+    {
+     "piloto": "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1702",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1706",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    }
+   ],
+   "gain": [
+    0.39,
+    0.38,
+    0.39
+   ],
+   "sonnet_passa": 3,
+   "jev_passa": 3,
+   "válidas": 3,
+   "juiz_sonnet": 0,
+   "juiz_jev": 0,
+   "custo": {
+    "jev-v3": 0.5793258,
+    "sonnet-high": 0.45238259999999997
+   },
+   "segundos": {
+    "jev-v3": 59.361,
+    "sonnet-high": 69.426
+   },
+   "ganho": 0.3866666666666667,
+   "aguenta": true
+  },
+  "fatura:T6": {
+   "título": "O cêntimo que falta",
+   "repetições": [
+    {
+     "piloto": "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1702",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    },
+    {
+     "piloto": "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1706",
+     "válida": true,
+     "jev": "opus · medium",
+     "jev_passa": true,
+     "sonnet_passa": true
+    }
+   ],
+   "gain": [
+    0.29,
+    0.29,
+    0.28
+   ],
+   "sonnet_passa": 3,
+   "jev_passa": 3,
+   "válidas": 3,
+   "juiz_sonnet": 2,
+   "juiz_jev": 1,
+   "custo": {
+    "jev-v3": 1.0099422,
+    "sonnet-high": 0.6327044
+   },
+   "segundos": {
+    "jev-v3": 160.082,
+    "sonnet-high": 124.293
+   },
+   "ganho": 0.2866666666666667,
+   "aguenta": true
+  }
+ },
+ "porta": 0.5066666666666667,
+ "pilotos": [
+  "calc-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+  "calc-anthropic-claudemd-v3-sonnet-high-20261012-1719",
+  "calc-anthropic-claudemd-v3-sonnet-high-20261012-1740",
+  "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1658",
+  "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1702",
+  "fatura-anthropic-claudemd-v3-sonnet-high-20261012-1706"
+ ]
+}

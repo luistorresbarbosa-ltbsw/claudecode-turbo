@@ -42,9 +42,12 @@ TIME_USD_PER_S = 0.01  # o utilizador escolheu "equilibrado": 1 minuto vale ~$0.
 TASK_CHANGED_NEW = 0.2
 FOLLOW_UP_MAX_WORDS = 12
 REGRET_K = 1.5
-# v4: onde o Jev pede Opus com um ganho até aqui, o Sonnet · high chega (experiência de 2026-10-12, critérios em
-# scripts/avaliar_sonnet.py). None: a porta fica fechada
-SONNET_GATE_GAIN: float | None = None
+# v4: onde o Jev pede Opus com um ganho até aqui, o Sonnet · high chega. Experiência de 2026-10-12 (critérios em
+# scripts/avaliar_sonnet.py, resultado em avaliacao_sonnet.json): nas 6 tarefas em que o Jev pede Opus, 3 repetições,
+# o Sonnet · high passou os testes escondidos em todas, o juiz deu-lhe 27 critérios contra 4, custou 37% menos.
+# A porta é o maior ganho medido (0,507, a média do T7 do calc); com os ganhos do Jev a duas casas, ≤ 0,50.
+# Acima disso não se mediu, por isso fica o Opus. None fecha a porta
+SONNET_GATE_GAIN: float | None = 0.50
 _FOLLOW_UP = re.compile(r"^(sim|não|nao|ok|continua|avança|agora|também|e |mas |corre|corrige|testa|repete|faz o mesmo|"
                         r"explica melhor|isso|yes|go|continue|now|also|run|fix|retry)\b", re.IGNORECASE)
 _NEW_TASK = re.compile(r"^(acrescenta|adiciona|cria|escreve|implementa|explica|refatora|bug:|add|create|write|"
