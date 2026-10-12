@@ -42,16 +42,31 @@ sessão segue com o standard, sem mudanças.
 - **v1** (por defeito): cada prompt corre no modelo e no esforço que o Jev escolher para ele.
 - **v2**: o modelo e o esforço são da sessão.
   - **Porquê:** a cache do Claude é de cada modelo. Trocar de modelo a meio obriga a escrever a
-    conversa toda na cache do novo modelo, a 2× o preço de entrada. Mudar o esforço invalida a cache
-    das mensagens.
-  - **Com a cache quente,** o modelo e o esforço só sobem: um modelo maior, ou mais esforço no mesmo
-    modelo, porque aí a qualidade paga a reescrita.
+    conversa toda na cache do novo modelo, a 2× o preço de entrada.
+  - **Com a cache quente,** o modelo e o esforço só sobem. (Segurar o esforço foi um erro: medido no
+    Claude Code, mudá-lo não reescreve a cache.)
   - **Com a cache fria,** vale a escolha do Jev: numa sessão nova, depois de um `/clear` ou de uma
     compactação, ou com mais de uma hora parada.
   - **Os turnos que não passam pelo Jev,** como uma notificação, ficam no modelo da sessão.
   - **O pool** fica só com modelos Anthropic, salvo `JEV_POOL=all`.
   - **Onde fica o modelo da sessão:** em `$JEV_HOME/sessions/<id>.json`, pelo id da sessão, para
     sobreviver a um `--resume`.
+- **v3**: uma faixa por tarefa (`jev/policy.py`).
+  - **O esforço segue sempre o Jev:** mudá-lo não reescreve a cache.
+  - **Mesma tarefa** (um seguimento, como "corre os testes" ou "sim, avança"): mantém o modelo.
+  - **Tarefa nova:**
+    - com até 40k de contexto, segue o Jev;
+    - acima disso, só sobe se o ganho de um modelo maior pagar a reescrita, ou se o Jev deixar de
+      admitir o modelo atual;
+    - nunca desce, porque a reescrita não compensa.
+  - **Como se sabe que a tarefa é nova:** pelo `task_changed` do Jev (≥ 0,2), salvo um prompt curto que
+    comece como seguimento.
+  - **Constantes:** saíram do simulador `scripts/simular_politicas.py`, que reconstrói sessões reais
+    pedido a pedido e reproduz os custos a ±0,5%.
+
+Em todas as versões, o Jev decide numa sessão nova em cada chamada. Sem isso, guardava um incumbente
+por chave da API, e as sessões contaminavam-se umas às outras. A última troca e o contexto ficam
+guardados por sessão no núcleo, para o histórico sobreviver a um `claude -p --resume`.
 
 **No histórico do OpenRouter**, cada decisão aparece com o modelo que serviu o token (por exemplo
 `gpt-6-luna` ou `claude-sonnet-5.5`) e com `router: typesafe/jev-router`.
@@ -86,7 +101,11 @@ uv run jev pilot run --project fatura --anthropic-only   # pool do Jev só com m
 uv run jev pilot run --project fatura --arms jev-v1,jev-v2 --session   # v1 contra v2, uma sessão por braço
 ```
 
-`--arms` escolhe os dois braços: `standard`, `jev` (a versão por defeito), `jev-v1` e `jev-v2`.
+`--arms` escolhe dois ou três braços: `standard`, `jev` (a versão por defeito), `jev-v1`, `jev-v2` e
+`jev-v3`. Com três braços, `--judge-target` diz qual comparar com os outros. O juiz é então por tarefa:
+só onde o modelo do pedido principal difere, com um painel de Opus e Sonnet nas duas ordens, e um
+critério só se ganha com 3 de 4 votos. `scripts/avaliar_v3.py` avalia uma corrida com os critérios
+fixados antes de correr.
 `--session` corre todas as tarefas de cada braço numa só sessão, com `claude -p --resume`. Cada tarefa
 de código leva também um seguimento ("Corre os testes e corrige o que falhar."), como numa sessão a
 sério. É assim que se vê o efeito da cache: com um prompt por sessão, a v1 e a v2 comportam-se igual.
@@ -121,7 +140,7 @@ cada critério quer dizer nele.
 
 Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`),
 `JEV_STANDARD_EFFORT` (por defeito `xhigh`), `JEV_POOL` (`anthropic` deixa o pool do Jev só com
-modelos Anthropic, sem respostas free; `all` mete os baratos) e `JEV_POLICY` (`v1` ou `v2`).
+modelos Anthropic, sem respostas free; `all` mete os baratos) e `JEV_POLICY` (`v1`, `v2` ou `v3`).
 
 ## Desenvolvimento
 
