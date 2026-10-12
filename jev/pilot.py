@@ -10,6 +10,8 @@ piloto em $JEV_HOME/pilots/<id>.jsonl, com três tipos de linha:
     judge {pilot, model, cost_usd, criteria: [{id, label, result: standard|jev|tie|both_bad|inconclusive,
            verdicts: [{a, winner, reason}]}], passes: [{a, ok, cost_usd, error}]}
           (o juiz às cegas, duas passagens com a ordem trocada; `passes` diz como correu cada uma)
+    task_judge {pilot, panel, cost_usd, results: [{pair: [alvo, outro], task, models, criteria: [{id, label,
+           votes, result}]}]}  (o juiz por tarefa: só onde o modelo principal difere; 3 de 4 votos)
     end   {pilot, finished, stopped: null | motivo}
 
 O custo é o `total_cost_usd` que o próprio Claude Code reporta (preço de lista), mais, no braço JEV,
@@ -42,7 +44,7 @@ def _rows(path: Path) -> list[dict]:
             row = json.loads(raw.decode("utf-8", errors="replace"))
         except json.JSONDecodeError:
             continue
-        if isinstance(row, dict) and row.get("v") == 1 and row.get("type") in ("meta", "task", "judge", "end"):
+        if isinstance(row, dict) and row.get("v") == 1 and row.get("type") in ("meta", "task", "judge", "task_judge", "end"):
             rows.append(row)
     return rows
 
@@ -65,6 +67,7 @@ def read_all(home: str | Path | None = None) -> list[dict]:
             "meta": meta,
             "tasks": [r for r in rows if r["type"] == "task"],
             "judge": next((r for r in reversed(rows) if r["type"] == "judge"), None),
+            "task_judge": next((r for r in reversed(rows) if r["type"] == "task_judge"), None),
             "end": next((r for r in rows if r["type"] == "end"), None),
         })
     return sorted(pilots, key=lambda p: str(p["meta"].get("started", "")), reverse=True)

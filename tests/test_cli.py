@@ -291,3 +291,22 @@ def test_pilot_refuses_an_unknown_arm(tmp_path, monkeypatch, capsys):
     assert cli.main(["pilot", "run", "--project", "demo", "--arms", "jev-v9,standard"]) == 2
 
     assert "jev-v9" in capsys.readouterr().err and not seen
+
+
+def test_pilot_runs_three_arms_with_the_task_judge(tmp_path, monkeypatch):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--arms", "jev-v1,jev-v2,jev-v3", "--session",
+                     "--judge-target", "jev-v3"]) == 0
+
+    assert seen["arms"] == ("jev-v1", "jev-v2", "jev-v3") and seen["judge_target"] == "jev-v3"
+    assert seen["pilot_id"].startswith("demo-sessao-v1-v2-v3-")
+
+
+@pytest.mark.parametrize("extra", [[], ["--judge-target", "jev-v9"]])
+def test_three_arms_need_a_judge_target_among_them(tmp_path, monkeypatch, capsys, extra):
+    _, seen = _project(tmp_path, monkeypatch, claude_md=False)
+
+    assert cli.main(["pilot", "run", "--project", "demo", "--arms", "jev-v1,jev-v2,jev-v3", *extra]) == 2
+
+    assert "--judge-target" in capsys.readouterr().err and not seen

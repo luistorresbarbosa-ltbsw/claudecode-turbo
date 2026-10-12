@@ -456,3 +456,89 @@ def test_a_call_cut_in_session_mode_costs_only_its_own_messages(tmp_path):
     assert rows["T2"]["cost_usd"] == pytest.approx(0.07) and rows["T2"]["status"] == "timeout"
     # a chamada morta não grava o total: a seguinte continua do total de antes dela
     assert rows["T3"]["cost_usd"] == pytest.approx(0.20)
+
+
+# --- corrida final da v3: três braços, pytest em todas as formas, o mecanismo por chamada, juiz por tarefa ---
+
+def test_three_arms_rotate_who_goes_first(tmp_path):
+    arms = FakeArms()
+
+    run(tmp_path, arms, arms=("jev-v1", "jev-v2", "jev-v3"))
+
+    firsts = [arms.order[i][1] for i in (0, 3, 6)]
+    assert firsts == ["jev-v1", "jev-v2", "jev-v3"]  # cada braço é o primeiro numa tarefa
+
+
+def test_the_v3_arm_runs_the_mod_with_its_policy(tmp_path):
+    assert "--plugin-dir" in pilot_run.arm_argv("jev-v3", max_usd=1.0)
+    assert pilot_run.arm_env("jev-v3", jev_home=tmp_path)["JEV_POLICY"] == "v3"
+
+
+def test_the_tests_can_run_in_any_usual_form():
+    # no calc o agente correu `python -m pytest` e foi recusado: os seguimentos nunca correram testes
+    argv = pilot_run.arm_argv("standard", max_usd=1.0)
+    for rule in ("Bash(uv run pytest:*)", "Bash(python -m pytest:*)", "Bash(pytest:*)", "Bash(uv run python -m pytest:*)"):
+        assert rule in argv
+
+
+def test_each_call_keeps_its_model_and_tokens(tmp_path):
+    run(tmp_path, SessionArms(), arms=("jev-v1", "jev-v2"), session=True)
+
+    [p] = pilot.read_all(home=tmp_path / "home")
+    row = next(t for t in p["tasks"] if t["arm"] == "jev-v1" and t["task"] == "T2")
+    assert row["call_models"] == ["claude-x", "claude-x"]
+    assert len(row["call_tokens"]) == 2 and row["call_tokens"][1]["cache_write_1h"] == 40
+
+
+@pytest.mark.parametrize(("votes", "result"), [
+    (["a", "a", "a", "b"], "a"), (["b", "b", "b", "tie"], "b"), (["a", "a", "b", "b"], "inconclusive"),
+    (["a", "a", "tie", "tie"], "inconclusive"), (["tie", "tie", "tie", "a"], "tie"),
+])
+def test_a_panel_result_needs_three_of_four_votes(votes, result):
+    assert pilot_run.panel_result(votes) == result
+
+
+class ModelArms(FakeArms):
+    """Cada braço do mod regista a decisão do Jev com o modelo dado por (braço, tarefa) e escreve um ficheiro."""
+
+    def __init__(self, models):
+        super().__init__()
+        self.models = models
+
+    def __call__(self, arm, task, workspace, *, max_usd, timeout_s, jev_home, **kw):
+        self.order.append((task["id"], arm))
+        (workspace / "fatura" / f"{task['id'].lower()}.py").write_text(f"# {task['id']} por {arm}\n")
+        ledger.append(ledger.make_record(
+            task=task["prompt"], decision={"model": self.models[(arm, task["id"])], "effort": "medium",
+                                           "rationale": "Jev: x", "router_cost_usd": 0.0},
+            jev={"cost_usd": 0.01}, standard={"kind": "estimated", "cost_usd": 0.05}), home=jev_home)
+        return {"status": "done", "cost_usd": 0.1, "wall_ms": 1000, "models": {"claude-x": 0.1}, "result": "ok"}
+
+
+def test_the_task_judge_only_judges_tasks_where_the_main_model_differs(tmp_path):
+    models = {("jev-v1", "T1"): "sonnet", ("jev-v3", "T1"): "sonnet",
+              ("jev-v1", "T2"): "sonnet", ("jev-v3", "T2"): "opus",
+              ("jev-v1", "T3"): "opus", ("jev-v3", "T3"): "opus"}
+    calls = []
+
+    def run_judge(prompt, model="opus"):
+        calls.append((model, prompt))
+        a_is_v3 = prompt.index("por jev-v3") < prompt.index("por jev-v1")
+        winner = "A" if a_is_v3 else "B"  # os quatro votos dão a v3 na legibilidade
+        return {"status": "done", "cost_usd": 0.01, "result": "",
+                "structured": {"criteria": [{"id": "legibilidade", "winner": winner, "reason": "r"}]}}
+
+    seed = tmp_path / "seed"
+    (seed / "fatura").mkdir(parents=True)
+    (seed / "fatura" / "__init__.py").write_text("")
+    pilot_run.run_pilot(TASKS, pilot_id="p1", seed=seed, inject_root=tmp_path / "i", acceptance_root=tmp_path / "a",
+                        home=tmp_path / "home", run_arm=ModelArms(models), git=True, arms=("jev-v1", "jev-v3"),
+                        judge=True, judge_target="jev-v3", run_judge=run_judge,
+                        accept=lambda *a, **k: {"ok": True, "passed": 1, "failed": 0})
+
+    assert sorted(m for m, _ in calls) == ["opus", "opus", "sonnet", "sonnet"]  # só a T2, com o painel inteiro
+    assert all("t2.py" in p and "t1.py" not in p and "t3.py" not in p for _, p in calls)  # só o diff da T2
+    [p] = pilot.read_all(home=tmp_path / "home")
+    [res] = p["task_judge"]["results"]
+    assert res["pair"] == ["jev-v3", "jev-v1"] and res["task"] == "T2" and res["models"] == ["opus", "sonnet"]
+    assert next(c for c in res["criteria"] if c["id"] == "legibilidade")["result"] == "jev-v3"

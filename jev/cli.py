@@ -52,6 +52,8 @@ def _parser() -> argparse.ArgumentParser:
                       help="o pool do Jev só com modelos Anthropic (sem respostas free)")
     prun.add_argument("--arms", default="standard,jev",
                       help="os dois braços a comparar, separados por vírgula: standard, jev, jev-v1, jev-v2")
+    prun.add_argument("--judge-target", help="o braço a comparar com cada um dos outros no juiz por tarefa "
+                                              "(painel Opus e Sonnet); obrigatório com 3 braços")
     prun.add_argument("--session", action="store_true",
                       help="cada braço corre todas as tarefas numa só sessão, com um seguimento nas de código")
     prun.add_argument("--claude-md", action="store_true",
@@ -231,9 +233,12 @@ def _pilot(args) -> int:
         tasks = [t for t in tasks if t["id"] in wanted]
     arms = tuple(a.strip() for a in args.arms.split(",") if a.strip())
     unknown = [a for a in arms if a not in pilot_run.KNOWN_ARMS]
-    if unknown or len(arms) != 2 or len(set(arms)) != 2:
-        return _fail(f"--arms: quero dois braços diferentes de {', '.join(pilot_run.KNOWN_ARMS)} "
+    if unknown or len(arms) not in (2, 3) or len(set(arms)) != len(arms):
+        return _fail(f"--arms: quero dois ou três braços diferentes de {', '.join(pilot_run.KNOWN_ARMS)} "
                      f"(veio {args.arms})")
+    if (args.judge_target and args.judge_target not in arms) or (len(arms) == 3 and not args.judge_target
+                                                                  and not args.no_judge):
+        return _fail(f"--judge-target: com 3 braços, diz qual comparar com os outros (um de {', '.join(arms)})")
     # no repo não se chama CLAUDE.md, senão a sessão que mexe em pilot/ também o carregava
     claude_md = root / "regras.md" if args.claude_md else None
     if claude_md and not claude_md.is_file():
@@ -253,7 +258,8 @@ def _pilot(args) -> int:
                         max_usd_task=args.max_usd_task, max_usd_total=args.max_usd_total,
                         judge=not args.no_judge, log=lambda msg: print(msg, flush=True),
                         jev_env={"JEV_POOL": "anthropic"} if args.anthropic_only else None, variant=variant,
-                        claude_md=claude_md, judge_spec=judge_spec, arms=arms, session=args.session)
+                        claude_md=claude_md, judge_spec=judge_spec, arms=arms, session=args.session,
+                        judge_target=args.judge_target)
     return 0
 
 
