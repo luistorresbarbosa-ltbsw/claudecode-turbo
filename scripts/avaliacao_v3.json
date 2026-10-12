@@ -1,0 +1,143 @@
+{
+ "fatura": {
+  "objetivo": {
+   "jev-v1": 10.8552182,
+   "jev-v2": 12.0451684,
+   "jev-v3": 10.253898
+  },
+  "intervalo_80": {
+   "jev-v1": [
+    -1.9121225999999996,
+    0.6166751999999995
+   ],
+   "jev-v2": [
+    -5.0728758,
+    1.1508331999999994
+   ]
+  },
+  "braços": {
+   "jev-v1": {
+    "custo": 4.2717982,
+    "segundos": 658.342,
+    "concluídas": 14,
+    "tarefas": 14,
+    "trocas_em_seguimentos": 4,
+    "reescritos": 298280,
+    "seguimentos": 10,
+    "seguimentos_com_pytest": 10
+   },
+   "jev-v2": {
+    "custo": 3.6542984,
+    "segundos": 839.087,
+    "concluídas": 13,
+    "tarefas": 14,
+    "trocas_em_seguimentos": 0,
+    "reescritos": 35336,
+    "seguimentos": 10,
+    "seguimentos_com_pytest": 10
+   },
+   "jev-v3": {
+    "custo": 3.699268,
+    "segundos": 655.463,
+    "concluídas": 14,
+    "tarefas": 14,
+    "trocas_em_seguimentos": 0,
+    "reescritos": 163575,
+    "seguimentos": 10,
+    "seguimentos_com_pytest": 10
+   }
+  },
+  "juiz": {
+   "jev-v1": {
+    "ganha": 2,
+    "perde": 0
+   },
+   "jev-v2": {
+    "ganha": 4,
+    "perde": 6
+   }
+  },
+  "critérios": {
+   "1 tarefas": true,
+   "2 custo + tempo": true,
+   "3 mecanismo": false,
+   "4 juiz": false
+  },
+  "tarefas_perdidas": [],
+  "pilotos": [
+   "fatura-anthropic-claudemd-sessao-v1-v2-v3-20261012-1127",
+   "fatura-anthropic-claudemd-sessao-v3-v2-v1-20261012-1148"
+  ]
+ },
+ "calc": {
+  "objetivo": {
+   "jev-v1": 16.430771999999997,
+   "jev-v2": 19.3779703,
+   "jev-v3": 16.730898099999997
+  },
+  "intervalo_80": {
+   "jev-v1": [
+    -1.5277200000000009,
+    2.259226399999999
+   ],
+   "jev-v2": [
+    -3.7597487999999997,
+    -1.4942390000000012
+   ]
+  },
+  "braços": {
+   "jev-v1": {
+    "custo": 7.143782,
+    "segundos": 928.699,
+    "concluídas": 16,
+    "tarefas": 16,
+    "trocas_em_seguimentos": 6,
+    "reescritos": 571094,
+    "seguimentos": 12,
+    "seguimentos_com_pytest": 12
+   },
+   "jev-v2": {
+    "custo": 6.4405903,
+    "segundos": 1293.738,
+    "concluídas": 16,
+    "tarefas": 16,
+    "trocas_em_seguimentos": 0,
+    "reescritos": 59208,
+    "seguimentos": 12,
+    "seguimentos_com_pytest": 12
+   },
+   "jev-v3": {
+    "custo": 5.6078081,
+    "segundos": 1112.309,
+    "concluídas": 16,
+    "tarefas": 16,
+    "trocas_em_seguimentos": 0,
+    "reescritos": 55668,
+    "seguimentos": 12,
+    "seguimentos_com_pytest": 12
+   }
+  },
+  "juiz": {
+   "jev-v1": {
+    "ganha": 4,
+    "perde": 1
+   },
+   "jev-v2": {
+    "ganha": 0,
+    "perde": 0
+   }
+  },
+  "critérios": {
+   "1 tarefas": true,
+   "2 custo + tempo": false,
+   "3 mecanismo": true,
+   "4 juiz": true
+  },
+  "tarefas_perdidas": [],
+  "pilotos": [
+   "calc-anthropic-claudemd-sessao-v1-v2-v3-20261012-1128",
+   "calc-anthropic-claudemd-sessao-v3-v2-v1-20261012-1156"
+  ]
+ },
+ "v3 passa a defeito": false
+}
