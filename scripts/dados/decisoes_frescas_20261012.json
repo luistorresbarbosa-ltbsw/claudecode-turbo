@@ -1,0 +1,1558 @@
+{
+ "fatura": {
+  "0": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: content_writing · dificuldade 2/4 · ganho de um modelo maior 0.21",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000468,
+    "router_error": null,
+    "signals": {
+     "task": "content_writing",
+     "task_changed": 0.05,
+     "difficulty": 2,
+     "gain": 0.21,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: content_writing · dificuldade 2/4 · ganho de um modelo maior 0.21",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000468,
+    "router_error": null,
+    "signals": {
+     "task": "content_writing",
+     "task_changed": 0.05,
+     "difficulty": 2,
+     "gain": 0.21,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "1": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.30",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002272,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.39,
+     "difficulty": 3,
+     "gain": 0.3,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.30",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002272,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.37,
+     "difficulty": 3,
+     "gain": 0.3,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "2": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 1/4 · ganho de um modelo maior 0.18",
+    "est_output_tokens": 128,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000616,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.15,
+     "difficulty": 1,
+     "gain": 0.18,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 1/4 · ganho de um modelo maior 0.18",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000616,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.14,
+     "difficulty": 1,
+     "gain": 0.18,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "3": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.23",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000416,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.32,
+     "difficulty": 2,
+     "gain": 0.23,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.22",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000416,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.35,
+     "difficulty": 2,
+     "gain": 0.22,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "4": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 1/4 · ganho de um modelo maior 0.18",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00143,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.1,
+     "difficulty": 1,
+     "gain": 0.18,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.17",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00143,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.1,
+     "difficulty": 2,
+     "gain": 0.17,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "5": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.23",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001036,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.24,
+     "difficulty": 2,
+     "gain": 0.23,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.23",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001036,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.25,
+     "difficulty": 2,
+     "gain": 0.23,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "6": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.21",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00211,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.11,
+     "difficulty": 2,
+     "gain": 0.21,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.21",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00211,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.11,
+     "difficulty": 2,
+     "gain": 0.21,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "7": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.26",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001132,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.34,
+     "difficulty": 2,
+     "gain": 0.26,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.27",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001132,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.33,
+     "difficulty": 2,
+     "gain": 0.27,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "8": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.21",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002684,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.12,
+     "difficulty": 2,
+     "gain": 0.21,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.22",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002684,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.12,
+     "difficulty": 2,
+     "gain": 0.22,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "9": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.29",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00128,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.41,
+     "difficulty": 3,
+     "gain": 0.29,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.30",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00128,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.37,
+     "difficulty": 3,
+     "gain": 0.3,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "10": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.22",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002066,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.19,
+     "difficulty": 2,
+     "gain": 0.22,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.21",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002066,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.2,
+     "difficulty": 2,
+     "gain": 0.21,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "11": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "low",
+    "rationale": "Jev: content_writing · dificuldade 1/4 · ganho de um modelo maior 0.15",
+    "est_output_tokens": 128,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000514,
+    "router_error": null,
+    "signals": {
+     "task": "content_writing",
+     "task_changed": 0.34,
+     "difficulty": 1,
+     "gain": 0.15,
+     "admitted": {
+      "opus": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "low",
+    "rationale": "Jev: content_writing · dificuldade 1/4 · ganho de um modelo maior 0.15",
+    "est_output_tokens": 128,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.000514,
+    "router_error": null,
+    "signals": {
+     "task": "content_writing",
+     "task_changed": 0.35,
+     "difficulty": 1,
+     "gain": 0.15,
+     "admitted": {
+      "opus": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ "calc": {
+  "0": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "high",
+    "rationale": "Jev: qa_knowledge · dificuldade 1/4 · ganho de um modelo maior 0.19",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.0005,
+    "router_error": null,
+    "signals": {
+     "task": "qa_knowledge",
+     "task_changed": 0.05,
+     "difficulty": 1,
+     "gain": 0.19,
+     "admitted": {
+      "opus": [
+       "high"
+      ],
+      "sonnet": [
+       "high"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "high",
+    "rationale": "Jev: qa_knowledge · dificuldade 1/4 · ganho de um modelo maior 0.17",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.0005,
+    "router_error": null,
+    "signals": {
+     "task": "qa_knowledge",
+     "task_changed": 0.04,
+     "difficulty": 1,
+     "gain": 0.17,
+     "admitted": {
+      "opus": [
+       "high"
+      ],
+      "sonnet": [
+       "high"
+      ]
+     }
+    }
+   }
+  ],
+  "1": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "low",
+    "rationale": "Jev: code:debugging · dificuldade 1/4 · ganho de um modelo maior 0.20",
+    "est_output_tokens": 128,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002014,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.32,
+     "difficulty": 1,
+     "gain": 0.2,
+     "admitted": {
+      "opus": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "low",
+    "rationale": "Jev: code:debugging · dificuldade 1/4 · ganho de um modelo maior 0.18",
+    "est_output_tokens": 128,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002014,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.35,
+     "difficulty": 1,
+     "gain": 0.18,
+     "admitted": {
+      "opus": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "low",
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "2": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.24",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001248,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.18,
+     "difficulty": 2,
+     "gain": 0.24,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.24",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001248,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.18,
+     "difficulty": 2,
+     "gain": 0.24,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "3": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.31",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001896,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.41,
+     "difficulty": 2,
+     "gain": 0.31,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.32",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001896,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.42,
+     "difficulty": 2,
+     "gain": 0.32,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "4": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.25",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002396,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.08,
+     "difficulty": 2,
+     "gain": 0.25,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.25",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002396,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.07,
+     "difficulty": 2,
+     "gain": 0.25,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "5": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.30",
+    "est_output_tokens": 2048,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001672,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.5,
+     "difficulty": 2,
+     "gain": 0.3,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:general_impl · dificuldade 2/4 · ganho de um modelo maior 0.31",
+    "est_output_tokens": 2048,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001672,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.49,
+     "difficulty": 2,
+     "gain": 0.31,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "6": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.26",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.004868,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.11,
+     "difficulty": 2,
+     "gain": 0.26,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.26",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002434,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.1,
+     "difficulty": 2,
+     "gain": 0.26,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "7": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.33",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002392,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.43,
+     "difficulty": 3,
+     "gain": 0.33,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.32",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002392,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.43,
+     "difficulty": 3,
+     "gain": 0.32,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "8": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.27",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00376,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.23,
+     "difficulty": 2,
+     "gain": 0.27,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 2/4 · ganho de um modelo maior 0.26",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00188,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.23,
+     "difficulty": 2,
+     "gain": 0.26,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ],
+      "sonnet": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "9": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "high",
+    "rationale": "Jev: code:general_impl · dificuldade 3/4 · ganho de um modelo maior 0.41",
+    "est_output_tokens": 2048,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00318,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.4,
+     "difficulty": 3,
+     "gain": 0.41,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "high",
+    "rationale": "Jev: code:general_impl · dificuldade 3/4 · ganho de um modelo maior 0.37",
+    "est_output_tokens": 2048,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00318,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.41,
+     "difficulty": 3,
+     "gain": 0.37,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "10": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.32",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00498,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.12,
+     "difficulty": 3,
+     "gain": 0.32,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.34",
+    "est_output_tokens": 1024,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.00498,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.13,
+     "difficulty": 3,
+     "gain": 0.34,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "11": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "high",
+    "rationale": "Jev: code:general_impl · dificuldade 3/4 · ganho de um modelo maior 0.43",
+    "est_output_tokens": 4096,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.005984,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.45,
+     "difficulty": 3,
+     "gain": 0.43,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "high",
+    "rationale": "Jev: code:general_impl · dificuldade 3/4 · ganho de um modelo maior 0.43",
+    "est_output_tokens": 4096,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.005984,
+    "router_error": null,
+    "signals": {
+     "task": "code:general_impl",
+     "task_changed": 0.46,
+     "difficulty": 3,
+     "gain": 0.43,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "12": [
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.33",
+    "est_output_tokens": 2048,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.007448,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.08,
+     "difficulty": 3,
+     "gain": 0.33,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "opus",
+    "effort": "medium",
+    "rationale": "Jev: code:debugging · dificuldade 3/4 · ganho de um modelo maior 0.35",
+    "est_output_tokens": 2048,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.007448,
+    "router_error": null,
+    "signals": {
+     "task": "code:debugging",
+     "task_changed": 0.1,
+     "difficulty": 3,
+     "gain": 0.35,
+     "admitted": {
+      "opus": [
+       "medium",
+       "high",
+       "xhigh",
+       "max"
+      ]
+     }
+    }
+   }
+  ],
+  "13": [
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "high",
+    "rationale": "Jev: qa_knowledge · dificuldade 1/4 · ganho de um modelo maior 0.17",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.001332,
+    "router_error": null,
+    "signals": {
+     "task": "qa_knowledge",
+     "task_changed": 0.43,
+     "difficulty": 1,
+     "gain": 0.17,
+     "admitted": {
+      "opus": [
+       "high"
+      ],
+      "sonnet": [
+       "high"
+      ]
+     }
+    }
+   },
+   {
+    "runner": "anthropic",
+    "model": "sonnet",
+    "effort": "high",
+    "rationale": "Jev: qa_knowledge · dificuldade 1/4 · ganho de um modelo maior 0.17",
+    "est_output_tokens": 512,
+    "is_standard": false,
+    "router_model": "typesafe/jev-router",
+    "router_cost_usd": 0.002664,
+    "router_error": null,
+    "signals": {
+     "task": "qa_knowledge",
+     "task_changed": 0.41,
+     "difficulty": 1,
+     "gain": 0.17,
+     "admitted": {
+      "opus": [
+       "high"
+      ],
+      "sonnet": [
+       "high"
+      ]
+     }
+    }
+   }
+  ]
+ }
+}

@@ -182,10 +182,16 @@ def test_v3_moves_down_once_the_regret_pays_the_rewrite_and_a_likely_return():
     assert v3(d, {**state, "regret": 0.2}, regret_rule=True).model == "opus"
 
 
-@pytest.mark.parametrize(("tc", "new"), [(0.18, True), (0.6, True), (0.17, False), (0.07, False)])
+@pytest.mark.parametrize(("tc", "new"), [(0.24, True), (0.6, True), (0.19, False), (0.07, False)])
 def test_a_new_task_is_what_the_jevs_task_changed_says(tc, new):
-    # Sonda G2: AUC 0,99 em 38 prompts rotulados, um só erro com o limiar 0,175
-    assert policy.is_new_task({"task_changed": tc}, "qualquer coisa") is new
+    # Sondas G2 com sessões novas: seguimentos até 0,23, tarefas novas desde 0,24
+    assert policy.is_new_task({"task_changed": tc}, "Os testes de IVA da Madeira falham. Descobre porquê.") is new
+
+
+@pytest.mark.parametrize("prompt", ["Corre os testes e corrige o que falhar.", "sim, avança", "Isso não cobre a linha 2."])
+def test_a_short_continuation_is_a_follow_up_whatever_task_changed_says(prompt):
+    # depois de uma resposta longa, o Jev chegou a dar 0,23 a um "Corre os testes…"
+    assert policy.is_new_task({"task_changed": 0.23}, prompt) is False
 
 
 @pytest.mark.parametrize(("prompt", "new"), [
@@ -214,3 +220,11 @@ def test_the_regret_grows_with_what_holding_the_bigger_model_cost():
     # 10k × ($20 − $10)/M + 5k × ($8 − $4)/M + $0,01/s × 10k × (8,2 − 5,6) ms
     assert state["regret"] == pytest.approx(0.10 + 0.02 + 0.26)
     assert policy.add_regret(lane("opus", regret=0.3), output_tokens=10_000, write_tokens=0)["regret"] == 0.3
+
+
+def test_holding_opus_against_the_jevs_sonnet_is_not_a_task_that_wanted_opus():
+    # o "p" da volta provável conta as tarefas novas em que o Jev pediu o modelo maior, não as que eu segurei
+    held = policy.apply(dec3("sonnet", tc=0.4), lane("opus", context=60_000), "v3", now=NOW)
+    state = policy.next_state(held, lane("opus", context=60_000, n_new=1, n_new_opus=1), now=NOW, new_task=True)
+
+    assert state["held_from"] == "sonnet" and (state["n_new"], state["n_new_opus"]) == (2, 1)

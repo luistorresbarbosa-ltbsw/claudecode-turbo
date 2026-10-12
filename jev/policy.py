@@ -32,10 +32,14 @@ REWRITE_USD = {"haiku": 1.9e-6, "sonnet": 3.8e-6, "opus": 7.8e-6, "fable": 19.75
 OUTPUT_USD = {"haiku": 5e-6, "sonnet": 10e-6, "opus": 20e-6, "fable": 50e-6}
 WRITE_USD = {"haiku": 2e-6, "sonnet": 4e-6, "opus": 8e-6, "fable": 20e-6}
 SECONDS_PER_TOKEN = {"sonnet": 5.6e-3, "opus": 8.2e-3}  # saída medida; os outros sem medição
-FREE_SWITCH_CONTEXT = 25_000  # abaixo disto trocar custa ≤ $0.05 a descer e ≤ $0.10 a subir
+# Numa tarefa nova, até aqui segue-se o Jev (descer custa ≤ $0.11, subir ≤ $0.21): o simulador, sobre as sessões
+# reais de 2026-10-11, deu 40k como o melhor custo + tempo (25k ficava igual à v2; 50k ou mais, pior)
+FREE_SWITCH_CONTEXT = 40_000
 QUALITY_USD = 1.5  # quanto vale, numa tarefa, a qualidade de um modelo maior (× big_model_gain)
 TIME_USD_PER_S = 0.01  # o utilizador escolheu "equilibrado": 1 minuto vale ~$0.60
-TASK_CHANGED_NEW = 0.175  # sonda G2: AUC 0,99 em 38 prompts rotulados, um só erro com este limiar
+# Sondas G2 com sessões novas no Jev: seguimentos até 0,23, tarefas novas desde 0,24 (64 prompts rotulados)
+TASK_CHANGED_NEW = 0.2
+FOLLOW_UP_MAX_WORDS = 12
 REGRET_K = 1.5
 _FOLLOW_UP = re.compile(r"^(sim|não|nao|ok|continua|avança|agora|também|e |mas |corre|corrige|testa|repete|faz o mesmo|"
                         r"explica melhor|isso|yes|go|continue|now|also|run|fix|retry)\b", re.IGNORECASE)
@@ -103,13 +107,13 @@ def _apply_v3(decision, state, *, now, prompt, context, regret_rule):
 def is_new_task(signals: dict, prompt: str) -> bool:
     """O prompt começa uma tarefa nova? O `task_changed` do Jev quando há; senão uma heurística, que na dúvida
     diz "mesma tarefa" (o mais seguro para a cache)."""
+    text = (prompt or "").strip()
+    words = len(text.split())
+    if _FOLLOW_UP.match(text) and words <= FOLLOW_UP_MAX_WORDS:
+        return False  # "corre os testes…", "sim, avança": o Jev chegou a dar 0,23 a isto depois de uma resposta longa
     changed = (signals or {}).get("task_changed")
     if changed is not None:
         return changed >= TASK_CHANGED_NEW
-    text = (prompt or "").strip()
-    words = len(text.split())
-    if _FOLLOW_UP.match(text):
-        return False
     return words >= 25 and bool(_NEW_TASK.match(text))
 
 
@@ -148,17 +152,18 @@ def next_state(decision, state: dict | None, *, now: float | None = None, new_ta
     prev = state or {}
     new = True if new_task is None else new_task
     switched = prev.get("model") not in (None, decision.model)
-    wants_bigger = new and MODEL_RANK.get(decision.model, 0) >= MODEL_RANK["opus"]
     held_from = (decision.signals or {}).get("held_from")
+    wanted = held_from or decision.model  # o que o Jev pediu (se mantive outro modelo, é o held_from)
+    held_bigger = held_from is not None and MODEL_RANK.get(held_from, 9) < MODEL_RANK.get(decision.model, 0)
     return {
         **{k: prev[k] for k in ("context", "last_prompt", "last_answer") if k in prev},
         "model": decision.model, "effort": decision.effort, "updated": time.time() if now is None else now,
         "followups": 0 if new else int(prev.get("followups") or 0) + 1,
         "n_new": int(prev.get("n_new") or 0) + int(new),
-        "n_new_opus": int(prev.get("n_new_opus") or 0) + int(new and (wants_bigger or
-                                                                         MODEL_RANK.get(held_from or "", 0) >= 2)),
-        "regret": 0.0 if switched or (new and held_from is None) else float(prev.get("regret") or 0.0),
-        "held_from": held_from if held_from and MODEL_RANK.get(held_from, 9) < MODEL_RANK.get(decision.model, 0) else None,
+        "n_new_opus": int(prev.get("n_new_opus") or 0) + int(new and MODEL_RANK.get(wanted, 0) >= MODEL_RANK["opus"]),
+        # o arrependimento conta enquanto mantenho um modelo maior do que o Jev pede; volta a zero ao trocar
+        "regret": float(prev.get("regret") or 0.0) if held_bigger and not switched else 0.0,
+        "held_from": held_from if held_bigger else None,
     }
 
 
