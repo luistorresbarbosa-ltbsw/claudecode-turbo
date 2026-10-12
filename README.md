@@ -69,9 +69,16 @@ sessão segue com o standard, sem mudanças.
     (`simular_politicas.py --medias`): cada pedido custa a todas a média dos braços que o correram. Aí, o
     custo + tempo foi 27,19 na v3, contra 29,05 na v1 e 28,90 na v2, a 1,2% da melhor sequência possível
     sem contrariar os pedidos de Opus do Jev.
-- **v4**: a v3, mas um seguimento óbvio (um prompt curto como "corre os testes…" ou "sim, avança") corre na
-  faixa sem perguntar ao Jev, porque a v3 manteria o modelo de qualquer maneira. Poupa uma decisão por
-  seguimento. Só com a cache quente, e se a troca anterior não foi de um free.
+- **v4**: a v3 com duas mudanças.
+  - **Seguimentos sem o Jev:** um seguimento óbvio (um prompt curto como "corre os testes…" ou "sim,
+    avança") corre na faixa sem perguntar ao Jev, porque a v3 manteria o modelo de qualquer maneira. Poupa
+    uma decisão (1 a 2 s) por seguimento. Só com a cache quente, e se a troca anterior não foi de um free.
+  - **Porta do Sonnet:** onde o Jev pede Opus com um ganho até 0,50, corre sonnet · high. Numa experiência
+    com as 6 tarefas em que o Jev pede sempre Opus (`scripts/avaliar_sonnet.py`), o Sonnet · high passou os
+    mesmos testes escondidos e custou 37% menos.
+  - **Porque não é a defeito:** na corrida final contra a v3 (`scripts/avaliar_v4.py`), a v4 concluiu as
+    mesmas tarefas, custou 35% menos e foi 17% mais rápida. Mas o juiz por tarefa deu 13 critérios à v3 e
+    10 à v4, e esse era um dos critérios fixados antes de correr.
 
 Em todas as versões, o Jev decide numa sessão nova em cada chamada. Sem isso, guardava um incumbente
 por chave da API, e as sessões contaminavam-se umas às outras. A última troca e o contexto ficam
