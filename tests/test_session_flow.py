@@ -301,11 +301,12 @@ def test_route_v4_a_follow_up_runs_on_the_lane_without_the_jev(capsys, monkeypat
     monkeypatch.setenv("JEV_POLICY", "v4")
     seen = []
 
-    turn_v3(OPUS_NEW, task=TASK, capsys=capsys)
+    first = turn_v3(OPUS_NEW, task=TASK, capsys=capsys)
     out = turn_v3(SONNET_FOLLOW_UP, task=FOLLOW_UP, capsys=capsys, seen=seen)
 
     assert seen == []  # o Jev não foi chamado
-    assert (out["decision"]["model"], out["decision"]["effort"]) == ("opus", "high")
+    lane = (first["decision"]["model"], first["decision"]["effort"])  # (o Opus de ganho 0,4 passou a sonnet · high)
+    assert (out["decision"]["model"], out["decision"]["effort"]) == lane
     assert out["decide_ms"] == 0 and out["decision"]["router_cost_usd"] == 0.0
     rec = ledger.read_all()[-1]
     assert rec["decision"]["signals"]["jev"] == "saltado"

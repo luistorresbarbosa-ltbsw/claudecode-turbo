@@ -273,7 +273,9 @@ def test_v4_asks_the_jev_otherwise(state, prompt, name):
     (dec3("opus", "high", tc=0.4), lane("sonnet", "medium", context=30_000)),
     (dec3("sonnet", tc=0.4), lane("opus", context=60_000)),
 ])
-def test_v4_applies_the_v3_rules(decision, state):
+def test_with_the_gate_closed_v4_applies_the_v3_rules(decision, state, monkeypatch):
+    monkeypatch.setattr(policy, "SONNET_GATE_GAIN", None)
+
     v4 = policy.apply(decision, state, "v4", now=NOW)
     v3_ = policy.apply(decision, state, "v3", now=NOW)
 
