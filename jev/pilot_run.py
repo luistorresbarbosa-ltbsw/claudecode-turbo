@@ -28,7 +28,8 @@ ARMS = ("standard", "jev")
 KNOWN_ARMS = {"standard": {}, "jev": {}, "jev-v1": {"JEV_POLICY": "v1"}, "jev-v2": {"JEV_POLICY": "v2"},
               "jev-v3": {"JEV_POLICY": "v3"}}
 # As formas habituais de correr os testes: no calc o agente correu `python -m pytest`, que estava recusado
-TEST_COMMANDS = ("Bash(uv run pytest:*)", "Bash(python -m pytest:*)", "Bash(pytest:*)", "Bash(uv run python -m pytest:*)")
+TEST_COMMANDS = ("Bash(uv run pytest:*)", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)", "Bash(pytest:*)",
+                 "Bash(uv run python -m pytest:*)")
 # O juiz por tarefa: um painel de dois modelos da subscrição, nas duas ordens; vence quem tiver 3 de 4 votos
 PANEL = ("opus", "sonnet")
 # O seguimento de cada tarefa de código numa sessão contínua (igual em todos os braços)

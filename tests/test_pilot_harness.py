@@ -477,7 +477,8 @@ def test_the_v3_arm_runs_the_mod_with_its_policy(tmp_path):
 def test_the_tests_can_run_in_any_usual_form():
     # no calc o agente correu `python -m pytest` e foi recusado: os seguimentos nunca correram testes
     argv = pilot_run.arm_argv("standard", max_usd=1.0)
-    for rule in ("Bash(uv run pytest:*)", "Bash(python -m pytest:*)", "Bash(pytest:*)", "Bash(uv run python -m pytest:*)"):
+    for rule in ("Bash(uv run pytest:*)", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)", "Bash(pytest:*)",
+                 "Bash(uv run python -m pytest:*)"):
         assert rule in argv
 
 
