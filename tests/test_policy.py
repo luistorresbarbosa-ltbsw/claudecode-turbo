@@ -278,3 +278,49 @@ def test_v4_applies_the_v3_rules(decision, state):
     v3_ = policy.apply(decision, state, "v3", now=NOW)
 
     assert (v4.model, v4.effort) == (v3_.model, v3_.effort)
+
+
+# --- v4: a porta do Sonnet (onde o Jev pede Opus com pouco ganho, o Sonnet · high chega) -----------------
+
+@pytest.fixture
+def gate(monkeypatch):
+    monkeypatch.setattr(policy, "SONNET_GATE_GAIN", 0.45)
+
+
+def test_v4_sends_a_low_gain_opus_request_to_sonnet_high(gate):
+    d = policy.apply(dec3("opus", "medium", tc=0.4, gain=0.3, admitted={"opus": ["medium", "high"]}), None, "v4", now=NOW)
+
+    assert (d.model, d.effort) == ("sonnet", "high")
+    assert "porta do Sonnet" in d.rationale and d.signals["gate"] == "sonnet"
+
+
+def test_v4_keeps_the_jevs_effort_when_it_is_above_high(gate):
+    d = policy.apply(dec3("opus", "xhigh", tc=0.4, gain=0.3), None, "v4", now=NOW)
+
+    assert (d.model, d.effort) == ("sonnet", "xhigh")
+
+
+@pytest.mark.parametrize("gain", [0.46, 0.55, None])
+def test_v4_keeps_the_opus_above_the_gate_or_without_a_gain(gate, gain):
+    d = dec3("opus", "high", tc=0.4, gain=gain)
+
+    assert policy.apply(d, None, "v4", now=NOW).model == "opus"
+
+
+def test_the_gate_is_only_for_v4(gate):
+    d = dec3("opus", "medium", tc=0.4, gain=0.3)
+
+    assert policy.apply(d, None, "v3", now=NOW) is d
+
+
+def test_without_a_measured_gate_v4_keeps_the_opus(monkeypatch):
+    monkeypatch.setattr(policy, "SONNET_GATE_GAIN", None)
+
+    assert policy.apply(dec3("opus", tc=0.4, gain=0.3), None, "v4", now=NOW).model == "opus"
+
+
+def test_after_the_gate_the_cache_rules_still_apply(gate):
+    # a porta diz que o Sonnet chega; numa tarefa nova com a cache grande, a v3 não desce do Opus
+    d = policy.apply(dec3("opus", "medium", tc=0.4, gain=0.3), lane("opus", "medium", context=90_000), "v4", now=NOW)
+
+    assert d.model == "opus"

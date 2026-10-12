@@ -42,6 +42,9 @@ TIME_USD_PER_S = 0.01  # o utilizador escolheu "equilibrado": 1 minuto vale ~$0.
 TASK_CHANGED_NEW = 0.2
 FOLLOW_UP_MAX_WORDS = 12
 REGRET_K = 1.5
+# v4: onde o Jev pede Opus com um ganho até aqui, o Sonnet · high chega (experiência de 2026-10-12, critérios em
+# scripts/avaliar_sonnet.py). None: a porta fica fechada
+SONNET_GATE_GAIN: float | None = None
 _FOLLOW_UP = re.compile(r"^(sim|não|nao|ok|continua|avança|agora|também|e |mas |corre|corrige|testa|repete|faz o mesmo|"
                         r"explica melhor|isso|yes|go|continue|now|also|run|fix|retry)\b", re.IGNORECASE)
 _NEW_TASK = re.compile(r"^(acrescenta|adiciona|cria|escreve|implementa|explica|refatora|bug:|add|create|write|"
@@ -60,6 +63,8 @@ def current() -> str:
 def apply(decision, state: dict | None, policy: str, *, now: float | None = None, prompt: str = "",
           context: int | None = None, regret_rule: bool = False):
     """A decisão a usar neste prompt, dada a sessão (`state`: o modelo que correu no prompt anterior)."""
+    if policy == "v4":
+        decision = _sonnet_gate(decision)
     if policy in ("v3", "v4"):
         return _apply_v3(decision, state, now=now, prompt=prompt, context=context, regret_rule=regret_rule)
     if policy != "v2" or decision.is_standard or decision.runner != "anthropic" or not _warm(state, now):
@@ -105,6 +110,20 @@ def _apply_v3(decision, state, *, now, prompt, context, regret_rule):
     if regret_rule and float(state.get("regret") or 0.0) >= _down_threshold(decision.model, held, ctx, state):  # R6
         return decision
     return _hold(decision, held, _effort_for(held, decision.effort, admitted), "descer não compensa")
+
+
+def _sonnet_gate(decision):
+    """v4: o Jev pede Opus com pouco ganho → sonnet, com o esforço do Jev ou high, o que for maior. As regras da
+    cache aplicam-se depois (a porta diz que o Sonnet chega, não que vale a pena trocar)."""
+    gain = (decision.signals or {}).get("gain")
+    if (SONNET_GATE_GAIN is None or decision.is_standard or decision.runner != "anthropic"
+            or decision.model != "opus" or gain is None or gain > SONNET_GATE_GAIN):
+        return decision
+    effort = max(decision.effort or "high", "high", key=lambda e: EFFORT_RANK.get(e, -1))
+    return dataclasses.replace(
+        decision, model="sonnet", effort=effort,
+        rationale=f"{decision.rationale} · v4: porta do Sonnet (ganho {gain} ≤ {SONNET_GATE_GAIN}) → sonnet · {effort}",
+        signals={**(decision.signals or {}), "gate": "sonnet"})
 
 
 def is_new_task(signals: dict, prompt: str) -> bool:
