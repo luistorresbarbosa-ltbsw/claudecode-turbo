@@ -1,0 +1,187 @@
+{
+ "pilotos": {
+  "calc-anthropic-claudemd-sessao-v3-v4-20261012-1811": {
+   "mesmas_condições": {
+    "jev-v3": {
+     "cost": 2.8901772000000006,
+     "seconds": 745.0005,
+     "switches": 1,
+     "rewritten": 27698,
+     "objective": 10.340182200000001,
+     "models": "sssooooooooooo"
+    },
+    "jev-v4": {
+     "cost": 2.5458864,
+     "seconds": 644.5035,
+     "switches": 1,
+     "rewritten": 71741,
+     "objective": 8.990921400000001,
+     "models": "sssssssssooooo"
+    }
+   },
+   "mecanismo": {
+    "jev-v3": {
+     "prompts": 14,
+     "sem_jev": 0,
+     "porta_sonnet": 0,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 14,
+     "route_ms_total": 30438
+    },
+    "jev-v4": {
+     "prompts": 14,
+     "sem_jev": 6,
+     "porta_sonnet": 2,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 14,
+     "route_ms_total": 19268
+    }
+   }
+  },
+  "calc-anthropic-claudemd-sessao-v4-v3-20261012-1848": {
+   "mesmas_condições": {
+    "jev-v3": {
+     "cost": 2.6700051,
+     "seconds": 563.4585,
+     "switches": 1,
+     "rewritten": 25813,
+     "objective": 8.304590099999999,
+     "models": "sssooooooooooo"
+    },
+    "jev-v4": {
+     "cost": 2.2686929,
+     "seconds": 434.73049999999995,
+     "switches": 1,
+     "rewritten": 82866,
+     "objective": 6.6159979,
+     "models": "sssssssssssooo"
+    }
+   },
+   "mecanismo": {
+    "jev-v3": {
+     "prompts": 14,
+     "sem_jev": 0,
+     "porta_sonnet": 0,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 14,
+     "route_ms_total": 31209
+    },
+    "jev-v4": {
+     "prompts": 14,
+     "sem_jev": 6,
+     "porta_sonnet": 3,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 14,
+     "route_ms_total": 20277
+    }
+   }
+  },
+  "fatura-anthropic-claudemd-sessao-v3-v4-20261012-1809": {
+   "mesmas_condições": {
+    "jev-v3": {
+     "cost": 2.0782958,
+     "seconds": 326.72400000000005,
+     "switches": 3,
+     "rewritten": 115283,
+     "objective": 5.3455358,
+     "models": "soossssssooo"
+    },
+    "jev-v4": {
+     "cost": 1.076256,
+     "seconds": 306.23,
+     "switches": 0,
+     "rewritten": 0,
+     "objective": 4.138556,
+     "models": "ssssssssssss"
+    }
+   },
+   "mecanismo": {
+    "jev-v3": {
+     "prompts": 12,
+     "sem_jev": 0,
+     "porta_sonnet": 0,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 12,
+     "route_ms_total": 22001
+    },
+    "jev-v4": {
+     "prompts": 12,
+     "sem_jev": 5,
+     "porta_sonnet": 2,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 12,
+     "route_ms_total": 12420
+    }
+   }
+  },
+  "fatura-anthropic-claudemd-sessao-v4-v3-20261012-1826": {
+   "mesmas_condições": {
+    "jev-v3": {
+     "cost": 1.7861584,
+     "seconds": 320.8895,
+     "switches": 3,
+     "rewritten": 98606,
+     "objective": 4.9950534,
+     "models": "soossssssooo"
+    },
+    "jev-v4": {
+     "cost": 0.9802255999999999,
+     "seconds": 296.0005,
+     "switches": 0,
+     "rewritten": 0,
+     "objective": 3.9402305999999996,
+     "models": "ssssssssssss"
+    }
+   },
+   "mecanismo": {
+    "jev-v3": {
+     "prompts": 12,
+     "sem_jev": 0,
+     "porta_sonnet": 0,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 12,
+     "route_ms_total": 21261
+    },
+    "jev-v4": {
+     "prompts": 12,
+     "sem_jev": 5,
+     "porta_sonnet": 2,
+     "decide_ms_sem_jev": 0,
+     "com_route_ms": 12,
+     "route_ms_total": 12722
+    }
+   }
+  }
+ },
+ "juiz": {
+  "v4": 10,
+  "v3": 13
+ },
+ "tarefas_perdidas": [],
+ "mesmas_condições": {
+  "jev-v3": 28.9853615,
+  "jev-v4": 23.685705900000002
+ },
+ "real": {
+  "jev-v3": {
+   "custo": 9.8893939,
+   "segundos": 2028.1019999999999,
+   "concluídas": 30,
+   "tarefas": 30,
+   "custo + tempo": 30.1704139
+  },
+  "jev-v4": {
+   "custo": 6.3998442,
+   "segundos": 1688.597,
+   "concluídas": 30,
+   "tarefas": 30,
+   "custo + tempo": 23.2858142
+  }
+ },
+ "critérios": {
+  "1 tarefas": true,
+  "2 juiz": false,
+  "3 custo + tempo": true
+ },
+ "v4 passa a defeito": false
+}
