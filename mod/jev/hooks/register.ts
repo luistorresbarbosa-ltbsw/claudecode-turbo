@@ -20,13 +20,14 @@ type Decision = {
 type Summary = { tasks: number; saved_usd: number; saved_pct: number }
 type Route = {
   decision: Decision
-  policy?: 'v1' | 'v2' | 'v3'
+  policy?: 'v1' | 'v2' | 'v3' | 'v4'
   model_id: string | null
   decide_ms: number
   free: { ok: boolean; text: string; model_id: string; duration_ms: number } | null
   summary?: Summary
 }
-type Routed = { task: string; route: Route; waitMs: number; scope: 'main' | 'agent' }
+// waitMs: o que esperaste antes do turno; routeMs: o `jev route` inteiro, com o arranque do processo e o free
+type Routed = { task: string; route: Route; waitMs: number; routeMs: number; scope: 'main' | 'agent' }
 type Exchange = { prompt: string; answer: string }
 
 let pending: Routed | undefined // decidido no prompt.submit, à espera do turn.start
@@ -101,10 +102,12 @@ export const register: Register = on => {
     }
     const reset = resetPending
     resetPending = false
+    const started = Date.now()
     const ran = await $.process.run([JEV, 'route', '--json'], {
       stdin: JSON.stringify({ task, history: history(), session, reset }),
       timeoutMs: 120_000,
     })
+    const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     if (!route) {
       sessionModel = undefined // a regra: qualquer falha cai no standard, também na v2
@@ -129,10 +132,11 @@ export const register: Register = on => {
       }
       return { drop: `${route.free.text}\n\n— JEV: respondido por ${route.free.model_id} (free) · ${d.rationale}` }
     }
-    sessionModel = (route.policy === 'v2' || route.policy === 'v3') && !d.is_standard && route.model_id
-      ? { model: route.model_id, effort: d.effort }
-      : undefined
-    pending = { task, route, waitMs: route.decide_ms + (route.free?.duration_ms ?? 0), scope: 'main' }
+    sessionModel = (route.policy === 'v2' || route.policy === 'v3' || route.policy === 'v4') && !d.is_standard
+      && route.model_id ? { model: route.model_id, effort: d.effort } : undefined
+    // o route inteiro contém a decisão e o free; o máximo protege uma medição de relógio que falhe
+    const waitMs = Math.max(routeMs, route.decide_ms + (route.free?.duration_ms ?? 0))
+    pending = { task, route, waitMs, routeMs, scope: 'main' }
     $.ui.status(`JEV: ${label(d)}`)
     return next(e)
   })
@@ -186,6 +190,7 @@ export const register: Register = on => {
           task: routed.task, decision: routed.route.decision, model_id: routed.route.model_id, usage,
           duration_ms: e.durationMs + routed.waitMs, reason: e.reason, scope: routed.scope,
           session, answer: e.agentId ? undefined : e.answer.slice(-2000), context,
+          route_ms: routed.routeMs, decide_ms: routed.route.decide_ms,
         }),
         timeoutMs: 60_000,
       })
@@ -208,13 +213,15 @@ export const register: Register = on => {
   // Subagentes: o Jev escolhe o modelo a partir da tarefa do agente (um subagente nunca vai para um free)
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
     if (e.subagent_type === 'fork') return next(e) // um fork herda sempre o modelo
+    const started = Date.now()
     const ran = await $.process.run([JEV, 'route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
+    const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     const d = route?.decision
     if (!route || !d || d.is_standard || d.runner !== 'anthropic') return next(e)
     const declared = e.model as Model | undefined
     if (declared && declared in RANK && RANK[declared] < (RANK[d.model as Model] ?? 0)) return next(e) // já é mais barato
-    queuedAgents.push({ task: e.prompt, route, waitMs: route.decide_ms, scope: 'agent' })
+    queuedAgents.push({ task: e.prompt, route, waitMs: Math.max(routeMs, route.decide_ms), routeMs, scope: 'agent' })
     return next({ ...e, model: d.model as Model })
   })
 }

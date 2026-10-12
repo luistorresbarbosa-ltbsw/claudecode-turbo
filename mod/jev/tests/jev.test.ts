@@ -278,6 +278,30 @@ test('na v3, um turno sem decisão também fica na faixa da sessão', async ($, 
   expect(steps[1]?.model).toBe('claude-sonnet-5-5')
 })
 
+test('na v4, um turno sem decisão também fica na faixa da sessão', async ($, on) => {
+  const { steps } = engine(on, { route: { ...SONNET_LOW, policy: 'v4' } })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1')
+  await typed($, 'tarefa terminada', 'task-notification')
+  await turn($, 't2')
+
+  expect(steps[1]?.model).toBe('claude-sonnet-5-5')
+})
+
+// Para medir o que a v4 poupa: quanto tempo levou o `jev route` inteiro e, dentro dele, a decisão do Jev
+test('o record leva quanto tempo demoraram o route e a decisão', async ($, on) => {
+  const { records } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'onde está o timeout?')
+  await turn($, 't1')
+
+  const [rec] = records()
+  expect(rec.decide_ms).toBe(1200)
+  expect(typeof rec.route_ms).toBe('number')
+  expect(rec.route_ms).toBeGreaterThanOrEqual(0)
+})
+
 test('um /model escrito por ti fixa o modelo: os prompts seguintes já não passam pelo Jev', async ($, on) => {
   const { calls } = engine(on, { route: SONNET_LOW })
 

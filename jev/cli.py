@@ -133,17 +133,20 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
         # cada `claude -p --resume` é um processo novo e o mod perde a troca anterior: vem do núcleo
         history = [{"role": "user", "content": state["last_prompt"]},
                    {"role": "assistant", "content": state["last_answer"]}]
+    # v4: um seguimento óbvio corre na faixa sem perguntar ao Jev (a v3 manteria o modelo de qualquer maneira)
+    skipped = None if agent else policy.follow_up_without_jev(state, task, policy.current())
     started = time.monotonic()
-    decision = decide(task, history=history)
-    decide_ms = int((time.monotonic() - started) * 1000)
+    decision = skipped or decide(task, history=history)
+    decide_ms = 0 if skipped else int((time.monotonic() - started) * 1000)
     if agent and decision.runner == "openrouter-free":  # um subagente usa ferramentas: um free não serve
         decision = dataclasses.replace(decision, runner="anthropic", model="sonnet",
                                        rationale=decision.rationale + " · subagente: sonnet")
     if not agent and session:
         new_task = policy.is_new_task(decision.signals, task) if state else True
         decision = policy.apply(decision, state, policy.current(), prompt=task, context=context)
-        policy.save_state(session, {**policy.next_state(decision, state, new_task=new_task),
-                                    "last_prompt": task[:2000], "last_answer": ""})
+        # uma resposta free não muda a faixa (e numa sessão nova ainda não há faixa nenhuma)
+        policy.save_state(session, {**(policy.next_state(decision, state, new_task=new_task) or {}),
+                                    "last_prompt": task[:2000], "last_answer": "", "last_runner": decision.runner})
     out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None, "policy": policy.current(),
            "model_id": None if decision.is_standard else pricing.ALIASES.get(decision.model, decision.model)}
     if decision.runner != "openrouter-free":
@@ -157,7 +160,7 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
         out.update(decision=fallback.to_ledger(), model_id=None)
         if session and not agent:  # a sessão vai correr no standard
             policy.save_state(session, {**policy.next_state(fallback, state), "last_prompt": task[:2000],
-                                        "last_answer": ""})
+                                        "last_answer": "", "last_runner": fallback.runner})
         return out
     if session and not agent:  # a resposta free é a troca que o próximo prompt vai ver
         saved = policy.load_state(session)
@@ -167,7 +170,7 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
     ledger.append(ledger.make_record(
         task=task, decision=decision.to_ledger(),
         jev={"model_id": res.model_id, "cost_usd": decision.router_cost_usd, "tokens": res.tokens,
-             "duration_ms": decide_ms + (res.duration_ms or 0), "ok": True, "fallback": None},
+             "duration_ms": decide_ms + (res.duration_ms or 0), "ok": True, "fallback": None, "decide_ms": decide_ms},
         standard=_estimated_standard(pricing.with_cc_overhead(res.tokens or {})),
     ))
     out["summary"] = ledger.summarize(ledger.read_all())
@@ -193,7 +196,9 @@ def _record(payload: dict) -> dict:
         task=payload.get("task") or "",
         decision=decision,
         jev={"model_id": model_id, "cost_usd": run_cost + (decision.get("router_cost_usd") or 0.0),
-             "tokens": tokens, "duration_ms": duration, "ok": payload.get("reason") == "answer", "fallback": None},
+             "tokens": tokens, "duration_ms": duration, "ok": payload.get("reason") == "answer", "fallback": None,
+             # o que se esperou antes do turno: o `jev route` inteiro (medido no mod) e, dentro dele, a decisão
+             "route_ms": payload.get("route_ms"), "decide_ms": payload.get("decide_ms")},
         standard=standard,
     )
     ledger.append(rec)

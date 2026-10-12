@@ -311,11 +311,26 @@ def test_the_judge_gets_the_projects_spec(tmp_path):
 # --- v2 contra v1: braços com nome e uma sessão contínua por braço ----------------------------------
 
 def test_each_jev_version_runs_the_mod_with_its_policy(tmp_path):
-    for arm, policy in (("jev-v1", "v1"), ("jev-v2", "v2")):
+    for arm, policy in (("jev-v1", "v1"), ("jev-v2", "v2"), ("jev-v3", "v3"), ("jev-v4", "v4")):
         assert "--plugin-dir" in pilot_run.arm_argv(arm, max_usd=1.0)
         assert pilot_run.arm_env(arm, jev_home=tmp_path)["JEV_POLICY"] == policy
     assert "--plugin-dir" not in pilot_run.arm_argv("standard", max_usd=1.0)
     assert "JEV_POLICY" not in pilot_run.arm_env("standard", jev_home=tmp_path)
+
+
+def test_a_fixed_arm_runs_claude_with_its_model_and_effort_without_the_mod(tmp_path):
+    # para testar o Sonnet onde o Jev pede Opus: o mesmo Claude Code, sem o mod, sempre em sonnet · high
+    argv = pilot_run.arm_argv("sonnet-high", max_usd=1.0)
+
+    assert argv[argv.index("--model") + 1] == "sonnet" and argv[argv.index("--effort") + 1] == "high"
+    assert "--plugin-dir" not in argv and not pilot_run.uses_mod("sonnet-high")
+    assert "JEV_POLICY" not in pilot_run.arm_env("sonnet-high", jev_home=tmp_path)
+    assert "--model" not in pilot_run.arm_argv("jev-v3", max_usd=1.0)
+
+
+def test_the_main_model_of_a_fixed_arm_is_its_own():
+    assert pilot_run._main_model({"arm": "sonnet-high", "jev": None}) == "sonnet"
+    assert pilot_run._main_model({"arm": "standard", "jev": None}) == "opus"
 
 
 def test_named_arms_alternate_who_goes_first(tmp_path):

@@ -70,7 +70,8 @@ def test_the_state_after_a_turn_is_the_model_that_ran():
     assert policy.next_state(free, warm("sonnet"), now=NOW) == warm("sonnet")  # a sessão não correu
 
 
-@pytest.mark.parametrize(("env", "want"), [(None, "v1"), ("v2", "v2"), (" V2 ", "v2"), ("v9", "v1")])
+# A v3 passou a defeito (2026-10-13): nas mesmas condições, custo + tempo 27,19 contra 29,05 da v1
+@pytest.mark.parametrize(("env", "want"), [(None, "v3"), ("v2", "v2"), (" V2 ", "v2"), ("v4", "v4"), ("v9", "v3")])
 def test_the_policy_comes_from_jev_policy(monkeypatch, env, want):
     if env is None:
         monkeypatch.delenv("JEV_POLICY", raising=False)
@@ -228,3 +229,52 @@ def test_holding_opus_against_the_jevs_sonnet_is_not_a_task_that_wanted_opus():
     state = policy.next_state(held, lane("opus", context=60_000, n_new=1, n_new_opus=1), now=NOW, new_task=True)
 
     assert state["held_from"] == "sonnet" and (state["n_new"], state["n_new_opus"]) == (2, 1)
+
+
+# --- v4: a v3, com os seguimentos sem o Jev ---------------------------------------------------------------
+
+FOLLOW_UP = "Corre os testes e corrige o que falhar."
+
+
+@pytest.mark.parametrize(("prompt", "follow_up"), [
+    (FOLLOW_UP, True),
+    ("sim, avança", True),
+    ("Explica melhor isso.", True),
+    ("corre os testes outra vez, mas desta vez com -x e diz-me qual é o primeiro que falha e porquê", False),
+    ("Acrescenta fatura/clientes.py com uma função que agrupa as faturas pelo NIF.", False),
+    ("Os testes de IVA da Madeira falham. Descobre porquê.", False),
+])
+def test_a_lexical_follow_up_is_short_and_starts_like_one(prompt, follow_up):
+    assert policy.is_lexical_follow_up(prompt) is follow_up
+
+
+def test_v4_a_follow_up_runs_on_the_lane_without_asking_the_jev():
+    d = policy.follow_up_without_jev(lane("opus", "medium", last_runner="anthropic"), FOLLOW_UP, "v4", now=NOW)
+
+    assert (d.runner, d.model, d.effort) == ("anthropic", "opus", "medium")
+    assert d.router_cost_usd == 0.0 and d.signals == {"rule": "seguimento", "jev": "saltado"}
+    assert "sem decisão do Jev" in d.rationale
+
+
+@pytest.mark.parametrize(("state", "prompt", "name"), [
+    (lane("opus", last_runner="anthropic"), FOLLOW_UP, "v3"),  # só a v4 salta o Jev
+    (lane("opus", last_runner="anthropic", age_s=policy.CACHE_TTL_S + 1), FOLLOW_UP, "v4"),  # cache fria
+    (lane("opus", last_runner="openrouter-free"), FOLLOW_UP, "v4"),  # a troca anterior foi de um free
+    (lane("opus"), FOLLOW_UP, "v4"),  # não se sabe quem correu antes
+    (None, FOLLOW_UP, "v4"),
+    (lane("opus", last_runner="anthropic"), "Os testes de IVA da Madeira falham. Descobre porquê.", "v4"),
+])
+def test_v4_asks_the_jev_otherwise(state, prompt, name):
+    assert policy.follow_up_without_jev(state, prompt, name, now=NOW) is None
+
+
+@pytest.mark.parametrize(("decision", "state"), [
+    (dec3("sonnet", "low", tc=0.1), lane("opus", "high")),
+    (dec3("opus", "high", tc=0.4), lane("sonnet", "medium", context=30_000)),
+    (dec3("sonnet", tc=0.4), lane("opus", context=60_000)),
+])
+def test_v4_applies_the_v3_rules(decision, state):
+    v4 = policy.apply(decision, state, "v4", now=NOW)
+    v3_ = policy.apply(decision, state, "v3", now=NOW)
+
+    assert (v4.model, v4.effort) == (v3_.model, v3_.effort)

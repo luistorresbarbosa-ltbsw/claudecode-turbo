@@ -30,7 +30,8 @@ Não há comando: escreves como sempre. A linha de estado mostra a decisão, por
      nos passos do subagente. Um subagente nunca vai para um free (usa ferramentas).
    - Os modelos free só executam; nunca decidem.
 3. **Registar (`jev record`).** No fim de cada turno: o custo real (preços via litellm, mais a decisão
-   do Jev) e o tempo que esperaste (decisão + turno), contra o standard. Quando o Jev falha e a sessão
+   do Jev) e o tempo que esperaste (decisão + turno), contra o standard. O ledger guarda também quanto
+   levou o `jev route` inteiro (`route_ms`) e, dentro dele, a decisão do Jev (`decide_ms`). Quando o Jev falha e a sessão
    segue no standard, esse turno fica como **medição real do standard**.
 4. **Ver.** `uv run jev-dashboard --open` mostra o custo e a velocidade, JEV contra standard.
 
@@ -39,7 +40,7 @@ sessão segue com o standard, sem mudanças.
 
 ### Versões (`JEV_POLICY`)
 
-- **v1** (por defeito): cada prompt corre no modelo e no esforço que o Jev escolher para ele.
+- **v1**: cada prompt corre no modelo e no esforço que o Jev escolher para ele.
 - **v2**: o modelo e o esforço são da sessão.
   - **Porquê:** a cache do Claude é de cada modelo. Trocar de modelo a meio obriga a escrever a
     conversa toda na cache do novo modelo, a 2× o preço de entrada.
@@ -51,7 +52,7 @@ sessão segue com o standard, sem mudanças.
   - **O pool** fica só com modelos Anthropic, salvo `JEV_POOL=all`.
   - **Onde fica o modelo da sessão:** em `$JEV_HOME/sessions/<id>.json`, pelo id da sessão, para
     sobreviver a um `--resume`.
-- **v3**: uma faixa por tarefa (`jev/policy.py`).
+- **v3** (por defeito): uma faixa por tarefa (`jev/policy.py`).
   - **O esforço segue sempre o Jev:** mudá-lo não reescreve a cache.
   - **Mesma tarefa** (um seguimento, como "corre os testes" ou "sim, avança"): mantém o modelo.
   - **Tarefa nova:**
@@ -63,6 +64,14 @@ sessão segue com o standard, sem mudanças.
     comece como seguimento.
   - **Constantes:** saíram do simulador `scripts/simular_politicas.py`, que reconstrói sessões reais
     pedido a pedido e reproduz os custos a ±0,5%.
+  - **Porque é a defeito:** nas corridas finais, o mesmo pedido no mesmo modelo variou muito de corrida
+    para corrida, e esse ruído decidia quem ganhava. Por isso as versões comparam-se nas mesmas condições
+    (`simular_politicas.py --medias`): cada pedido custa a todas a média dos braços que o correram. Aí, o
+    custo + tempo foi 27,19 na v3, contra 29,05 na v1 e 28,90 na v2, a 1,2% da melhor sequência possível
+    sem contrariar os pedidos de Opus do Jev.
+- **v4**: a v3, mas um seguimento óbvio (um prompt curto como "corre os testes…" ou "sim, avança") corre na
+  faixa sem perguntar ao Jev, porque a v3 manteria o modelo de qualquer maneira. Poupa uma decisão por
+  seguimento. Só com a cache quente, e se a troca anterior não foi de um free.
 
 Em todas as versões, o Jev decide numa sessão nova em cada chamada. Sem isso, guardava um incumbente
 por chave da API, e as sessões contaminavam-se umas às outras. A última troca e o contexto ficam
@@ -101,8 +110,9 @@ uv run jev pilot run --project fatura --anthropic-only   # pool do Jev só com m
 uv run jev pilot run --project fatura --arms jev-v1,jev-v2 --session   # v1 contra v2, uma sessão por braço
 ```
 
-`--arms` escolhe dois ou três braços: `standard`, `jev` (a versão por defeito), `jev-v1`, `jev-v2` e
-`jev-v3`. Com três braços, `--judge-target` diz qual comparar com os outros. O juiz é então por tarefa:
+`--arms` escolhe dois ou três braços: `standard`, `jev` (a versão por defeito), `jev-v1` a `jev-v4`, e
+`sonnet-high`, o Claude Code sem o mod, sempre em sonnet · high (para ver se o Sonnet chega onde o Jev pede
+Opus). Com três braços, `--judge-target` diz qual comparar com os outros. O juiz é então por tarefa:
 só onde o modelo do pedido principal difere, com um painel de Opus e Sonnet nas duas ordens, e um
 critério só se ganha com 3 de 4 votos. `scripts/avaliar_v3.py` avalia uma corrida com os critérios
 fixados antes de correr.
@@ -140,7 +150,8 @@ cada critério quer dizer nele.
 
 Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`),
 `JEV_STANDARD_EFFORT` (por defeito `xhigh`), `JEV_POOL` (`anthropic` deixa o pool do Jev só com
-modelos Anthropic, sem respostas free; `all` mete os baratos) e `JEV_POLICY` (`v1`, `v2` ou `v3`).
+modelos Anthropic, sem respostas free; `all` mete os baratos) e `JEV_POLICY` (`v1` a `v4`; por defeito,
+`v3`).
 
 ## Desenvolvimento
 

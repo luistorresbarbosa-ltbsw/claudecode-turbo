@@ -198,7 +198,7 @@ def test_route_v2_sessions_do_not_mix(capsys, monkeypatch):
 
 
 def test_route_v1_decides_each_prompt_on_its_own(capsys, monkeypatch):
-    monkeypatch.delenv("JEV_POLICY", raising=False)
+    monkeypatch.setenv("JEV_POLICY", "v1")
 
     routed(OPUS_HIGH, capsys=capsys)
     out = routed(SONNET_LOW, capsys=capsys)
@@ -278,3 +278,80 @@ def test_record_adds_regret_when_v3_kept_a_bigger_model(capsys, monkeypatch):
     state = policy.load_state("s1")
     assert state["context"] == 60_000 and state["last_answer"] == "feito"
     assert state["regret"] == pytest.approx(0.10 + 0.02 + 0.26)
+
+
+def test_a_free_answer_opens_a_session_without_breaking_the_route(capsys, monkeypatch):
+    # com a v3 por defeito e o pool "all", o primeiro prompt de uma sessão pode ir para um free
+    monkeypatch.setenv("JEV_POLICY", "v3")
+
+    out = routed(FREE, capsys=capsys)
+
+    assert out["free"]["ok"]
+    from jev import policy
+    assert policy.load_state("s1")["last_runner"] == "openrouter-free"
+
+
+# --- v4: os seguimentos óbvios correm na faixa sem perguntar ao Jev --------------------------------------
+
+FOLLOW_UP = "Corre os testes e corrige o que falhar."
+TASK = "Os testes de IVA da Madeira falham. Descobre porquê."
+
+
+def test_route_v4_a_follow_up_runs_on_the_lane_without_the_jev(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v4")
+    seen = []
+
+    turn_v3(OPUS_NEW, task=TASK, capsys=capsys)
+    out = turn_v3(SONNET_FOLLOW_UP, task=FOLLOW_UP, capsys=capsys, seen=seen)
+
+    assert seen == []  # o Jev não foi chamado
+    assert (out["decision"]["model"], out["decision"]["effort"]) == ("opus", "high")
+    assert out["decide_ms"] == 0 and out["decision"]["router_cost_usd"] == 0.0
+    rec = ledger.read_all()[-1]
+    assert rec["decision"]["signals"]["jev"] == "saltado"
+    from jev import policy
+    assert policy.load_state("s1")["followups"] == 1
+
+
+def test_route_v3_still_asks_the_jev_on_a_follow_up(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v3")
+    seen = []
+
+    turn_v3(OPUS_NEW, task=TASK, capsys=capsys)
+    turn_v3(SONNET_FOLLOW_UP, task=FOLLOW_UP, capsys=capsys, seen=seen)
+
+    assert len(seen) == 1
+
+
+def test_route_v4_asks_the_jev_after_a_free_answer(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v4")
+    seen = []
+
+    turn_v3(OPUS_NEW, task=TASK, capsys=capsys)
+    cli.main(["route", "--json"], decide=lambda t, **k: FREE, run_free=free_ok(),
+             stdin=io.StringIO(json.dumps({"task": "o que é o IVA?", "history": [], "session": "s1"})))
+    capsys.readouterr()
+    turn_v3(SONNET_FOLLOW_UP, task="sim, explica melhor", capsys=capsys, seen=seen)
+
+    assert len(seen) == 1
+
+
+def test_route_v4_a_subagent_always_asks_the_jev(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v4")
+    calls = []
+
+    def decide(t, **kw):
+        calls.append(t)
+        return SONNET_LOW
+    cli.main(["route", "--json", "--agent"], decide=decide, run_free=free_ok(),
+             stdin=io.StringIO(json.dumps({"task": FOLLOW_UP, "history": [], "session": "s1"})))
+
+    assert calls == [FOLLOW_UP]
+
+
+def test_record_keeps_how_long_the_route_and_the_decision_took(capsys):
+    _, out = record({"task": "x", "decision": SONNET_LOW.to_ledger(), "model_id": "claude-sonnet-5-5",
+                     "usage": SONNET_USAGE, "duration_ms": 9000, "reason": "answer", "scope": "main",
+                     "route_ms": 2400, "decide_ms": 1900}, capsys)
+
+    assert (out["record"]["jev"]["route_ms"], out["record"]["jev"]["decide_ms"]) == (2400, 1900)

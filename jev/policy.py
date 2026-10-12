@@ -1,5 +1,6 @@
 """Política de modelo da sessão (`JEV_POLICY`): na v1, cada prompt corre no modelo que o Jev escolhe;
-na v2, o modelo é da sessão; na v3, há uma faixa por tarefa (ver `_apply_v3`).
+na v2, o modelo é da sessão; na v3 (por defeito), há uma faixa por tarefa (ver `_apply_v3`); a v4 é a v3,
+com os seguimentos óbvios a correr na faixa sem perguntar ao Jev (ver `follow_up_without_jev`).
 
 A cache do Claude é de cada modelo. Trocar de modelo a meio de uma sessão obriga a escrever a conversa
 toda na cache do novo modelo (a 2× o preço de entrada), em vez de a ler (a 10%): numa sonda real
@@ -22,7 +23,7 @@ from pathlib import Path
 
 from jev import ledger
 
-POLICIES = ("v1", "v2", "v3")
+POLICIES = ("v1", "v2", "v3", "v4")
 MODEL_RANK = {"haiku": 0, "sonnet": 1, "opus": 2, "fable": 3}
 EFFORT_RANK = {"low": 0, "medium": 1, "high": 2, "xhigh": 3, "max": 4}
 
@@ -51,13 +52,15 @@ _SESSION_ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
 
 def current() -> str:
     value = os.environ.get("JEV_POLICY", "").strip().lower()
-    return value if value in POLICIES else "v1"
+    # a v3 é a defeito desde 2026-10-13: nas mesmas condições (perfis médios das corridas finais), custo + tempo
+    # 27,19 contra 29,05 da v1 e 28,90 da v2, a 1,2% da melhor sequência que não contraria o Opus do Jev
+    return value if value in POLICIES else "v3"
 
 
 def apply(decision, state: dict | None, policy: str, *, now: float | None = None, prompt: str = "",
           context: int | None = None, regret_rule: bool = False):
     """A decisão a usar neste prompt, dada a sessão (`state`: o modelo que correu no prompt anterior)."""
-    if policy == "v3":
+    if policy in ("v3", "v4"):
         return _apply_v3(decision, state, now=now, prompt=prompt, context=context, regret_rule=regret_rule)
     if policy != "v2" or decision.is_standard or decision.runner != "anthropic" or not _warm(state, now):
         return decision
@@ -107,14 +110,33 @@ def _apply_v3(decision, state, *, now, prompt, context, regret_rule):
 def is_new_task(signals: dict, prompt: str) -> bool:
     """O prompt começa uma tarefa nova? O `task_changed` do Jev quando há; senão uma heurística, que na dúvida
     diz "mesma tarefa" (o mais seguro para a cache)."""
-    text = (prompt or "").strip()
-    words = len(text.split())
-    if _FOLLOW_UP.match(text) and words <= FOLLOW_UP_MAX_WORDS:
+    if is_lexical_follow_up(prompt):
         return False  # "corre os testes…", "sim, avança": o Jev chegou a dar 0,23 a isto depois de uma resposta longa
     changed = (signals or {}).get("task_changed")
     if changed is not None:
         return changed >= TASK_CHANGED_NEW
-    return words >= 25 and bool(_NEW_TASK.match(text))
+    text = (prompt or "").strip()
+    return len(text.split()) >= 25 and bool(_NEW_TASK.match(text))
+
+
+def is_lexical_follow_up(prompt: str) -> bool:
+    """Um prompt curto que começa como seguimento ("corre os testes…", "sim, avança", "explica melhor")."""
+    text = (prompt or "").strip()
+    return bool(_FOLLOW_UP.match(text)) and len(text.split()) <= FOLLOW_UP_MAX_WORDS
+
+
+def follow_up_without_jev(state: dict | None, prompt: str, policy: str, *, now: float | None = None):
+    """Na v4, um seguimento óbvio corre na faixa sem perguntar ao Jev: a v3 manteria o modelo de qualquer maneira,
+    e assim poupa-se a decisão (1 a 4 s e o custo dela). Só com a cache quente e se a troca anterior correu num
+    modelo Anthropic (depois de uma resposta free, pergunta-se ao Jev). Sem isso, devolve None."""
+    if (policy != "v4" or not _warm(state, now) or state.get("last_runner") != "anthropic"
+            or state.get("model") not in MODEL_RANK or not is_lexical_follow_up(prompt)):
+        return None
+    from jev.router import Decision  # o router importa este módulo
+
+    return Decision(runner="anthropic", model=state["model"], effort=state.get("effort"),
+                    rationale=f"v4: seguimento, sem decisão do Jev ({state['model']} · {state.get('effort')})",
+                    router_model="v4: seguimento", signals={"rule": "seguimento", "jev": "saltado"})
 
 
 def rewrite_usd(model: str, context: int) -> float:

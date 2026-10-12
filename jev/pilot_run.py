@@ -26,7 +26,9 @@ REPO_PYTHON = REPO / ".venv" / "bin" / "python"
 ARMS = ("standard", "jev")
 # Os braços que o piloto conhece e o que cada um leva no ambiente: jev-v1 e jev-v2 são o mod com a política fixa
 KNOWN_ARMS = {"standard": {}, "jev": {}, "jev-v1": {"JEV_POLICY": "v1"}, "jev-v2": {"JEV_POLICY": "v2"},
-              "jev-v3": {"JEV_POLICY": "v3"}}
+              "jev-v3": {"JEV_POLICY": "v3"}, "jev-v4": {"JEV_POLICY": "v4"}, "sonnet-high": {}}
+# Braços sem o mod, sempre no mesmo modelo e esforço (para testar o Sonnet onde o Jev pede Opus)
+FIXED_ARMS = {"sonnet-high": ("sonnet", "high")}
 # As formas habituais de correr os testes: no calc o agente correu `python -m pytest`, que estava recusado
 TEST_COMMANDS = ("Bash(uv run pytest:*)", "Bash(python -m pytest:*)", "Bash(python3 -m pytest:*)", "Bash(pytest:*)",
                  "Bash(uv run python -m pytest:*)")
@@ -43,7 +45,7 @@ def _now() -> str:
 
 
 def uses_mod(arm: str) -> bool:
-    return arm != "standard"
+    return arm != "standard" and arm not in FIXED_ARMS
 
 
 def arm_argv(arm: str, *, max_usd: float, resume: str | None = None) -> list[str]:
@@ -55,6 +57,9 @@ def arm_argv(arm: str, *, max_usd: float, resume: str | None = None) -> list[str
         argv += ["--resume", resume]
     if uses_mod(arm):
         argv += ["--plugin-dir", str(MOD_DIR)]
+    if arm in FIXED_ARMS:
+        model, effort = FIXED_ARMS[arm]
+        argv += ["--model", model, "--effort", effort]
     return argv
 
 
@@ -502,7 +507,10 @@ def task_diff(workspace: Path, task_id: str) -> str:
 
 
 def _main_model(row: dict) -> str:
-    """O modelo do pedido principal de uma tarefa: o da primeira decisão do Jev; sem Jev, o standard."""
+    """O modelo do pedido principal de uma tarefa: o da primeira decisão do Jev; num braço fixo, o dele; sem Jev,
+    o standard."""
+    if row.get("arm") in FIXED_ARMS:
+        return FIXED_ARMS[row["arm"]][0]
     decisions = [d for d in ((row.get("jev") or {}).get("decisions") or []) if d.get("scope", "main") == "main"]
     return decisions[0]["model"] if decisions else "opus"
 
