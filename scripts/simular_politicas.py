@@ -12,11 +12,20 @@ cada turno pedido a pedido e volta a pô-lo a correr com outra sequência de mod
 Calibração: com os modelos que cada braço correu de facto, tem de reproduzir o custo real a ±2%.
 Não mede qualidade, nem o efeito do esforço na saída (é ruído ao nível de uma corrida).
 
+Nas mesmas condições (`--medias`, para as corridas com 3 braços): cada (turno, modelo) custa o mesmo a todas
+as políticas, a média dos braços que o correram. O ruído dos agentes (o mesmo pedido, no mesmo modelo, varia
+muito de corrida para corrida) sai da comparação, e fica só o efeito da política. As decisões do Jev são as
+que o braço jev-v1 registou (as cruas), e o oráculo é a melhor sequência em retrospetiva que não põe o Sonnet
+onde o Jev pediu Opus.
+
 Uso: simular_politicas.py <decisões.json> <piloto> [<piloto> ...]
      (decisões: {projeto: {índice do turno: [decisão do Jev, ...]}}, como o `Decision.to_ledger()`)
+     simular_politicas.py --varrer <decisões.json> <piloto> [<piloto> ...]
+     simular_politicas.py --medias <piloto> [<piloto> ...]
 """
 from __future__ import annotations
 
+import itertools
 import json
 import sys
 from pathlib import Path
@@ -103,13 +112,31 @@ def profiles(arms: dict[str, list[dict]]) -> dict:
     for i in range(n):
         for turns in arms.values():
             prof.setdefault((i, turns[i]["model"]), {**turns[i]["warm"], "seconds": turns[i]["seconds"]})
-        for fam in PRICE:
-            if (i, fam) not in prof:
-                donor_fam = next(f for f in PRICE if (i, f) in prof)
-                d = prof[(i, donor_fam)]
-                prof[(i, fam)] = {**d, "seconds": max(1.0, d["seconds"] + d["output"] * (
-                    SECONDS_PER_TOKEN[fam] - SECONDS_PER_TOKEN[donor_fam])), "synthetic": True}
+        _fill_missing(prof, i)
     return prof
+
+
+def mean_profiles(arms: dict[str, list[dict]], n: int) -> dict:
+    """Perfil (turno, modelo) nas mesmas condições: a média dos braços que correram esse turno nesse modelo."""
+    prof = {}
+    for i in range(n):
+        for fam in PRICE:
+            got = [{**turns[i]["warm"], "seconds": turns[i]["seconds"]} for turns in arms.values()
+                   if turns[i]["model"] == fam]
+            if got:
+                prof[(i, fam)] = {k: sum(g[k] for g in got) / len(got) for k in got[0]}
+        _fill_missing(prof, i)
+    return prof
+
+
+def _fill_missing(prof: dict, i: int) -> None:
+    """Um modelo que nenhum braço correu neste turno: o trabalho do outro, à velocidade medida deste."""
+    for fam in PRICE:
+        if (i, fam) not in prof:
+            donor_fam = next(f for f in PRICE if (i, f) in prof)
+            d = prof[(i, donor_fam)]
+            prof[(i, fam)] = {**d, "seconds": max(1.0, d["seconds"] + d["output"] * (
+                SECONDS_PER_TOKEN[fam] - SECONDS_PER_TOKEN[donor_fam])), "synthetic": True}
 
 
 def replay(models: list[str], prof: dict, contexts: list[int]) -> dict:
@@ -132,6 +159,23 @@ def replay(models: list[str], prof: dict, contexts: list[int]) -> dict:
         counter += p["requests"]
         last_use[m], last_ctx[m] = counter, contexts[i + 1] if i + 1 < len(contexts) else ctx
     return {"cost": cost, "seconds": seconds, "switches": switches, "rewritten": int(rewritten)}
+
+
+def objective(result: dict) -> float:
+    """Custo + tempo, com o tempo ao preço que o utilizador escolheu ("equilibrado")."""
+    return result["cost"] + policy.TIME_USD_PER_S * result["seconds"]
+
+
+def oracle(prof: dict, contexts: list[int], *, required_opus: list[bool]) -> dict:
+    """A melhor sequência de modelos em retrospetiva (as 2^n), sem pôr o Sonnet onde o Jev pediu Opus."""
+    best = None
+    for seq in itertools.product(PRICE, repeat=len(contexts)):
+        if any(need and m != "opus" for need, m in zip(required_opus, seq)):
+            continue
+        r = replay(list(seq), prof, contexts)
+        if best is None or objective(r) < best["objective"]:
+            best = {**r, "objective": objective(r), "models": list(seq)}
+    return best
 
 
 def run_policy(name: str, decisions: list[dict], prompts: list[str], prof: dict, contexts: list[int],
@@ -178,7 +222,7 @@ def main(argv: list[str]) -> dict:
     return report
 
 
-if __name__ == "__main__" and "--varrer" not in sys.argv:
+if __name__ == "__main__" and not {"--varrer", "--medias"} & set(sys.argv):
     out = main(sys.argv[1:])
     for project, res in out.items():
         print(f"== {project}")
@@ -236,3 +280,45 @@ if __name__ == "__main__" and "--varrer" in sys.argv:
         casos = " | ".join(f"{c['projeto'][0]}{c['amostra']} ${c['cost']:.2f}/{c['seconds']:.0f}s {c['modelos']}" for c in row["casos"])
         print(f"{'PASSA' if row['passa'] else '     '} livre {row['livre'] // 1000}k qualidade {row['qualidade']} "
               f"R6 {'sim k=' + str(row['k']) if row['R6'] else 'não':<9} objetivo {row['objetivo']:.2f} | {casos}")
+
+
+def decisions_from_ledger(pilot_id: str, arm: str) -> list[dict]:
+    """As decisões que um braço registou, prompt a prompt (no jev-v1, são as do Jev tal como vieram)."""
+    return [r["decision"] for r in ledger.read_all(home=pilot.pilots_dir() / pilot_id / f"{arm}-home")]
+
+
+def same_conditions(pilot_ids: list[str]) -> dict:
+    """Cada política nas mesmas condições (perfis médios dos braços), com as decisões cruas do Jev, e o oráculo."""
+    report = {}
+    for pilot_id in pilot_ids:
+        arms = {arm: load_arm(pilot_id, arm) for arm in ("jev-v1", "jev-v2", "jev-v3")
+                if (pilot.pilots_dir() / pilot_id / arm).is_dir()}
+        decisions = decisions_from_ledger(pilot_id, "jev-v1")
+        n = min(len(decisions), *(len(t) for t in arms.values()))
+        arms = {arm: turns[:n] for arm, turns in arms.items()}
+        prof, base = mean_profiles(arms, n), arms["jev-v1"]
+        contexts, prompts = [t["context"] for t in base], [t["prompt"] for t in base]
+        res = {}
+        for name in policy.POLICIES:
+            models = run_policy(name, decisions[:n], prompts, prof, contexts)
+            res[name] = {**replay(models, prof, contexts), "models": models}
+        res["oráculo"] = oracle(prof, contexts, required_opus=[d["model"] == "opus" for d in decisions[:n]])
+        for r in res.values():
+            r["objective"] = objective(r)
+        report[pilot_id] = res
+    return report
+
+
+if __name__ == "__main__" and "--medias" in sys.argv:
+    out = same_conditions([a for a in sys.argv[1:] if a != "--medias"])
+    totals: dict[str, list[float]] = {}
+    for pilot_id, res in out.items():
+        print(f"== {pilot_id}")
+        for name, r in res.items():
+            t = totals.setdefault(name, [0.0, 0.0, 0.0])
+            t[0] += r["cost"]; t[1] += r["seconds"]; t[2] += r["objective"]  # noqa: E702
+            print(f"  {name:<8} ${r['cost']:.3f} {r['seconds']:6.0f}s custo+tempo {r['objective']:.2f} "
+                  f"trocas {r['switches']:>2} reescritos {r['rewritten']:>7,} {''.join(m[0] for m in r['models'])}")
+    print("== total")
+    for name, (cost, secs, obj) in totals.items():
+        print(f"  {name:<8} ${cost:.2f} {secs:6.0f}s custo+tempo {obj:.2f}")
