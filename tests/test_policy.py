@@ -70,7 +70,7 @@ def test_the_state_after_a_turn_is_the_model_that_ran():
     assert policy.next_state(free, warm("sonnet"), now=NOW) == warm("sonnet")  # a sessão não correu
 
 
-# A v3 passou a defeito (2026-10-13): nas mesmas condições, custo + tempo 27,19 contra 29,05 da v1
+# A v3 passou a defeito (2026-10-12): nas mesmas condições, custo + tempo 27,19 contra 29,05 da v1
 @pytest.mark.parametrize(("env", "want"), [(None, "v3"), ("v2", "v2"), (" V2 ", "v2"), ("v4", "v4"), ("v9", "v3")])
 def test_the_policy_comes_from_jev_policy(monkeypatch, env, want):
     if env is None:

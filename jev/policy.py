@@ -52,7 +52,7 @@ _SESSION_ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
 
 def current() -> str:
     value = os.environ.get("JEV_POLICY", "").strip().lower()
-    # a v3 é a defeito desde 2026-10-13: nas mesmas condições (perfis médios das corridas finais), custo + tempo
+    # a v3 é a defeito desde 2026-10-12: nas mesmas condições (perfis médios das corridas finais), custo + tempo
     # 27,19 contra 29,05 da v1 e 28,90 da v2, a 1,2% da melhor sequência que não contraria o Opus do Jev
     return value if value in POLICIES else "v3"
 

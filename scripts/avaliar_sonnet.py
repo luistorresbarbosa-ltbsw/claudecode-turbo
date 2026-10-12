@@ -1,4 +1,4 @@
-"""Avaliação da experiência "o Sonnet onde o Jev pede Opus" (critérios fixados antes de correr, a 2026-10-13).
+"""Avaliação da experiência "o Sonnet onde o Jev pede Opus" (critérios fixados antes de correr, a 2026-10-12).
 
 Braços: jev-v3 (o Jev escolhe; nestas tarefas pediu sempre Opus, em todas as corridas finais) contra
 sonnet-high (o Claude Code sem o mod, sempre sonnet · high). Tarefas: fatura T2 e T6; calc T3, T5, T6 e T7.
