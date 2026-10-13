@@ -194,3 +194,39 @@ def read_live(home: str | Path | None = None, now: datetime | None = None) -> li
         if (now - started).total_seconds() <= LIVE_MAX_AGE_S:
             out.append(entry)
     return sorted(out, key=lambda e: e["ts"])
+
+
+def _unmangle(text: str) -> str:
+    """Desfaz o texto UTF-8 lido como cp1252 (avanÃ§ar → avançar); o que não for isso fica como está."""
+    if not isinstance(text, str) or ("Ã" not in text and "Â" not in text):
+        return text
+    try:
+        return text.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text  # "SÃO PAULO" é texto a sério: não passa na volta
+
+
+def repair_text(home: str | Path | None = None) -> int:
+    """Repara as tarefas que o Windows estragou, guardando o ledger original em ledger.jsonl.bak; devolve quantas."""
+    path = ledger_path(home)
+    if not path.exists():
+        return 0
+    lines, fixed = path.read_bytes().splitlines(), 0
+    out = []
+    for raw in lines:
+        try:
+            rec = json.loads(raw.decode("utf-8", errors="replace"))
+        except json.JSONDecodeError:
+            out.append(raw.decode("utf-8", errors="replace"))
+            continue
+        task = rec.get("task") if isinstance(rec, dict) else None
+        good = _unmangle(task) if isinstance(task, str) else task
+        if good != task:
+            rec["task"], fixed = good, fixed + 1
+            out.append(json.dumps(rec, ensure_ascii=False, allow_nan=False))
+        else:
+            out.append(raw.decode("utf-8", errors="replace"))
+    if fixed:
+        path.with_name(path.name + ".bak").write_bytes(path.read_bytes())
+        path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    return fixed

@@ -98,6 +98,7 @@ Os modelos free (respostas fora da Anthropic) estão desligados por defeito. `JE
 | Fica sempre em `sem decisão, segue o standard` | Testa o Jev à mão: `echo "explica o que é uma closure" \| jev route` deve devolver um JSON com `decision`. Um `router_error` a dizer que falta a chave: configura-a (ver "Instalar"). |
 | O prompt demora mais 1 a 3 s a começar | É a decisão do Jev. Na v4, os seguimentos curtos não esperam. |
 | Escolheu um modelo fraco para uma tarefa difícil | Fixa com `/model opus` nessa sessão. Se se repetir, guarda o prompt: serve para afinar. |
+| Prompts com acentos estragados no dashboard (avanÃ§ar), no Windows | Atualiza (`uv tool upgrade jev` e `claude plugin update jev@claudecode-turbo`) e repara os registos antigos com `jev ledger --reparar` |
 | Não aparece nada na linha de estado | O plugin não está instalado ou está desligado: `claude plugin list`. |
 | `JEV: o núcleo não arrancou` | Falta o comando `jev`: corre o `uv tool install` de "Instalar". |
 

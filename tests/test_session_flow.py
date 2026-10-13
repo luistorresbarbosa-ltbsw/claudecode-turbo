@@ -1,6 +1,7 @@
 """O fluxo dentro da sessão: o mod chama `jev route` ao enviar o prompt e `jev record` no fim do turno."""
 import io
 import json
+import sys
 
 import pytest
 
@@ -413,3 +414,41 @@ def test_a_turn_the_jev_did_not_change_saves_nothing(capsys):
     rec = out["record"]
     assert rec["standard"]["kind"] == "measured"
     assert rec["standard"]["cost_usd"] == pytest.approx(rec["jev"]["cost_usd"]) and rec["savings_usd"] == 0
+
+
+# --- Windows: o stdin de um pipe vem na codificação do sistema (cp1252), e os acentos estragavam-se -------
+
+def test_record_reads_utf8_even_when_the_platform_default_is_cp1252(monkeypatch):
+    payload = {"task": "antes de avançar para alterações", "decision": SONNET_LOW.to_ledger(),
+               "model_id": "claude-sonnet-5-5", "usage": SONNET_USAGE, "duration_ms": 900, "reason": "answer"}
+    raw = io.BytesIO(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+    monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(raw, encoding="cp1252"))
+    out = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(out, encoding="cp1252"))
+
+    cli.main(["record"])
+    sys.stdout.flush()
+
+    assert ledger.read_all()[-1]["task"] == "antes de avançar para alterações"
+    out.getvalue().decode("utf-8")  # o que o mod lê também sai em UTF-8
+
+
+def test_ledger_repair_fixes_text_garbled_on_windows(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("JEV_HOME", str(tmp_path))
+    ok, bad = _plain_record("SÃO PAULO e avançar"), _plain_record("antes de avanÃ§ar para alteraÃ§Ãµes")
+    ledger.append(ok)
+    ledger.append(bad)
+
+    assert cli.main(["ledger", "--reparar"]) == 0
+
+    assert [r["task"] for r in ledger.read_all()] == ["SÃO PAULO e avançar", "antes de avançar para alterações"]
+    assert "1 registo" in capsys.readouterr().out
+    assert (tmp_path / "ledger.jsonl.bak").exists()
+
+
+def _plain_record(task):
+    return ledger.make_record(task=task, decision=SONNET_LOW.to_ledger(),
+                              jev={"model_id": "claude-sonnet-5-5", "cost_usd": 0.01, "tokens": None,
+                                   "duration_ms": 10, "ok": True, "fallback": None},
+                              standard={"kind": "estimated", "model_id": "claude-opus-5-5", "effort": "xhigh",
+                                        "cost_usd": 0.02, "tokens": None, "duration_ms": None})

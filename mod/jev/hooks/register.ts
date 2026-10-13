@@ -89,8 +89,9 @@ let bin: string | undefined
 // Chama o núcleo; a chave configurada no plugin vai no ambiente dele (sem ela, vale a do teu ambiente)
 async function jev($: EngineInterface, args: string[], init: ProcessRunInit) {
   bin ??= (await $.env.get('JEV_BIN')) || opts.jev_command || 'jev'
-  const env = opts.openrouter_api_key ? { env: { OPENROUTER_API_KEY: opts.openrouter_api_key } } : {}
-  return $.process.run([bin, ...args], { ...init, ...env })
+  // UTF-8 sempre: no Windows o Python lia o pipe em cp1252 e os acentos estragavam-se (avançar → avanÃ§ar)
+  const env = { PYTHONIOENCODING: 'utf-8', ...(opts.openrouter_api_key ? { OPENROUTER_API_KEY: opts.openrouter_api_key } : {}) }
+  return $.process.run([bin, ...args], { ...init, env })
 }
 
 // Os turnos que não passam pelo Jev também ficam no registo (o custo de uma conversa é o de todos os turnos),

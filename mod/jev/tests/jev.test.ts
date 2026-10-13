@@ -433,3 +433,12 @@ test('sem o núcleo instalado, o prompt segue sem mudanças e a linha de estado 
   expect(steps[0]?.model).toBe('claude-opus-5-5') // o modelo da sessão, sem mudanças
   expect(status.some(s => s?.includes('uv tool install'))).toBe(true)
 })
+
+test('o núcleo fala sempre em UTF-8 (no Windows, os acentos estragavam-se)', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'antes de avançar para alterações')
+  await turn($, 't1')
+
+  expect(calls.every(c => c.init?.env?.PYTHONIOENCODING === 'utf-8')).toBe(true)
+})

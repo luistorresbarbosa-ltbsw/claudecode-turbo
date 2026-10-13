@@ -35,6 +35,8 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--json", action="store_true")
     led = sub.add_parser("ledger", help="totais acumulados")
     led.add_argument("--json", action="store_true")
+    led.add_argument("--reparar", action="store_true",
+                     help="repara o texto com acentos que o Windows estragou (avanÃ§ar em vez de avançar), com cópia em ledger.jsonl.bak")
     route = sub.add_parser("route", help="para o mod: o Jev decide o prompt do stdin (JSON na saída)")
     route.add_argument("--agent", action="store_true", help="a tarefa é de um subagente (nunca vai para um free)")
     route.add_argument("--json", action="store_true",
@@ -284,7 +286,18 @@ def _fail(msg: str) -> int:
     return 2
 
 
+def _utf8_stdio() -> None:
+    """O mod fala com o núcleo em UTF-8. No Windows, um pipe vem na codificação do sistema (cp1252) e os acentos
+    estragavam-se (avançar → avanÃ§ar); por isso o stdin e o stdout são sempre UTF-8."""
+    for stream in (sys.stdin, sys.stdout):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError, OSError):
+            pass  # um stream que não se reconfigura (nos testes, ou já lido) fica como está
+
+
 def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=None, stdin=None) -> int:
+    _utf8_stdio()
     args = _parser().parse_args(argv)
     if args.cmd in ("route", "record"):
         text = (stdin or sys.stdin).read()
@@ -307,6 +320,11 @@ def main(argv: list[str] | None = None, *, decide=None, execute=None, run_free=N
         return 0
     if args.cmd == "pilot":
         return _pilot(args)
+    if args.cmd == "ledger" and args.reparar:
+        fixed = ledger.repair_text()
+        print(f"{fixed} registo{'s' if fixed != 1 else ''} reparado{'s' if fixed != 1 else ''}"
+              + (f"; o original ficou em {ledger.ledger_path()}.bak" if fixed else ""))
+        return 0
     if args.cmd == "ledger":
         summary = ledger.summarize(ledger.read_all())
         print(json.dumps(summary) if args.json else _ledger_text(summary))
