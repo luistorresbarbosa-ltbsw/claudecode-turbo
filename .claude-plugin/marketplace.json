@@ -1,0 +1,15 @@
+{
+  "name": "claudecode-turbo",
+  "owner": { "name": "Luís Barbosa" },
+  "metadata": {
+    "description": "Plugins para o Claude Code gastar menos e responder mais depressa"
+  },
+  "plugins": [
+    {
+      "name": "jev",
+      "source": "./mod/jev",
+      "description": "O Jev da TypeSafe (via OpenRouter) escolhe o modelo e o esforço Anthropic de cada prompt e subagente, pela tua subscrição, e mostra quanto poupaste face ao standard",
+      "version": "0.2.0"
+    }
+  ]
+}

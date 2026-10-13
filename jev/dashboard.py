@@ -23,7 +23,10 @@ from jev import ledger, pilot
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8787
-INDEX_HTML = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
+# Instalado (uv tool install), a página vem dentro do pacote; no repositório, de dashboard/
+_PACKAGED_HTML = Path(__file__).resolve().parent / "dashboard_index.html"
+INDEX_HTML = (_PACKAGED_HTML if _PACKAGED_HTML.is_file()
+              else Path(__file__).resolve().parent.parent / "dashboard" / "index.html")
 
 # O ledger tem o texto das tarefas. Com DNS rebinding, uma página alheia pode apontar o
 # seu domínio para 127.0.0.1 e ler o ledger no browser do utilizador; o que a denuncia é

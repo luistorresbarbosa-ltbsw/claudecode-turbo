@@ -159,8 +159,11 @@ def _signals(data: dict) -> dict:
 
 
 def _post(body: dict, headers: dict) -> dict:
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise ValueError("falta a chave do OpenRouter: a opção do plugin ou OPENROUTER_API_KEY no ambiente")
     req = urllib.request.Request(OPENROUTER_URL, data=json.dumps(body).encode(), headers={
-        "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json", **headers})
     with urllib.request.urlopen(req, timeout=ROUTER_TIMEOUT_S) as r:
         return json.loads(r.read())

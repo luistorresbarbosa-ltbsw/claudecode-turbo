@@ -1,5 +1,24 @@
 {
   "name": "jev",
-  "version": "0.1.0",
-  "description": "/jev: um modelo free escolhe o modelo e o esforço Anthropic (ou free) para cada tarefa, corre-a e mostra quanto poupaste"
+  "version": "0.2.0",
+  "description": "O Jev da TypeSafe (via OpenRouter) escolhe o modelo e o esforço Anthropic de cada prompt e subagente, pela tua subscrição, e mostra quanto poupaste face ao standard",
+  "author": { "name": "Luís Barbosa" },
+  "homepage": "https://github.com/luistorresbarbosa-ltbsw/claudecode-turbo",
+  "repository": "https://github.com/luistorresbarbosa-ltbsw/claudecode-turbo",
+  "license": "MIT",
+  "keywords": ["routing", "cost", "openrouter", "model-selection"],
+  "userConfig": {
+    "openrouter_api_key": {
+      "type": "string",
+      "title": "Chave do OpenRouter",
+      "description": "A tua chave da API do OpenRouter (sk-or-...), para o Jev decidir. Sem ela, vale a variável OPENROUTER_API_KEY do teu ambiente.",
+      "sensitive": true
+    },
+    "jev_command": {
+      "type": "string",
+      "title": "Comando do núcleo",
+      "description": "O executável do núcleo do JEV (instalado com uv tool install). Por defeito, o jev do PATH.",
+      "default": "jev"
+    }
+  }
 }

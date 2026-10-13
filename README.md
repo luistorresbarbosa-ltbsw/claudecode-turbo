@@ -2,12 +2,35 @@
 
 Um mod do Claude Code em que o **Jev da TypeSafe** (`typesafe/jev-router`, via OpenRouter) decide
 **cada prompt que escreves e cada subagente**: corre num modelo **Anthropic, pela tua subscrição**,
-com o modelo e o esforço que ele escolher, ou, nas tarefas simples, num **modelo free**. Modelos mais
-leves e menos esforço respondem mais depressa, e o JEV mede o custo e a velocidade de cada turno
-contra o teu Claude Code standard (opus · xhigh).
+com o modelo e o esforço que ele escolher. Modelos mais leves e menos esforço respondem mais depressa, e o
+JEV mede o custo e a velocidade de cada turno contra o teu Claude Code standard (opus · xhigh). Nos pilotos,
+custou 36% a 53% menos do que o standard e concluiu as mesmas tarefas.
 
 Não há comando: escreves como sempre. A linha de estado mostra a decisão, por exemplo
-`JEV: sonnet · medium · 17.3 s · poupado $0.1340 (64.9%)`.
+`JEV: sonnet · medium · 17.3 s · poupado $0.1340 (64.9%)`. O [manual](MANUAL.md) explica o uso do dia a dia.
+
+## Instalar
+
+Precisas do Claude Code, do [uv](https://docs.astral.sh/uv/) e de uma chave da API do
+[OpenRouter](https://openrouter.ai/keys).
+
+```bash
+# 1. o núcleo (o comando `jev`, em Python)
+uv tool install git+https://github.com/luistorresbarbosa-ltbsw/claudecode-turbo
+# 2. o plugin, a partir deste marketplace
+claude plugin marketplace add luistorresbarbosa-ltbsw/claudecode-turbo
+claude plugin install jev@claudecode-turbo
+```
+
+3. Dentro do Claude Code, `/plugin configure jev@claudecode-turbo` e cola a chave do OpenRouter (fica no
+   armazenamento seguro). Em alternativa, define `OPENROUTER_API_KEY` no teu ambiente.
+
+Daí em diante, todas as sessões passam pelo JEV. Para o desligar: `claude plugin disable jev@claudecode-turbo`.
+Para atualizar: `uv tool upgrade jev` e `claude plugin update jev@claudecode-turbo`.
+
+**Privacidade:** em cada decisão, o teu prompt e a troca anterior (o pedido e o fim da resposta, até 2000
+caracteres cada) vão para o OpenRouter, para o Jev da TypeSafe. Os modelos Anthropic correm pela tua
+subscrição, como sempre. Se alguma coisa falhar, o prompt corre no standard, sem mudanças.
 
 ## Como funciona
 
@@ -89,11 +112,15 @@ guardados por sessão no núcleo, para o histórico sobreviver a um `claude -p -
 
 ## Uso
 
+A partir de uma cópia do repositório (para desenvolver), sem instalar nada:
+
 ```bash
 uv sync
 echo 'OPENROUTER_API_KEY=sk-or-...' > .env
-claude --plugin-dir /Users/luisbarbosa/Developer/repos/personal/claude-mods-jev/mod/jev
+JEV_BIN="$PWD/.venv/bin/jev" claude --plugin-dir "$PWD/mod/jev"
 ```
+
+`JEV_BIN` faz o mod chamar o núcleo deste repositório em vez do `jev` instalado (os pilotos fazem o mesmo).
 
 Dashboard (local, só em 127.0.0.1):
 

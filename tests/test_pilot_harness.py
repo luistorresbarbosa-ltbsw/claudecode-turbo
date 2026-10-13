@@ -318,6 +318,13 @@ def test_each_jev_version_runs_the_mod_with_its_policy(tmp_path):
     assert "JEV_POLICY" not in pilot_run.arm_env("standard", jev_home=tmp_path)
 
 
+def test_the_mod_arms_run_the_repositorys_core_not_an_installed_one(tmp_path):
+    # o mod publicado chama o `jev` do PATH; o piloto mede o código deste repositório
+    assert pilot_run.arm_env("jev-v3", jev_home=tmp_path)["JEV_BIN"] == str(pilot_run.REPO / ".venv" / "bin" / "jev")
+    assert "JEV_BIN" not in pilot_run.arm_env("standard", jev_home=tmp_path)
+    assert "JEV_BIN" not in pilot_run.arm_env("sonnet-high", jev_home=tmp_path)
+
+
 def test_a_fixed_arm_runs_claude_with_its_model_and_effort_without_the_mod(tmp_path):
     # para testar o Sonnet onde o Jev pede Opus: o mesmo Claude Code, sem o mod, sempre em sonnet · high
     argv = pilot_run.arm_argv("sonnet-high", max_usd=1.0)

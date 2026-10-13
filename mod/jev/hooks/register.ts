@@ -1,9 +1,10 @@
-import type { Register, TurnStepInput, TurnUsage } from 'claude-code'
+import type { EngineInterface, ProcessRunInit, Register, TurnStepInput, TurnUsage } from 'claude-code'
 
-// O núcleo do JEV é Python e vive no repositório. O binário do venv evita o arranque do uv:
-// decidir um prompt custa o tempo do Jev (1-2 s) e pouco mais.
-const REPO = '/Users/luisbarbosa/Developer/repos/personal/claude-mods-jev'
-const JEV = `${REPO}/.venv/bin/jev`
+// O núcleo do JEV é Python, instalado à parte com `uv tool install` (o `jev` fica no PATH). JEV_BIN aponta para
+// outro, por exemplo o do repositório (`.venv/bin/jev`) nos pilotos e em desenvolvimento.
+const INSTALL = 'uv tool install git+https://github.com/luistorresbarbosa-ltbsw/claudecode-turbo'
+// O que se configura no plugin (`userConfig` do plugin.json)
+type Options = { openrouter_api_key?: string; jev_command?: string }
 // Prompts escritos pela pessoa: no terminal, pelo telemóvel (bridge) ou num `claude -p` (sdk)
 const ROUTED_ORIGINS = new Set(['composer', 'bridge', 'sdk'])
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -83,7 +84,17 @@ function claimAgent(e: TurnStepInput): Routed | undefined {
   return routed
 }
 
-export const register: Register = on => {
+let opts: Options = {}
+let bin: string | undefined
+// Chama o núcleo; a chave configurada no plugin vai no ambiente dele (sem ela, vale a do teu ambiente)
+async function jev($: EngineInterface, args: string[], init: ProcessRunInit) {
+  bin ??= (await $.env.get('JEV_BIN')) || opts.jev_command || 'jev'
+  const env = opts.openrouter_api_key ? { env: { OPENROUTER_API_KEY: opts.openrouter_api_key } } : {}
+  return $.process.run([bin, ...args], { ...init, ...env })
+}
+
+export const register: Register = (on, options) => {
+  opts = options as Options
   on('prompt.submit', async ($, e, next) => {
     const task = e.text.trim()
     if (ROUTED_ORIGINS.has(e.origin.kind) && /^\/model\b/.test(task)) {
@@ -103,10 +114,17 @@ export const register: Register = on => {
     const reset = resetPending
     resetPending = false
     const started = Date.now()
-    const ran = await $.process.run([JEV, 'route', '--json'], {
-      stdin: JSON.stringify({ task, history: history(), session, reset }),
-      timeoutMs: 120_000,
-    })
+    let ran
+    try {
+      ran = await jev($, ['route', '--json'], {
+        stdin: JSON.stringify({ task, history: history(), session, reset }),
+        timeoutMs: 120_000,
+      })
+    } catch {
+      sessionModel = undefined // o núcleo não arrancou: o prompt segue como sem o JEV
+      $.ui.status(`JEV: o núcleo não arrancou; instala-o com ${INSTALL}`)
+      return next(e)
+    }
     const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     if (!route) {
@@ -185,7 +203,7 @@ export const register: Register = on => {
           // sem isto o núcleo decide como antes; não é razão para falhar o turno
         }
       }
-      const ran = await $.process.run([JEV, 'record'], {
+      const ran = await jev($, ['record'], {
         stdin: JSON.stringify({
           task: routed.task, decision: routed.route.decision, model_id: routed.route.model_id, usage,
           duration_ms: e.durationMs + routed.waitMs, reason: e.reason, scope: routed.scope,
@@ -193,9 +211,9 @@ export const register: Register = on => {
           route_ms: routed.routeMs, decide_ms: routed.route.decide_ms,
         }),
         timeoutMs: 60_000,
-      })
+      }).catch(() => undefined) // registar é um extra: um núcleo que falhe aqui não estraga o turno
       if (!e.agentId) {
-        const out = readJson<{ summary: Summary }>(ran.stdout)
+        const out = readJson<{ summary: Summary }>(ran?.stdout ?? '')
         const secs = ((e.durationMs + routed.waitMs) / 1000).toFixed(1)
         $.ui.status(`JEV: ${label(routed.route.decision)} · ${secs} s${totals(out?.summary)}`)
       }
@@ -214,7 +232,12 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
     if (e.subagent_type === 'fork') return next(e) // um fork herda sempre o modelo
     const started = Date.now()
-    const ran = await $.process.run([JEV, 'route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
+    let ran
+    try {
+      ran = await jev($, ['route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
+    } catch {
+      return next(e) // sem núcleo, o subagente corre como pedido
+    }
     const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     const d = route?.decision

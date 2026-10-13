@@ -14,35 +14,29 @@ Nos pilotos, isto custou 36% a 53% menos do que o standard, acabou mais depressa
 
 Se alguma coisa falhar (o Jev, a rede, uma resposta estranha), o prompt corre no standard, como se o JEV não existisse.
 
-## Antes da primeira vez
-
-Uma vez por máquina:
+## Instalar (uma vez por máquina)
 
 ```bash
-cd /Users/luisbarbosa/Developer/repos/personal/claude-mods-jev
-uv sync                                       # cria .venv/bin/jev, que o mod chama
-echo 'OPENROUTER_API_KEY=sk-or-...' > .env    # a chave do OpenRouter (já existe nesta máquina)
+uv tool install git+https://github.com/luistorresbarbosa-ltbsw/claudecode-turbo   # o núcleo: o comando jev
+claude plugin marketplace add luistorresbarbosa-ltbsw/claudecode-turbo
+claude plugin install jev@claudecode-turbo
 ```
 
-O repositório tem de ficar neste caminho, porque o mod chama `.venv/bin/jev` daqui.
+Depois, dentro do Claude Code, `/plugin configure jev@claudecode-turbo` e cola a chave do OpenRouter. Em
+alternativa, define `OPENROUTER_API_KEY` no teu ambiente.
 
-## Arrancar uma sessão com o JEV
+## Usar
 
-Em qualquer projeto:
+Abre o Claude Code como sempre (`claude`, em qualquer projeto). Todas as sessões passam pelo JEV.
 
-```bash
-cd ~/o/teu/projeto
-claude --plugin-dir /Users/luisbarbosa/Developer/repos/personal/claude-mods-jev/mod/jev
-```
+| Para | Faz |
+|---|---|
+| Usar a v4 numa sessão | `JEV_POLICY=v4 claude` (ver "Que versão usar") |
+| Desligar o JEV | `claude plugin disable jev@claudecode-turbo` (e `enable` para voltar) |
+| Atualizar | `uv tool upgrade jev` e `claude plugin update jev@claudecode-turbo` |
 
-Para não escreveres isto sempre, põe um alias no `~/.zshrc`:
-
-```bash
-alias cj='claude --plugin-dir /Users/luisbarbosa/Developer/repos/personal/claude-mods-jev/mod/jev'
-alias cj4='JEV_POLICY=v4 cj'   # a v4: mais barata, ver "Que versão usar"
-```
-
-Sem o `--plugin-dir`, é o Claude Code normal. Para desligar o JEV, basta abrir a sessão sem ele.
+Para desenvolver o próprio JEV, a partir de uma cópia do repositório:
+`JEV_BIN="$PWD/.venv/bin/jev" claude --plugin-dir "$PWD/mod/jev"`, depois de `uv sync`.
 
 ## Que versão usar
 
@@ -78,8 +72,8 @@ As variáveis lêem-se quando a sessão arranca. Para mudar de versão, abre uma
 
 ## Ver quanto custou
 
-- **Resumo:** num terminal, `cd` para o repositório e corre `uv run jev ledger`. Dá as tarefas, o custo do JEV contra o standard e o total poupado.
-- **Dashboard:** `uv run jev-dashboard --open`. Só funciona nesta máquina, em 127.0.0.1.
+- **Resumo:** num terminal, `jev ledger`. Dá as tarefas, o custo do JEV contra o standard e o total poupado.
+- **Dashboard:** `jev-dashboard --open`. Só funciona na máquina onde corre, em 127.0.0.1.
 - **Onde fica tudo:** os registos ficam em `~/.jev/ledger.jsonl`, um por turno, com o modelo, o esforço, os tokens, o custo e o tempo. Também guardam quanto levou a decisão do Jev (`decide_ms`) e o `jev route` inteiro (`route_ms`).
 - **O que custa o Jev:** cada decisão custa frações de cêntimo no OpenRouter. A chave tem um teto de $5, e até agora gastou-se $0.90.
 
@@ -101,14 +95,15 @@ Os modelos free (respostas fora da Anthropic) estão desligados por defeito. `JE
 
 | Sintoma | O que fazer |
 |---|---|
-| Fica sempre em `sem decisão, segue o standard` | Testa o Jev à mão: `cd` para o repositório e corre `echo "explica o que é uma closure" \| uv run jev route`. Deve devolver um JSON com `decision`. Se der erro, vê a chave no `.env` e a rede. |
+| Fica sempre em `sem decisão, segue o standard` | Testa o Jev à mão: `echo "explica o que é uma closure" \| jev route` deve devolver um JSON com `decision`. Um `router_error` a dizer que falta a chave: configura-a (ver "Instalar"). |
 | O prompt demora mais 1 a 3 s a começar | É a decisão do Jev. Na v4, os seguimentos curtos não esperam. |
 | Escolheu um modelo fraco para uma tarefa difícil | Fixa com `/model opus` nessa sessão. Se se repetir, guarda o prompt: serve para afinar. |
-| Não aparece nada na linha de estado | A sessão não arrancou com o `--plugin-dir`, ou o `uv sync` não foi feito. |
+| Não aparece nada na linha de estado | O plugin não está instalado ou está desligado: `claude plugin list`. |
+| `JEV: o núcleo não arrancou` | Falta o comando `jev`: corre o `uv tool install` de "Instalar". |
 
 ## Rever ao fim de uma semana
 
-Abre uma sessão do Claude Code neste repositório e pede, por exemplo:
+Abre uma sessão do Claude Code numa cópia deste repositório e pede, por exemplo:
 
 > "Analisa o meu ledger do JEV desta semana: quanto poupei, onde trocou de modelo e quanto isso custou em cache, e se a v3 ou a v4 me teria servido melhor. Usa o simulador nas mesmas condições."
 

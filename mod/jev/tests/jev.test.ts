@@ -26,7 +26,8 @@ const USAGE = { input_tokens: 2, output_tokens: 4, cache_read_input_tokens: 1073
 
 type Call = { argv: readonly string[]; init?: ProcessRunInit }
 
-function engine(on: On, routes: { route?: object; agent?: object; raw?: string; sequence?: string[] }) {
+function engine(on: On, routes: { route?: object; agent?: object; raw?: string; sequence?: string[];
+                                  env?: Record<string, string>; missing?: boolean }) {
   const calls: Call[] = []
   const status: (string | undefined)[] = []
   const appended: unknown[] = []
@@ -34,6 +35,7 @@ function engine(on: On, routes: { route?: object; agent?: object; raw?: string; 
   const agentCalls: { model?: string }[] = []
   on('process.run', (_$, e) => {
     calls.push(e)
+    if (routes.missing) throw new Error(`spawn ${e.argv[0]} ENOENT`)
     const out = e.argv.includes('record') ? { summary: { tasks: 2, saved_usd: 0.0571, saved_pct: 49.1 } }
       : e.argv.includes('--agent') ? routes.agent : routes.route
     const next = routes.sequence && !e.argv.includes('record') ? routes.sequence.shift() : undefined
@@ -50,6 +52,7 @@ function engine(on: On, routes: { route?: object; agent?: object; raw?: string; 
   })
   on('prompt.submit', (_$, e) => ({ text: e.text, origin: e.origin }))
   on('session.id', () => ({ value: 'sessao-1' }) as never)
+  on('env.get', (_$, e) => ({ value: routes.env?.[e.name] }) as never)
   on('session.usage', () => ({ value: { context: { tokens: 54_321, window: 200_000 } } }) as never)
   on('session.compact', () => ({ messages: [{ role: 'user', text: 'resumo da conversa', toolUses: [] }] }) as never)
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
@@ -317,4 +320,51 @@ test('um subagente declarado com um modelo mais barato do que o do Jev fica com 
   await $.tool.call({ tool: 'Agent', description: 'procurar', prompt: 'onde está o timeout?', model: 'haiku' } as never)
 
   expect(agentCalls[0]?.model).toBe('haiku')
+})
+
+// Publicado num marketplace: o núcleo é o `jev` instalado com `uv tool install`, e a chave vem da configuração
+test('por defeito chama o jev instalado (no PATH)', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'onde está o timeout?')
+  await turn($, 't1')
+
+  expect(calls.map(c => c.argv[0])).toEqual(['jev', 'jev'])
+})
+
+test('JEV_BIN aponta para outro núcleo (o do repositório, nos pilotos)', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW, env: { JEV_BIN: '/repo/.venv/bin/jev' } })
+
+  await typed($, 'onde está o timeout?')
+  await turn($, 't1')
+
+  expect(calls.map(c => c.argv[0])).toEqual(['/repo/.venv/bin/jev', '/repo/.venv/bin/jev'])
+})
+
+test('a chave do OpenRouter configurada no plugin vai para o núcleo', { options: { openrouter_api_key: 'sk-or-teste' } },
+  async ($, on) => {
+    const { calls } = engine(on, { route: SONNET_LOW })
+
+    await typed($, 'onde está o timeout?')
+
+    expect(calls[0]?.init?.env?.OPENROUTER_API_KEY).toBe('sk-or-teste')
+  })
+
+test('sem chave configurada, o núcleo usa a do ambiente', async ($, on) => {
+  const { calls } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'onde está o timeout?')
+
+  expect(calls[0]?.init?.env?.OPENROUTER_API_KEY).toBeUndefined()
+})
+
+test('sem o núcleo instalado, o prompt segue sem mudanças e a linha de estado diz como o instalar', async ($, on) => {
+  const { status, steps } = engine(on, { missing: true })
+
+  const entered = await typed($, 'onde está o timeout?')
+  await turn($, 't1')
+
+  expect(entered.text).toBe('onde está o timeout?')
+  expect(steps[0]?.model).toBe('claude-opus-5-5') // o modelo da sessão, sem mudanças
+  expect(status.some(s => s?.includes('uv tool install'))).toBe(true)
 })

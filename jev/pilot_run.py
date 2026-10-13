@@ -173,6 +173,7 @@ def arm_env(arm: str, *, jev_home: Path, jev_env: dict | None = None) -> dict:
     """O ambiente de cada braço: o do braço JEV leva também as definições do Jev (ex.: JEV_POOL)."""
     extra = {"JEV_HOME": str(jev_home)}
     if uses_mod(arm):
+        extra["JEV_BIN"] = str(REPO / ".venv" / "bin" / "jev")  # o núcleo deste repositório, não um instalado
         extra.update(jev_env or {})
         extra.update(KNOWN_ARMS.get(arm, {}))
     return _env(**extra)

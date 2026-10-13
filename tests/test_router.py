@@ -283,3 +283,12 @@ def test_the_decision_carries_the_jevs_signals():
 
 def test_a_fallback_carries_no_signals():
     assert router.decide("x", post=failing(TimeoutError("lento"))).signals == {}
+
+
+def test_without_an_openrouter_key_the_standard_says_what_is_missing(monkeypatch):
+    # instalado noutra máquina: a chave vem da opção do plugin ou do ambiente
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+
+    d = router.decide("explica o que é uma closure")
+
+    assert d.is_standard and "OPENROUTER_API_KEY" in d.router_error and "chave" in d.router_error
