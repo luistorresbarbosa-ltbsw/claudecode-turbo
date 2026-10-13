@@ -21,12 +21,18 @@ from jev import ledger, pilot, pricing
 
 REPO = Path(__file__).resolve().parent.parent
 MOD_DIR = REPO / "mod" / "jev"
+# O mod de um braço que corre uma versão antiga dele (extraída do git para esta pasta, fora do repositório)
+MOD_DIRS = {"jev-v4-antes": REPO / ".jev-mod-antes" / "mod" / "jev"}
+# O piloto corre com as tuas settings: o plugin `jev` instalado ficaria ativo em todos os braços (também no
+# standard) e duplicava o mod dos outros. Cada braço leva só o mod que lhe cabe
+NO_INSTALLED_JEV = json.dumps({"enabledPlugins": {"jev@claudecode-turbo": False}})
 PILOT_ROOT = REPO / "pilot" / "fatura"
 REPO_PYTHON = REPO / ".venv" / "bin" / "python"
 ARMS = ("standard", "jev")
 # Os braços que o piloto conhece e o que cada um leva no ambiente: jev-v1 e jev-v2 são o mod com a política fixa
 KNOWN_ARMS = {"standard": {}, "jev": {}, "jev-v1": {"JEV_POLICY": "v1"}, "jev-v2": {"JEV_POLICY": "v2"},
-              "jev-v3": {"JEV_POLICY": "v3"}, "jev-v4": {"JEV_POLICY": "v4"}, "sonnet-high": {}}
+              "jev-v3": {"JEV_POLICY": "v3"}, "jev-v4": {"JEV_POLICY": "v4"}, "sonnet-high": {},
+              "jev-v4-antes": {"JEV_POLICY": "v4"}}
 # Braços sem o mod, sempre no mesmo modelo e esforço (para testar o Sonnet onde o Jev pede Opus)
 FIXED_ARMS = {"sonnet-high": ("sonnet", "high")}
 # As formas habituais de correr os testes: no calc o agente correu `python -m pytest`, que estava recusado
@@ -51,12 +57,13 @@ def uses_mod(arm: str) -> bool:
 def arm_argv(arm: str, *, max_usd: float, resume: str | None = None) -> list[str]:
     argv = ["claude", "-p", "--output-format", "json",
             "--permission-mode", "acceptEdits", "--permission-prompts", "none",
+            "--settings", NO_INSTALLED_JEV,
             "--allowed-tools", *TEST_COMMANDS,
             "--max-budget-usd", str(max_usd)]
     if resume:  # continua a sessão do braço (o contexto e a cache vêm da tarefa anterior)
         argv += ["--resume", resume]
     if uses_mod(arm):
-        argv += ["--plugin-dir", str(MOD_DIR)]
+        argv += ["--plugin-dir", str(MOD_DIRS.get(arm, MOD_DIR))]
     if arm in FIXED_ARMS:
         model, effort = FIXED_ARMS[arm]
         argv += ["--model", model, "--effort", effort]

@@ -1,0 +1,37 @@
+[
+ {
+  "id": "T2",
+  "title": "Potência à direita",
+  "kind": "code",
+  "prompt": "Bug: `2^3^2` dá 64, mas devia dar 512. A potência associa à direita, como na matemática: `2^3^2` é `2^(3^2)`. Corrige.",
+  "inject": []
+ },
+ {
+  "id": "T3",
+  "title": "Erros com posição",
+  "kind": "code",
+  "prompt": "Antes de implementares, lança dois subagentes em paralelo com a ferramenta Agent, os dois na mesma mensagem: um explora o analisador (calc/lexico.py e calc/analisador.py) e o outro o avaliador (calc/avaliador.py e calc/erros.py), e cada um diz-te o que há a mudar para a tarefa abaixo. Depois implementas tu, com o que eles te disserem.\n\nOs erros de sintaxe não dizem onde está o erro. Muda-os para que a mensagem do ErroSintaxe (`str(erro)`) seja exatamente\n\nlinha L, coluna C: inesperado 'T'\n\nem que:\n- L e C são a linha e a coluna, ambas a contar de 1, do primeiro carácter do token onde o analisador deu pelo erro;\n- T é o texto desse token, tal como está no programa;\n- se o erro for no fim do programa, a mensagem acaba em `inesperado fim do programa`, sem plicas, e a posição é a do carácter a seguir ao último;\n- um carácter que não pertence à linguagem, como `$`, também é um erro de sintaxe, e T é esse carácter.\n\nPor exemplo, `1 + * 2` dá `linha 1, coluna 5: inesperado '*'` e `(1 + 2` dá `linha 1, coluna 7: inesperado fim do programa`.",
+  "inject": []
+ },
+ {
+  "id": "T4",
+  "title": "Divisão inteira",
+  "kind": "code",
+  "prompt": "Antes de implementares, lança dois subagentes em paralelo com a ferramenta Agent, os dois na mesma mensagem: um explora o analisador (calc/lexico.py e calc/analisador.py) e o outro o avaliador (calc/avaliador.py e calc/erros.py), e cada um diz-te o que há a mudar para a tarefa abaixo. Depois implementas tu, com o que eles te disserem.\n\nAcrescenta à linguagem dois operadores:\n- `a // b`, a divisão inteira: o maior inteiro menor ou igual a a/b, ou seja, arredonda sempre para baixo, também nos negativos (`-7 // 2` dá -4);\n- `a % b`, o resto: a − b × (a // b), que tem o sinal de b (`-7 % 2` dá 1 e `7 % -2` dá -1).\n\nFuncionam com quaisquer números, não só com inteiros (`7.5 // 2` dá 3 e `7.5 % 2` dá 1.5), e os resultados são exatos, como no resto da aritmética. Têm a mesma precedência de `*` e `/` e associam à esquerda, como eles. Dividir por zero com qualquer um dos dois é um ErroExecucao, como já acontece com `/`. Escreve testes.",
+  "inject": []
+ },
+ {
+  "id": "T5",
+  "title": "Âmbito léxico",
+  "kind": "code",
+  "prompt": "Antes de implementares, lança dois subagentes em paralelo com a ferramenta Agent, os dois na mesma mensagem: um explora o analisador (calc/lexico.py e calc/analisador.py) e o outro o avaliador (calc/avaliador.py e calc/erros.py), e cada um diz-te o que há a mudar para a tarefa abaixo. Depois implementas tu, com o que eles te disserem.\n\nBug: as funções estão a usar as variáveis de quem as chama, e não as do sítio onde foram definidas. Este programa\n\nlet x = 1 in\nlet f = fn y => x + y in\nlet x = 100 in\nf(10)\n\ndá 110, mas devia dar 11. E `let somar = fn a => fn b => a + b in somar(2)(3)` dá ErroExecucao (variável 'a' não definida) em vez de 5. O README diz que o âmbito é léxico: corrige.",
+  "inject": []
+ },
+ {
+  "id": "T6",
+  "title": "Chamadas em cauda",
+  "kind": "code",
+  "prompt": "Antes de implementares, lança dois subagentes em paralelo com a ferramenta Agent, os dois na mesma mensagem: um explora o analisador (calc/lexico.py e calc/analisador.py) e o outro o avaliador (calc/avaliador.py e calc/erros.py), e cada um diz-te o que há a mudar para a tarefa abaixo. Depois implementas tu, com o que eles te disserem.\n\nBug: uma recursão em cauda com 100 000 níveis rebenta com RecursionError. Por exemplo:\n\nlet rec contar = fn n => if n == 0 then 0 else contar(n - 1) in\ncontar(100000)\n\nFaz com que as chamadas em posição de cauda não façam crescer a pilha do Python, qualquer que seja a profundidade (aumentar o limite de recursão não resolve), sem mudar o resultado de nenhum programa. Uma chamada está em posição de cauda quando o seu valor é o valor da função onde aparece: o corpo de uma função está em posição de cauda e, quando um `if` ou um `let` estão em posição de cauda, também o estão os ramos `then` e `else` do `if` e o corpo do `let` (a parte depois do `in`). Isto vale para qualquer chamada nessa posição, e não só para uma função que se chama a si própria. A recursão que não é em cauda pode continuar limitada. O exemplo tem de correr em menos de 10 segundos.",
+  "inject": []
+ }
+]

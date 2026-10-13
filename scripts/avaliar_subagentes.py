@@ -5,7 +5,8 @@ declarado mais barato do que o do Jev passa a valer o do Jev, (2) sem decisão d
 o modelo da faixa, (3) no máximo quatro decisões em paralelo e 30 s de espera, e (4) o prompt vai ao Jev cortado a
 12 000 caracteres. Os pilotos anteriores nunca lançaram subagentes, por isso nada disto estava medido.
 
-Piloto `calc-subagentes`: as tarefas T3, T4, T5 e T6 do calc, cada uma com a instrução de lançar, antes de
+Piloto `calc-subagentes`: as tarefas T2 (como está, só para manter o estado que as seguintes assumem), T3, T4, T5 e T6
+do calc, cada uma das quatro últimas com a instrução de lançar, antes de
 implementar, dois subagentes em paralelo (um explora o analisador, outro o avaliador). Mesmos testes escondidos, mesmo
 CLAUDE.md, mesmo juiz por tarefa, uma sessão contínua por braço, pool do Jev só com Anthropic, 2 repetições.
 Braços: `standard` (sem o mod), `jev-v4-antes` (v4 com o mod do commit 96c7c95) e `jev-v4` (v4 com o mod novo).
