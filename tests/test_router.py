@@ -54,7 +54,8 @@ def test_hard_task_runs_the_model_jev_decided_not_the_executor_it_paired():
     assert d.router_cost_usd == pytest.approx(0.0018305)
 
 
-def test_jev_is_only_asked_to_decide_within_the_allowed_models():
+def test_jev_is_only_asked_to_decide_within_the_allowed_models(monkeypatch):
+    monkeypatch.setenv("JEV_POOL", "all")  # os baratos que fazem de free só entram com JEV_POOL=all
     seen = {}
 
     def spy(body, headers):
@@ -84,14 +85,16 @@ def test_a_top_choice_outside_the_allowed_list_falls_back_to_standard():
     assert d.is_standard and d.router_error
 
 
-def test_jev_saying_cheap_on_a_text_task_runs_it_on_a_free_model():
+def test_jev_saying_cheap_on_a_text_task_runs_it_on_a_free_model(monkeypatch):
+    monkeypatch.setenv("JEV_POOL", "all")  # os baratos que fazem de free só entram com JEV_POOL=all
     # Resposta real (só com `candidates`): qa_knowledge -> google/gemini-3.8-flash. Barato = free.
     d = router.decide("explica em duas frases o que é uma closure", post=jev_reply("jev_cheap_text"))
 
     assert (d.runner, d.model, d.is_standard) == ("openrouter-free", "nvidia/nemotron-3-ultra-550b-a55b:free", False)
 
 
-def test_jev_saying_cheap_on_a_file_task_runs_it_on_sonnet():
+def test_jev_saying_cheap_on_a_file_task_runs_it_on_sonnet(monkeypatch):
+    monkeypatch.setenv("JEV_POOL", "all")  # os baratos que fazem de free só entram com JEV_POOL=all
     # Resposta real: code:file_read_write -> gpt-6-luna·low. Um free não tem ferramentas para mexer em
     # ficheiros. No piloto, o Haiku nesse papel falhou 2 de 3 tarefas: vai para o Sonnet, com o esforço do Jev.
     d = router.decide("corrige o typo 'recieve' no README.md", post=jev_reply("jev_cheap_file_task"))
@@ -239,8 +242,14 @@ def test_the_v2_pool_is_anthropic_only_by_default(monkeypatch):
     assert _pool_sent(monkeypatch, policy_env="v2", pool_env=None) == set(router.ANTHROPIC_MODELS)
 
 
-def test_the_v1_pool_keeps_the_cheap_stand_ins_by_default(monkeypatch):
-    assert _pool_sent(monkeypatch, policy_env=None, pool_env=None) == set(router.JEV_POOL)
+@pytest.mark.parametrize("policy_env", [None, "v1", "v3", "v4"])
+def test_the_pool_is_anthropic_only_by_default(monkeypatch, policy_env):
+    # os pilotos correram só com modelos Anthropic, e os free falharam no código (2026-10-11)
+    assert _pool_sent(monkeypatch, policy_env=policy_env, pool_env=None) == set(router.ANTHROPIC_MODELS)
+
+
+def test_jev_pool_all_brings_the_cheap_stand_ins_back(monkeypatch):
+    assert _pool_sent(monkeypatch, policy_env=None, pool_env="all") == set(router.JEV_POOL)
 
 
 def test_jev_pool_all_brings_the_cheap_stand_ins_back_in_v2(monkeypatch):

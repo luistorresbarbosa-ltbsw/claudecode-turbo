@@ -13,15 +13,16 @@ Não há comando: escreves como sempre. A linha de estado mostra a decisão, por
 
 1. **Decidir (o Jev, ~1-4 s, frações de cêntimo).** Ao enviares um prompt, o mod pergunta ao Jev
    (`jev route`). O Jev classifica a tarefa (tipo, dificuldade 0-4, ganho de um modelo maior) e escolhe
-   o modelo mais barato que chega, com o esforço. O pool que lhe damos tem os modelos Anthropic e três
-   baratos (`gpt-6-luna`, `gemini-*-flash`, `deepseek-*-flash`), que fazem de "free" porque os modelos
-   free não estão no pool do Jev. Pedimos-lhe 1 token: a decisão vem nos metadados do OpenRouter.
+   o modelo mais barato que chega, com o esforço. Por defeito, o pool que lhe damos só tem os modelos
+   Anthropic. Com `JEV_POOL=all` leva também três baratos (`gpt-6-luna`, `gemini-*-flash`,
+   `deepseek-*-flash`), que fazem de "free" porque os modelos free não estão no pool do Jev. Nos pilotos,
+   os free falharam no código. Pedimos-lhe 1 token: a decisão vem nos metadados do OpenRouter.
    O Jev lê também a troca anterior (o teu último pedido e o fim da resposta). Sem ela, um
    seguimento como "sim, avança" parecia conversa e ia para um free.
 2. **Executar.**
    - O Jev escolhe **Anthropic**: o mod reescreve o modelo e o esforço de cada pedido do turno
      (`turn.step`), e a sessão responde com eles, pela tua subscrição.
-   - O Jev escolhe **um barato**: a tarefa é simples e responde um **free** (Nemotron Ultra), a $0. O
+   - O Jev escolhe **um barato** (só com `JEV_POOL=all`): a tarefa é simples e responde um **free** (Nemotron Ultra), a $0. O
      prompt não gasta quota Anthropic, e a resposta fica na conversa para os turnos seguintes.
    - Barato numa tarefa que **mexe em ficheiros**: um free não tem ferramentas, por isso vai para o
      **sonnet**, com o esforço do Jev. (Ia para o haiku, mas no primeiro piloto o haiku falhou a
@@ -49,7 +50,6 @@ sessão segue com o standard, sem mudanças.
   - **Com a cache fria,** vale a escolha do Jev: numa sessão nova, depois de um `/clear` ou de uma
     compactação, ou com mais de uma hora parada.
   - **Os turnos que não passam pelo Jev,** como uma notificação, ficam no modelo da sessão.
-  - **O pool** fica só com modelos Anthropic, salvo `JEV_POOL=all`.
   - **Onde fica o modelo da sessão:** em `$JEV_HOME/sessions/<id>.json`, pelo id da sessão, para
     sobreviver a um `--resume`.
 - **v3** (por defeito): uma faixa por tarefa (`jev/policy.py`).
@@ -156,9 +156,9 @@ cada critério quer dizer nele.
   é $0.20/M.
 
 Variáveis: `JEV_HOME`, `JEV_MAX_USD`, `JEV_STANDARD_MODEL` (por defeito `opus`),
-`JEV_STANDARD_EFFORT` (por defeito `xhigh`), `JEV_POOL` (`anthropic` deixa o pool do Jev só com
+`JEV_STANDARD_EFFORT` (por defeito `xhigh`), `JEV_POOL` (por defeito `anthropic`, o pool do Jev só com
 modelos Anthropic, sem respostas free; `all` mete os baratos) e `JEV_POLICY` (`v1` a `v4`; por defeito,
-`v3`).
+`v3`). O manual de uso está em [MANUAL.md](MANUAL.md).
 
 ## Desenvolvimento
 

@@ -13,7 +13,8 @@ O Jev decide entre Anthropic e free:
   "isto não precisa da Anthropic"): a tarefa corre num modelo free, para poupar;
 - escolhe barato numa tarefa que mexe em ficheiros: um free não tem ferramentas, por isso corre no
   Sonnet, com o esforço do Jev (no piloto de 2026-10-11, o Haiku nesse papel falhou 2 de 3 tarefas).
-Com JEV_POOL=anthropic o pool do Jev fica só com os modelos Anthropic: não há respostas free.
+Por defeito, o pool do Jev fica só com os modelos Anthropic: não há respostas free (nos pilotos, os free
+falharam no código). JEV_POOL=all mete os baratos de volta.
 Os modelos free nunca decidem nada: só executam.
 
 Qualquer falha (erro, metadados em falta, um modelo fora da lista permitida, um esforço
@@ -29,7 +30,6 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from fnmatch import fnmatchcase
 
-from jev import policy
 
 # Sem litellm aqui: importá-lo custa ~1,1 s, e a decisão está no caminho de cada prompt.
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -52,9 +52,9 @@ JEV_POOL = (*ANTHROPIC_MODELS, *CHEAP_SIGNALS)
 
 
 def _pool() -> tuple[str, ...]:
-    """O pool pedido ao Jev. JEV_POOL=anthropic deixa de fora os baratos que fazem de free, e
-    JEV_POOL=all mete-os. Sem JEV_POOL, a v1 mete-os e a v2 não (nos pilotos, os free falharam no código)."""
-    choice = os.environ.get("JEV_POOL", "").strip().lower() or ("anthropic" if policy.current() == "v2" else "all")
+    """O pool pedido ao Jev: por defeito (ou JEV_POOL=anthropic), só os modelos Anthropic; JEV_POOL=all mete os
+    baratos que fazem de free (nos pilotos, os free falharam no código, e todas as corridas finais foram sem eles)."""
+    choice = os.environ.get("JEV_POOL", "").strip().lower() or "anthropic"
     return tuple(ANTHROPIC_MODELS) if choice == "anthropic" else JEV_POOL
 # Tarefas que precisam de ferramentas (ler/editar o repo, correr comandos): um free não as consegue fazer
 _TOOL_TASK_PREFIXES = ("code:", "agent:")
