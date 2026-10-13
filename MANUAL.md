@@ -73,7 +73,7 @@ As variáveis lêem-se quando a sessão arranca. Para mudar de versão, abre uma
 ## Ver e avaliar o que o JEV fez
 
 - **Resumo:** num terminal, `jev ledger`. Dá as tarefas, o custo do JEV contra o standard e o total poupado.
-- **Dashboard:** `jev-dashboard --open`, só na máquina onde corre (127.0.0.1). Escolhe a origem (o uso real, um piloto, ou tudo), vê as métricas por sessão, clica numa sessão para ver o registo dela, e exporta CSV ou JSON para avaliar o comportamento.
+- **Dashboard:** `jev-dashboard --open`, só na máquina onde corre (127.0.0.1). Cada conversa aparece à esquerda; escolhe uma para a ver turno a turno (o modelo de cada turno, a regra aplicada, o que custou), ou "Todas as conversas" para o resumo. Exporta CSV ou JSON do que estás a ver para avaliar o comportamento.
 - **Onde fica tudo:** os registos ficam em `~/.jev/ledger.jsonl`, um por turno, com o modelo, o esforço, os tokens, o custo e o tempo. Também guardam quanto levou a decisão do Jev (`decide_ms`) e o `jev route` inteiro (`route_ms`).
 - **O que custa o Jev:** cada decisão custa frações de cêntimo no OpenRouter. A chave tem um teto de $5, e até agora gastou-se $0.90.
 

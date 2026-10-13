@@ -38,6 +38,13 @@
   --glyph: #1b1405;
   --wash: 0.16;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* os prompts são a tua voz: uma serifa, para lerem como uma transcrição, à parte dos dados */
+  --serif: ui-serif, "New York", "Iowan Old Style", Charter, Georgia, serif;
+  /* um modelo, uma cor (paleta validada: CVD ΔE ≥ 16 entre vizinhos); sempre com o nome ao lado */
+  --m-sonnet: #1baf7a;
+  --m-opus: #4a3aa7;
+  --m-haiku: #eda100;
+  --m-free: #e87ba4;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -56,6 +63,10 @@
     --loss: #d03b3b;
     --loss-ink: #ee6b6b;
     --wash: 0.24;
+    --m-sonnet: #199e70;
+    --m-opus: #9085e9;
+    --m-haiku: #c98500;
+    --m-free: #d55181;
   }
 }
 
@@ -69,7 +80,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-size-adjust: 100%;
 }
-main { max-width: 1120px; margin: 0 auto; padding: 32px 24px 72px; }
+main { max-width: 1360px; margin: 0 auto; padding: 32px 24px 72px; }
 h1, h2, p { margin: 0; }
 button { font: inherit; color: inherit; }
 code { font: 0.92em ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--plane); padding: 1px 6px; border-radius: 4px; }
@@ -91,33 +102,6 @@ h1 { font-size: 22px; line-height: 1.2; font-weight: 650; letter-spacing: -0.015
 .empty-title { font-size: 20px; line-height: 1.4; font-weight: 550; letter-spacing: -0.01em; }
 .empty code { font-size: 0.85em; }
 [hidden] { display: none !important; }
-
-/* a conta: Standard - JEV = Poupado */
-.band { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 22px 32px; margin-top: 28px; padding: 26px 0 28px; border-block: 1px solid var(--hair); }
-.eq { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; min-width: 0; }
-.fig { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.fig-label { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 13px; font-weight: 500; }
-.fig-value { display: flex; align-items: baseline; gap: 12px; font-size: clamp(26px, 3.2vw, 34px); line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
-.fig-sub { color: var(--muted); font-size: 12.5px; }
-.op { color: var(--muted); font-size: 28px; line-height: 1; font-weight: 400; padding-bottom: 27px; }
-.fig-result .fig-value { font-size: clamp(40px, 5.8vw, 58px); }
-.fig-result .fig-pct { font-size: clamp(18px, 2.2vw, 22px); letter-spacing: -0.01em; }
-.fig-result.is-gain .fig-value { color: var(--gain-ink); }
-.fig-result.is-loss .fig-value { color: var(--loss-ink); }
-.fig-result .fig-sub { font-size: 13px; color: var(--ink-2); }
-.fig-count { text-align: right; align-items: flex-end; }
-.side { display: flex; flex: 1 1 auto; justify-content: space-between; align-items: flex-end; gap: 22px 28px; min-width: 0; }
-.fig-speed .fig-value { gap: 10px; }
-.fig-unit { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--ink-2); }
-.fig-vs { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
-.fig-vs.is-gain { color: var(--gain-ink); }
-.fig-vs.is-loss { color: var(--loss-ink); }
-.fig-vs.is-even { color: var(--ink-2); }
-/* valores com muitos dígitos (milhares de $): letra mais pequena em vez de partir a linha */
-.band[data-size="l"] .fig-value { font-size: clamp(22px, 2.7vw, 28px); }
-.band[data-size="l"] .fig-result .fig-value { font-size: clamp(34px, 5vw, 50px); }
-.band[data-size="xl"] .fig-value { font-size: clamp(18px, 2.2vw, 22px); }
-.band[data-size="xl"] .fig-result .fig-value { font-size: clamp(28px, 4vw, 38px); }
 
 .key { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; border-radius: 2px; flex: none; }
 .key-std { border-color: var(--std); }
@@ -232,18 +216,108 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 .more { display: block; margin: 16px auto 0; padding: 6px 16px; border: 0; border-radius: 8px; background: var(--plane); color: var(--ink); font-size: 13px; cursor: pointer; }
 .more:hover { background: var(--hair); }
 
-/* origem, sessão e exportação: o log para avaliar o JEV */
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 18px; font-size: 13px; color: var(--ink-2); }
-.toolbar select { max-width: min(100%, 460px); padding: 4px 8px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
-.tool { display: inline-flex; align-items: center; gap: 8px; }
+/* conversas: a lista à esquerda, a conversa (ou todas) à direita */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 18px 0 22px; font-size: 13px; color: var(--ink-2); }
+.toolbar select { flex: 1 1 auto; width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
+.tool { display: flex; flex: 1 1 280px; align-items: center; gap: 8px; min-width: 0; max-width: 520px; }
 .tool-end { display: inline-flex; gap: 8px; margin-left: auto; }
-.btn { padding: 4px 12px; border: 0; border-radius: 6px; background: var(--plane); color: var(--ink); font: inherit; cursor: pointer; }
+.btn { padding: 5px 12px; border: 0; border-radius: 6px; background: var(--plane); color: var(--ink); font: inherit; cursor: pointer; }
 .btn:hover { background: var(--hair); }
-.session-pick { display: inline-flex; align-items: center; gap: 8px; }
-.session-pick button { padding: 0 6px; border: 0; border-radius: 4px; background: transparent; color: var(--ink-2); font: inherit; cursor: pointer; text-decoration: underline; }
-tr.row-pick { cursor: pointer; }
-tr.row-pick:hover td { background: var(--plane); }
-tr.row-active td { background: var(--plane); font-weight: 600; }
+.empty-sub { margin-top: 8px; color: var(--ink-2); max-width: 60ch; }
+
+.split { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); gap: 0 36px; align-items: start; }
+.convs { position: sticky; top: 12px; display: flex; flex-direction: column; max-height: calc(100vh - 24px); padding-right: 18px; border-right: 1px solid var(--hair); }
+.conv-search { width: 100%; padding: 7px 10px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px; }
+.conv-list { list-style: none; margin: 10px 0 0; padding: 0 2px 8px 0; overflow-y: auto; overscroll-behavior: contain; }
+.conv-list > li + li { border-top: 1px solid var(--hair); }
+.conv { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; width: 100%; padding: 11px 10px 11px 12px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; }
+.conv:hover { background: var(--plane); }
+.conv[aria-current="true"] { background: var(--plane); box-shadow: inset 3px 0 0 var(--jev); }
+.conv-top { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+.conv-top b { color: var(--ink-2); font-weight: 600; }
+.conv-cost { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
+.conv-title { font-family: var(--serif); font-size: 14.5px; line-height: 1.35; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.conv-all .conv-title, .conv-title.is-origin { font-family: var(--font); font-weight: 650; font-size: 14px; }
+.conv-sub { font-family: var(--serif); font-size: 13px; line-height: 1.35; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsub { font-family: var(--serif); font-size: 15px; line-height: 1.45; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 72ch; }
+.turn-open { padding: 0; border: 0; background: none; color: var(--jev); font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+#global-kpis { margin-top: 18px; }
+.conv-meta { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.conv-meta .is-gain { color: var(--gain-ink); }
+.conv-meta .is-loss { color: var(--loss-ink); }
+
+/* a faixa de modelos: um segmento por turno, largura = custo, entalhe = troca de modelo */
+.lane { display: flex; gap: 2px; align-items: stretch; }
+.lane > i { position: relative; min-width: 3px; border-radius: 2px; background: var(--std); font-style: normal; }
+.lane > i[data-m="sonnet"] { background: var(--m-sonnet); }
+.lane > i[data-m="opus"] { background: var(--m-opus); }
+.lane > i[data-m="haiku"] { background: var(--m-haiku); }
+.lane > i[data-m="free"] { background: var(--m-free); }
+.lane-mini { height: 6px; margin: 2px 0 1px; }
+.lane-big { height: 30px; margin-top: 12px; }
+.lane-big > i { min-width: 6px; cursor: pointer; }
+.lane-big > i:hover { filter: brightness(1.12); }
+.lane-big > i.is-switch::before { content: ""; position: absolute; left: -2px; top: -7px; bottom: -7px; width: 2px; border-radius: 1px; background: var(--ink); }
+.lane-big > i > span { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.lane-note { margin-top: 12px; color: var(--muted); font-size: 12.5px; max-width: 70ch; }
+.key-m { width: 12px; height: 12px; border-radius: 2px; flex: none; background: var(--std); }
+.key-m[data-m="sonnet"] { background: var(--m-sonnet); }
+.key-m[data-m="opus"] { background: var(--m-opus); }
+.key-m[data-m="haiku"] { background: var(--m-haiku); }
+.key-m[data-m="free"] { background: var(--m-free); }
+
+/* o cabeçalho do detalhe e os quatro números da conversa */
+.dhead { display: grid; gap: 8px; padding-bottom: 4px; }
+.dtitle { font-size: 22px; line-height: 1.25; font-weight: 650; letter-spacing: -0.015em; }
+.dtitle.prompt { font-family: var(--serif); font-weight: 500; font-size: 21px; letter-spacing: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; max-width: 72ch; }
+.dmeta { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink-2); font-size: 13px; }
+.dmeta code { font-size: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0; margin-top: 22px; border-block: 1px solid var(--hair); }
+.kpi { display: grid; align-content: start; gap: 3px; padding: 16px 18px 16px 0; }
+.kpi + .kpi { padding-left: 18px; border-left: 1px solid var(--hair); }
+.kpi-label { color: var(--ink-2); font-size: 12.5px; }
+.kpi-value { font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpi-value.is-gain { color: var(--gain-ink); }
+.kpi-value.is-loss { color: var(--loss-ink); }
+.kpi-sub { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.lane-sec, .turns-sec { margin-top: 30px; }
+h3 { margin: 0; font-size: 14px; font-weight: 650; }
+
+/* os turnos, por ordem: o prompt, o que o Jev decidiu, o que custou */
+.turns { list-style: none; margin: 10px 0 0; padding: 0; }
+.turn { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 14px; padding: 14px 0; border-top: 1px solid var(--hair); scroll-margin-top: 12px; }
+.turn:target, .turn.is-flash { background: linear-gradient(90deg, var(--plane), transparent 70%); }
+.turn.is-global { grid-template-columns: minmax(0, 1fr) auto; }
+.turn-n { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; padding-top: 2px; text-align: right; }
+.turn.is-agent .turn-n { font-size: 11px; }
+.turn-prompt { font-family: var(--serif); font-size: 15px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.turn-prompt.is-open { display: block; -webkit-line-clamp: unset; }
+.turn.is-agent .turn-prompt { font-size: 14px; color: var(--ink-2); }
+.turn-how { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; font-size: 12.5px; }
+.chip-m { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--ink); }
+.chip-m .key-m { width: 10px; height: 10px; }
+.turn-sig { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.turn-cost { display: grid; justify-items: end; align-content: start; gap: 2px; font-variant-numeric: tabular-nums; min-width: 92px; }
+.turn-cost b { font-size: 15px; font-weight: 600; }
+.turn-cost span { color: var(--muted); font-size: 12px; }
+.turn-cost .is-gain { color: var(--gain-ink); }
+.turn-cost .is-loss { color: var(--loss-ink); }
+
+@media (max-width: 860px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .tool-end { margin-left: 0; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .kpi, .kpi + .kpi { padding: 14px 12px 14px 0; border-left: 0; }
+  .kpi:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--hair); }
+  .kpi:nth-child(n+3) { border-top: 1px solid var(--hair); }
+  .kpi-value { font-size: 22px; }
+  .convs { position: static; max-height: 44vh; padding: 0 0 14px; border-right: 0; border-bottom: 1px solid var(--hair); margin-bottom: 22px; }
+  .turn { grid-template-columns: 26px minmax(0, 1fr); }
+  .turn-cost { grid-column: 2; justify-items: start; grid-auto-flow: column; gap: 12px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .turn.is-flash { transition: background 0.9s ease; }
+}
 .src { color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
 
 #content { transition: opacity 0.2s; }
@@ -403,95 +477,85 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Vistas">
-    <button type="button" role="tab" id="tab-day" aria-controls="view-day" aria-selected="true" data-page="day">Dia a dia</button>
+    <button type="button" role="tab" id="tab-day" aria-controls="view-day" aria-selected="true" data-page="day">Conversas</button>
     <button type="button" role="tab" id="tab-pilot" aria-controls="view-pilot" aria-selected="false" tabindex="-1" data-page="pilot">Piloto<i class="tab-dot" id="tab-dot" title="Há um piloto a correr" hidden></i></button>
   </nav>
 
   <div id="view-day" role="tabpanel" aria-labelledby="tab-day">
   <div class="toolbar">
-    <label class="tool">Origem <select id="source" aria-label="Origem dos registos"></select></label>
-    <span class="session-pick" id="session-pick" hidden></span>
+    <label class="tool">Origem <select id="source"></select></label>
     <span class="tool-end">
-      <button type="button" class="btn" id="export-csv" title="Cada transação da seleção atual, com os sinais do Jev, os tokens, os custos e os tempos">Exportar CSV</button>
-      <button type="button" class="btn" id="export-json" title="Os registos da seleção atual, tal como estão no ledger">Exportar JSON</button>
+      <button type="button" class="btn" id="export-csv" title="Cada transação do que estás a ver: sinais do Jev, tokens, custos e tempos">Exportar CSV</button>
+      <button type="button" class="btn" id="export-json" title="Os registos do que estás a ver, tal como estão no ledger">Exportar JSON</button>
     </span>
   </div>
   <div class="problem" id="problem" role="alert" hidden></div>
 
   <section class="empty" id="empty" hidden>
-    <p class="empty-title">Ainda sem registos nesta origem. Com o JEV instalado, cada turno das tuas sessões aparece aqui; os testes estão nas origens dos pilotos.</p>
+    <p class="empty-title">Ainda não há conversas nesta origem.</p>
+    <p class="empty-sub">Com o JEV instalado, cada conversa do Claude Code aparece aqui, turno a turno. Os testes estão nas origens dos pilotos.</p>
   </section>
 
-  <div id="content" hidden>
-    <section class="band" id="band" aria-label="Resumo"></section>
+  <div class="split" id="content" hidden>
+    <nav class="convs" aria-label="Conversas">
+      <input type="search" class="conv-search" id="conv-search" placeholder="Procurar nos prompts" aria-label="Procurar nos prompts das conversas">
+      <ol class="conv-list" id="conv-list"></ol>
+    </nav>
 
-    <section class="sec" aria-labelledby="sessions-h">
-      <div class="sec-head">
-        <h2 id="sessions-h">Sessões</h2>
-        <p class="sec-meta" id="sessions-meta">Clica numa sessão para ver só os registos dela.</p>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Início</th>
-              <th scope="col">Sessão</th>
-              <th scope="col">Versão</th>
-              <th scope="col" class="num">Turnos</th>
-              <th scope="col">Modelos</th>
-              <th scope="col" class="num" title="Trocas de modelo entre turnos principais seguidos: cada uma reescreve a cache">Trocas</th>
-              <th scope="col" class="num" title="Seguimentos que correram na faixa sem perguntar ao Jev (v4)">Sem Jev</th>
-              <th scope="col" class="num" title="Pedidos de Opus que a porta do Sonnet passou a sonnet · high (v4)">Porta</th>
-              <th scope="col" class="num" title="Turnos em que a política manteve um modelo diferente do que o Jev pediu">Mantidos</th>
-              <th scope="col" class="num" title="Decisões do Jev que falharam: o turno correu no standard">Falhas</th>
-              <th scope="col" class="num" title="Mediana do tempo da decisão do Jev (os seguimentos sem Jev ficam de fora)">Decisão</th>
-              <th scope="col" class="num" title="O que custaram as decisões do Jev no OpenRouter">Jev $</th>
-              <th scope="col" class="num" title="Execução e decisão">JEV $</th>
-              <th scope="col" class="num">Standard $</th>
-              <th scope="col" class="num">Poupado</th>
-            </tr>
-          </thead>
-          <tbody id="sessions-body"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="sec" aria-labelledby="chart-h">
-      <div class="sec-head">
-        <h2 id="chart-h">Custo acumulado</h2>
-        <div class="seg" role="group" aria-label="Vista do custo acumulado">
-          <button type="button" data-view="chart" aria-pressed="true">Gráfico</button>
-          <button type="button" data-view="table" aria-pressed="false">Tabela</button>
+    <div class="detail" id="detail">
+      <div id="global-view">
+        <header class="dhead">
+          <h2 class="dtitle">Todas as conversas</h2>
+          <p class="dmeta" id="global-meta"></p>
+        </header>
+        <div class="kpis" id="global-kpis"></div>
+      <section class="sec" aria-labelledby="chart-h">
+        <div class="sec-head">
+          <h2 id="chart-h">Custo acumulado</h2>
+          <div class="seg" role="group" aria-label="Vista do custo acumulado">
+            <button type="button" data-view="chart" aria-pressed="true">Gráfico</button>
+            <button type="button" data-view="table" aria-pressed="false">Tabela</button>
+          </div>
         </div>
-      </div>
-      <ul class="legend" id="legend"></ul>
-      <div class="plot" id="plot"></div>
-      <div class="table-wrap" id="plot-table" hidden></div>
-    </section>
+        <ul class="legend" id="legend"></ul>
+        <div class="plot" id="plot"></div>
+        <div class="table-wrap" id="plot-table" hidden></div>
+      </section>
 
-    <section class="sec" aria-labelledby="tasks-h">
-      <div class="sec-head">
-        <h2 id="tasks-h">Registo</h2>
-        <p class="sec-meta" id="tasks-meta"></p>
+      <section class="sec" aria-labelledby="tasks-h">
+        <div class="sec-head">
+          <h2 id="tasks-h">Todas as transações</h2>
+          <p class="sec-meta" id="tasks-meta">As mais recentes primeiro</p>
+        </div>
+        <ol class="turns" id="all-turns"></ol>
+        <button type="button" class="more" id="more" hidden></button>
+      </section>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Quando</th>
-              <th scope="col">Tarefa</th>
-              <th scope="col">Escolha do JEV</th>
-              <th scope="col" class="num">JEV</th>
-              <th scope="col" class="num">Standard</th>
-              <th scope="col" class="num diff">Diferença</th>
-              <th scope="col" class="num" title="O que esperaste por tarefa: a decisão do Jev mais a execução. O tempo do standard só existe quando foi medido.">Tempo</th>
-            </tr>
-          </thead>
-          <tbody id="tasks-body"></tbody>
-        </table>
-      </div>
-      <button type="button" class="more" id="more" hidden></button>
-    </section>
+
+      <article id="conv-view" hidden>
+        <header class="dhead">
+          <h2 class="dtitle prompt" id="conv-title"></h2>
+          <p class="dsub" id="conv-sub" hidden></p>
+          <p class="dmeta" id="conv-meta"></p>
+        </header>
+        <div class="kpis" id="conv-kpis"></div>
+        <section class="lane-sec" aria-labelledby="lane-h">
+          <div class="sec-head">
+            <h3 id="lane-h">Modelo em cada turno</h3>
+            <ul class="legend" id="lane-legend"></ul>
+          </div>
+          <div class="lane lane-big" id="conv-lane" role="img"></div>
+          <p class="lane-note" id="lane-note">Cada segmento é um turno, com a largura do que custou. Um entalhe marca uma troca de modelo, que reescreve a cache.</p>
+        </section>
+        <section class="turns-sec" aria-labelledby="turns-h">
+          <div class="sec-head">
+            <h3 id="turns-h">Turnos</h3>
+            <p class="sec-meta" id="turns-meta"></p>
+          </div>
+          <ol class="turns" id="turns"></ol>
+        </section>
+      </article>
+    </div>
   </div>
   </div>
 
@@ -538,7 +602,7 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
   'use strict';
 
   const POLL_MS = 5000;
-  const PAGE = 100;                               // linhas da tabela por "Mostrar mais"
+  const PAGE = 40;                                // transações por "Mostrar mais"
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
@@ -548,20 +612,24 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
   const $ = (id) => document.getElementById(id);
   const els = {
     live: $('live'), liveText: $('live-text'), problem: $('problem'), empty: $('empty'), content: $('content'),
-    band: $('band'), legend: $('legend'), plot: $('plot'), plotTable: $('plot-table'),
-    body: $('tasks-body'), meta: $('tasks-meta'), more: $('more'),
+    legend: $('legend'), plot: $('plot'), plotTable: $('plot-table'),
+    allTurns: $('all-turns'), meta: $('tasks-meta'), more: $('more'), globalKpis: $('global-kpis'),
     tabDay: $('tab-day'), tabPilot: $('tab-pilot'), tabDot: $('tab-dot'), viewDay: $('view-day'), viewPilot: $('view-pilot'),
     pilotProblem: $('pilot-problem'), pilotEmpty: $('pilot-empty'), pilotContent: $('pilot-content'),
     pilotHead: $('pilot-head'), score: $('score'), pilotBody: $('ptasks-body'),
     judge: $('judge'), judgeMeta: $('judge-meta'),
-    source: $('source'), sessionPick: $('session-pick'), sessionsBody: $('sessions-body'), sessionsMeta: $('sessions-meta'),
+    source: $('source'), convSearch: $('conv-search'), convList: $('conv-list'), detail: $('detail'),
+    globalView: $('global-view'), globalMeta: $('global-meta'), convView: $('conv-view'), convTitle: $('conv-title'),
+    convMeta: $('conv-meta'), convSub: $('conv-sub'), convKpis: $('conv-kpis'), convLane: $('conv-lane'), laneLegend: $('lane-legend'),
+    turns: $('turns'), turnsMeta: $('turns-meta'),
     exportCsv: $('export-csv'), exportJson: $('export-json'),
   };
   const state = { rows: [], series: [], summary: {}, view: 'chart', shown: PAGE, seen: new Set(), loaded: false, lastText: null, std: null,
     page: location.hash === '#piloto' ? 'pilot' : 'day',
     pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map(), judgeSeen: new Map(),
     // o log para avaliar: de que origem (o uso real, um braço de um piloto, ou tudo) e, dentro dela, que sessão
-    source: storedSource(), sources: [], sourcesText: null, session: null, all: [], records: [] };
+    source: storedSource(), sources: [], sourcesText: null, all: [], records: [], convs: [], query: '',
+    session: location.hash.startsWith('#conversa=') ? decodeURIComponent(location.hash.slice(10)) : null };
 
   // ---------------------------------------------------------------- DOM
   // Tudo o que vem do ledger entra como texto (nós de texto ou atributos): nunca como HTML.
@@ -618,7 +686,6 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
     const hrs = Math.floor(min / 60), mm = min % 60;
     return mm ? `${hrs} h ${mm} min` : `${hrs} h`;
   }
-  const fmtRatio = (x) => (x >= 10 ? nf(0) : nf(1)).format(x) + '×';
 
   // ------------------------------------------------------------- dados
   const obj = (v) => (v && typeof v === 'object' ? v : {});
@@ -655,6 +722,7 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
       stdMs: std.kind === 'measured' ? msOf(std.duration_ms, 1) : null,
       scope: str(dec.scope),                       // "agent": turno de subagente; em falta ou "main": prompt do utilizador
       // para avaliar: o custo da decisão do Jev, os tempos, os sinais, a versão, a sessão e de onde veio o registo
+      isStandard: dec.is_standard === true,
       routerCost: num(dec.router_cost_usd),
       decideMs: typeof jev.decide_ms === 'number' ? jev.decide_ms : null,
       routeMs: typeof jev.route_ms === 'number' ? jev.route_ms : null,
@@ -689,9 +757,12 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
     return [...by.values()].map((g) => {
       const main = g.rows.filter((r) => r.scope !== 'agent'), models = {};
       let switches = 0;
-      for (let i = 1; i < main.length; i++) if (main[i].model && main[i - 1].model && main[i].model !== main[i - 1].model) switches++;
+      for (let i = 1; i < main.length; i++) if (modelKey(main[i]) !== modelKey(main[i - 1])) switches++;
       for (const r of main) models[r.model || '—'] = (models[r.model || '—'] || 0) + 1;
-      return { ...g, turns: main.length, agents: g.rows.length - main.length, models, switches,
+      return { ...g, turns: main.length, agents: g.rows.length - main.length, models, switches, main,
+        title: (main.find((r) => r.task) || g.rows[0]).task, last: g.rows[g.rows.length - 1].t,
+        sourceId: g.rows[0].sourceId, totalMs: g.rows.reduce((a, r) => a + num(r.jevMs), 0),
+        search: `${g.rows.map((r) => r.task).join(' ')} ${g.sourceLabel || ''} ${g.session || ''}`.toLowerCase(),
         policies: [...new Set(g.rows.map((r) => r.policy).filter(Boolean))],
         skipped: g.rows.filter((r) => r.signals.jev === 'saltado').length,
         gate: g.rows.filter((r) => r.signals.gate === 'sonnet').length,
@@ -776,75 +847,6 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
   // Velocidade: a mediana do tempo que esperaste por tarefa. A comparação com o standard é entre as MESMAS
   // tarefas, as que o standard correu de facto (--ab, ou o Jev a escolher o standard): a mediana do JEV em
   // todas as tarefas não é termo de comparação, porque inclui as tarefas em que o standard nunca correu.
-  function speedFig() {
-    const sp = obj(state.summary.speed), rows = state.rows;
-    const jevMedian = typeof sp.jev_median_ms === 'number' ? sp.jev_median_ms : median(rows.map((r) => r.jevMs));
-    const measured = typeof sp.standard_measured === 'number' ? sp.standard_measured : rows.filter((r) => r.stdMs != null).length;
-    const pairs = rows.filter((r) => r.stdMs != null && r.jevMs != null), n = pairs.length;
-    const pj = median(pairs.map((r) => r.jevMs)), ps = median(pairs.map((r) => r.stdMs));
-
-    let below;
-    if (jevMedian == null) {
-      below = h('span', { class: 'fig-sub' }, 'sem tempos registados');
-    } else if (!n) {
-      below = h('span', { class: 'fig-sub', title: 'O tempo do standard só existe quando ele correu de facto (por exemplo com /jev --ab). Não há estimativa de tempo.' },
-        measured > 0 ? `standard medido em ${measured}, sem tempo do JEV para comparar` : 'o standard ainda não foi medido');
-    } else {
-      const ratio = pj > 0 && ps > 0 ? ps / pj : null;
-      const kind = ratio === null ? 'even' : ratio >= 1.05 ? 'gain' : ratio <= 1 / 1.05 ? 'loss' : 'even';
-      const text = ratio === null ? 'sem tempo para comparar'
-        : kind === 'gain' ? `${fmtRatio(ratio)} mais rápido que o standard`
-        : kind === 'loss' ? `${fmtRatio(1 / ratio)} mais lento que o standard`
-        : 'tão rápido como o standard';
-      const title = `Em ${n} ${n === 1 ? 'tarefa' : 'tarefas'} com o standard medido, o JEV esperou ${fmtDuration(pj)} e o standard ${fmtDuration(ps)} (medianas). O tempo do standard nunca é estimado.\n`
-        + `A mediana do JEV em todas as tarefas (${fmtDuration(jevMedian)}) fica fora da comparação: inclui tarefas em que o standard não correu.`;
-      below = [h('span', { class: `fig-vs is-${kind}`, title }, text),
-        h('span', { class: 'fig-sub', title }, `em ${n} ${n === 1 ? 'tarefa medida' : 'tarefas medidas'}`)];
-    }
-    return h('div', { class: 'fig fig-speed', title: 'Mediana do tempo que esperaste por tarefa: a decisão do Jev mais a execução.' },
-      h('span', { class: 'fig-label' }, 'Velocidade (mediana)'),
-      h('span', { class: 'fig-value' }, h('span', {}, fmtDuration(jevMedian)), jevMedian != null && h('span', { class: 'fig-unit' }, 'por tarefa')),
-      below);
-  }
-
-  function drawBand() {
-    const sm = state.summary, rows = state.rows;
-    const total = num(sm.tasks) || rows.length, std = num(sm.standard_usd), jev = num(sm.jev_usd);
-    const saved = num(sm.saved_usd), spct = num(sm.saved_pct);
-    const d = Math.max(Math.abs(std), Math.abs(jev)) < 10 ? 3 : 2;
-    const kind = saved > EPS ? 'gain' : saved < -EPS ? 'loss' : 'even';
-    const sub = { gain: 'o JEV saiu mais barato que o standard', loss: 'o JEV saiu mais caro que o standard', even: 'o JEV custou o mesmo que o standard' }[kind];
-    const first = rows.length ? dayMonth(rows[0].t) : '';
-    const failedN = typeof sm.failed === 'number' ? sm.failed : rows.filter((r) => r.failed).length;
-    const decTotal = rows.reduce((a, r) => a + r.routerCost, 0);
-    const longest = Math.max(usd(std, d).length, usd(jev, d).length, usd(saved, d, true).length);
-    els.band.dataset.size = longest >= 13 ? 'xl' : longest >= 10 ? 'l' : 'm';
-    els.band.replaceChildren(
-      h('div', { class: 'eq' },
-        h('div', { class: 'fig fig-std' },
-          h('span', { class: 'fig-label' }, h('i', { class: 'key key-std' }), 'Standard'),
-          h('span', { class: 'fig-value' }, usd(std, d)),
-          h('span', { class: 'fig-sub', title: failedN ? 'O standard só conta as tarefas que o JEV concluiu: numa tarefa falhada o standard “evitado” não conta.' : null },
-            stdLabel() + (failedN ? ` · sem ${failedN} falhada${failedN > 1 ? 's' : ''}` : ''))),
-        h('span', { class: 'op', 'aria-hidden': 'true' }, MINUS),
-        h('div', { class: 'fig fig-jev' },
-          h('span', { class: 'fig-label' }, h('i', { class: 'key key-jev' }), 'JEV'),
-          h('span', { class: 'fig-value' }, usd(jev, d)),
-          h('span', { class: 'fig-sub', title: 'A execução (preços via litellm) mais as decisões do Jev (typesafe/jev-router, no OpenRouter).' },
-            `execução ${usd(jev - decTotal, d)} · decisões ${usd(decTotal, decTotal < 1 ? 4 : 2)}`)),
-        h('span', { class: 'op', 'aria-hidden': 'true' }, '='),
-        h('div', { class: `fig fig-result is-${kind}` },
-          h('span', { class: 'fig-label' }, 'Poupado'),
-          h('span', { class: 'fig-value' }, h('span', {}, usd(saved, d, true)), h('span', { class: 'fig-pct' }, pct(spct, true))),
-          h('span', { class: 'fig-sub' }, sub))),
-      h('div', { class: 'side' },
-        speedFig(),
-        h('div', { class: 'fig fig-count' },
-          h('span', { class: 'fig-label' }, 'Tarefas'),
-          h('span', { class: 'fig-value' }, String(total)),
-          h('span', { class: 'fig-sub' }, first ? `desde ${first}` : ''))));
-  }
-
   // ---------------------------------------------------------- gráfico
   function drawLegend() {
     const gain = state.series.some((p, i) => p.std - p.jev > EPS), loss = state.series.some((p) => p.std - p.jev < -EPS);
@@ -1057,12 +1059,8 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
   }
 
   // ---------------------------------------------------------- tabela
-  function choiceCell(r) {
-    const free = r.runner === 'openrouter-free';
-    const name = free ? shortModel(r.model) : r.model || '—';
-    const level = EFFORTS.indexOf(r.effort) + 1;
-    const title = [r.model && `Modelo: ${r.model}${r.jevModelId && r.jevModelId !== r.model ? ` (${r.jevModelId})` : ''}`,
-      r.rationale && `Porquê: ${r.rationale}`].filter(Boolean).join('\n');
+  // O que aconteceu neste turno além da escolha: a regra da política, falhas e fallbacks
+  function tagsOf(r) {
     const tags = [];
     if (r.scope === 'agent') {
       tags.push(h('span', { class: 'tag', title: 'Turno de um subagente: o Claude Code delegou esta parte a um agente, não foi um prompt teu.\nUm subagente usa ferramentas, por isso nunca corre num modelo free.' },
@@ -1090,91 +1088,11 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
       tags.push(h('span', { class: 'tag tag-failed', title: r.fallback ? 'A tarefa falhou mesmo depois do fallback para o standard.' : 'A tarefa falhou.' },
         icon('failed'), 'falhou'));
     }
-    return h('div', { title },
-      h('div', { class: 'pick' },
-        h('span', { class: 'model' }, name),
-        r.effort && h('span', { class: 'effort' }, `· ${r.effort}`),
-        level > 0 && h('span', { class: 'meter', role: 'img', 'aria-label': `esforço ${r.effort}, ${level} de ${EFFORTS.length}`, title: `Esforço: ${r.effort} (${level} de ${EFFORTS.length})` },
-          EFFORTS.map((_, i) => h('i', { class: i < level ? 'on' : null })))),
-      h('div', { class: 'pick-meta' },
-        free
-          ? h('span', { class: 'badge badge-free', title: 'Modelo grátis do OpenRouter: custo $0' }, 'grátis')
-          : r.runner && h('span', { class: 'badge', title: 'Corre no Claude Code, na subscrição Anthropic' }, r.runner === 'anthropic' ? 'Anthropic' : r.runner),
-        tags));
+    return tags;
   }
 
-  function costText(x, d) { return x === 0 ? h('span', { class: 'zero' }, '$0') : usd(x, d); }
-
-  function deltaCell(r, maxAbs) {
-    const shown = Number(r.saved.toFixed(4)), kind = kindOf(shown);
-    const width = maxAbs > 0 ? Math.min(100, (Math.abs(shown) / maxAbs) * 100) : 0;
-    const pctOf = r.stdCost > 0 ? (Math.abs(r.saved) / r.stdCost) * 100 : null;
-    const title = r.failed
-      ? 'A tarefa falhou: o custo do JEV conta, mas o standard “evitado” não conta.\nPor isso a diferença é só o custo do JEV.'
-      : [kind === 'gain' ? 'O JEV custou menos que o standard' : kind === 'loss' ? 'O JEV custou mais que o standard' : 'O JEV custou o mesmo que o standard',
-        pctOf !== null && kind !== 'even' ? ` (${nf(1).format(pctOf)}%)` : '', '.'].join('');
-    return h('div', { class: `delta is-${kind}`, title },
-      h('span', { class: 'delta-num' }, usd(r.saved, 4, true)),
-      h('span', { class: 'track', 'aria-hidden': 'true' },
-        kind !== 'even' && h('i', { class: `bar bar-${kind}`, style: `width:${(width / 2).toFixed(2)}%` })));
-  }
 
   // O tempo que esperaste (decisão do Jev + execução). O do standard só aparece quando foi medido.
-  function timeCell(r) {
-    const both = r.jevMs != null && r.stdMs != null;
-    const faster = both && r.stdMs / Math.max(r.jevMs, 1) >= 1.05, slower = both && r.jevMs / r.stdMs >= 1.05;
-    const kind = faster ? 'gain' : slower ? 'loss' : null;
-    const title = both
-      ? `O JEV esperou ${fmtDuration(r.jevMs)}; o standard, medido, ${fmtDuration(r.stdMs)}`
-        + (faster ? ` (${fmtRatio(r.stdMs / Math.max(r.jevMs, 1))} mais rápido).` : slower ? ` (${fmtRatio(r.jevMs / r.stdMs)} mais lento).` : '.')
-      : r.jevMs != null ? 'O que esperaste: a decisão do Jev mais a execução. O standard não foi medido, por isso não tem tempo.' : 'Sem tempo registado.';
-    return h('td', { class: 'num', title },
-      h('div', { class: kind ? `time-jev is-${kind}` : 'time-jev' }, r.jevMs != null ? fmtDuration(r.jevMs) : h('span', { class: 'zero' }, '—')),
-      h('div', { class: 'time-sub' }, 'standard ', r.stdMs != null ? fmtDuration(r.stdMs) : '—'));
-  }
-
-  function drawTasks() {
-    const newestFirst = state.rows.slice().reverse();
-    let maxAbs = 0;
-    for (const r of state.rows) maxAbs = Math.max(maxAbs, Math.abs(r.saved));
-    const shown = newestFirst.slice(0, state.shown);
-    els.body.replaceChildren(...shown.map((r) => {
-      const w = when(r.t);
-      return h('tr', { class: r.isNew ? 'row-new' : null },
-        h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
-        h('td', {}, h('div', { class: 'task', title: r.task }, r.task), state.source === 'tudo' && r.sourceLabel && h('div', { class: 'src' }, r.sourceLabel)),
-        h('td', { class: 'choice' }, choiceCell(r)),
-        h('td', { class: 'num', title: r.fallback ? 'Soma as duas tentativas: a que falhou e a repetição no standard.' : null },
-          h('div', {}, costText(r.jevCost, 4)),
-          r.routerCost > 0 && h('div', { class: 'cost-sub', title: 'O que custou a decisão do Jev no OpenRouter (já incluído)' }, `decisão ${usd(r.routerCost, 4)}`)),
-        h('td', { class: 'num' },
-          h('div', {}, r.failed
-            ? h('span', { class: 'void', title: 'A tarefa falhou: o standard “evitado” não conta.' }, costText(r.stdCost, 4))
-            : costText(r.stdCost, 4)),
-          r.stdKind === 'measured' || r.stdKind === 'estimated'
-            ? h('div', { class: 'cost-sub' }, r.stdKind === 'measured'
-              ? h('span', { class: 'badge badge-measured', title: 'Medido: a mesma tarefa correu mesmo no standard.' }, 'medido')
-              : h('span', { class: 'badge badge-estimated', title: 'Estimado: o standard não correu; é uma estimativa a preço de lista.' }, 'estimado'))
-            : null),
-        h('td', { class: 'num diff' }, deltaCell(r, maxAbs)),
-        timeCell(r));
-    }));
-
-    const failed = state.rows.filter((r) => r.failed).length;
-    const falls = state.rows.filter((r) => r.fallback).length;
-    const routers = state.rows.filter((r) => r.routerError !== null).length;
-    const agents = state.rows.filter((r) => r.scope === 'agent').length;
-    fill(els.meta,
-      failed > 0 && h('span', { title: 'Tarefas que falharam, mesmo depois do fallback' }, icon('failed'), `${failed} ${failed === 1 ? 'falhou' : 'falharam'}`),
-      falls > 0 && h('span', { title: 'Execuções repetidas no standard depois de falharem' }, icon('fallback'), `${falls} ${falls === 1 ? 'fallback' : 'fallbacks'}`),
-      routers > 0 && h('span', { title: 'O Jev falhou e a decisão passou a ser o standard' }, icon('router'), `${routers} ${routers === 1 ? 'decisão do Jev falhou' : 'decisões do Jev falharam'}`),
-      agents > 0 && h('span', { title: 'Turnos de subagentes' }, icon('agent'), `${agents} ${agents === 1 ? 'subagente' : 'subagentes'}`));
-
-    const rest = newestFirst.length - shown.length;
-    els.more.hidden = rest <= 0;
-    els.more.textContent = `Mostrar mais ${Math.min(PAGE, rest)} (faltam ${rest})`;
-  }
-
   // ---------------------------------------------------------------- piloto
   // O piloto corre o mesmo projeto nos dois braços, tarefa a tarefa (jev/pilot.py). O harness escreve uma linha
   // por braço por tarefa, e a vista enche-se em direto: o braço que ainda não escreveu está "a correr…".
@@ -1502,7 +1420,7 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
       view.hidden = page !== name;
     }
     if (page === 'pilot') drawPilots();
-    else if (state.rows.length) drawView();
+    else if (state.rows.length && !state.session) drawView();
   }
 
   // ------------------------------------------------------- ciclo de vida
@@ -1518,62 +1436,205 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
     applySession();
   }
 
-  // A sessão escolhida filtra o resumo, o gráfico e o registo; sem escolha, vale a origem inteira
+  // ------------------------------------------------------------ conversas
+  // Uma conversa é uma sessão do Claude Code; "Todas" é a origem inteira (o resumo, o gráfico e as transações)
+  const MODEL_NAME = { sonnet: 'Sonnet', opus: 'Opus', haiku: 'Haiku', free: 'free', std: 'standard' };
+  function modelKey(r) {
+    if (r.runner === 'openrouter-free') return 'free';
+    if (r.isStandard) return 'std';
+    const m = (r.model || '').toLowerCase();
+    return ['sonnet', 'opus', 'haiku'].find((k) => m.includes(k)) || 'std';
+  }
+  function originOf(g) {
+    if (!g.sourceId || g.sourceId === 'uso') return 'uso real';
+    const [pid, arm] = g.sourceId.split('/');
+    return `piloto ${pid.split('-')[0]}, braço ${arm}`;
+  }
+  function savedSpan(x, pctValue) {
+    const k = kindOf(Number(x.toFixed(4)));
+    return h('span', { class: k === 'gain' ? 'is-gain' : k === 'loss' ? 'is-loss' : null, title: 'Poupado face ao standard' },
+      usd(x, 3, true) + (pctValue != null ? ` (${pct(pctValue, true)})` : ''));
+  }
+
   function applySession() {
     if (state.session && !state.all.some((r) => sessionKey(r) === state.session)) state.session = null;
-    const rows = state.session ? state.all.filter((r) => sessionKey(r) === state.session) : state.all;
-    state.rows = rows;
-    state.series = series(rows);
-    state.summary = state.session ? summaryOf(rows) : state.serverSummary;
-    state.std = rows.length ? rows[rows.length - 1] : null;
+    state.convs = sessionsOf(state.all);
     els.empty.hidden = state.all.length > 0;
     els.content.hidden = state.all.length === 0;
-    drawSessionPick();
     if (!state.all.length) return;
-    drawBand();
-    drawSessions();
+    drawConvList();
+    const g = state.session ? state.convs.find((x) => x.key === state.session) : null;
+    els.globalView.hidden = !!g;
+    els.convView.hidden = !g;
+    if (g) { state.rows = g.rows; drawConversation(g); return; }
+    state.rows = state.all;
+    state.series = series(state.all);
+    state.summary = state.serverSummary;
+    state.std = state.all[state.all.length - 1];
+    fill(els.globalMeta,
+      h('span', {}, `${state.convs.length} ${state.convs.length === 1 ? 'conversa' : 'conversas'}`),
+      h('span', {}, `${state.all.length} transações`),
+      h('span', {}, `desde ${dayMonth(state.all[0].t)}`));
+    drawKpis(els.globalKpis, state.convs, state.all, obj(state.serverSummary));
     drawView();
-    drawTasks();
+    drawAllTurns();
   }
 
-  function drawSessions() {
-    const groups = sessionsOf(state.all);
-    els.sessionsBody.replaceChildren(...groups.map((g) => {
-      const w = when(g.first), active = state.session === g.key;
-      const models = Object.entries(g.models).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m} ${n}`).join(' · ');
-      const tr = h('tr', { class: `row-pick${active ? ' row-active' : ''}`, tabindex: 0, 'aria-selected': String(active),
-        title: active ? 'Voltar a todas as sessões' : 'Ver só os registos desta sessão' },
-        h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
-        h('td', {}, h('div', {}, g.session ? h('code', { title: g.session }, g.session.slice(0, 8)) : 'sem id de sessão'),
-          g.sourceLabel && h('div', { class: 'src' }, g.sourceLabel)),
-        h('td', {}, g.policies.join(', ') || '—'),
-        h('td', { class: 'num', title: g.agents ? `mais ${g.agents} de subagentes` : null }, g.agents ? `${g.turns} +${g.agents}` : String(g.turns)),
-        h('td', {}, models),
-        h('td', { class: 'num' }, String(g.switches)),
-        h('td', { class: 'num' }, String(g.skipped)),
-        h('td', { class: 'num' }, String(g.gate)),
-        h('td', { class: 'num' }, String(g.held)),
-        h('td', { class: 'num' }, String(g.routerErrors)),
-        h('td', { class: 'num' }, fmtDuration(g.decideMedian)),
-        h('td', { class: 'num' }, costText(g.decCost, 4)),
-        h('td', { class: 'num' }, costText(g.sm.jev_usd, 3)),
-        h('td', { class: 'num' }, costText(g.sm.standard_usd, 3)),
-        h('td', { class: 'num' }, usd(g.sm.saved_usd, 3, true)));
-      const pick = () => { state.session = active ? null : g.key; state.shown = PAGE; applySession(); };
-      tr.addEventListener('click', pick);
-      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
-      return tr;
-    }));
-    els.sessionsMeta.textContent = `${groups.length} ${groups.length === 1 ? 'sessão' : 'sessões'} · clica numa para ver só os registos dela`;
+  // Os quatro números, para uma conversa ou para todas: o que se poupou, o que custou decidir, as trocas, a espera
+  function drawKpis(target, groups, rows, sm) {
+    const saved = num(sm.saved_usd), decN = rows.filter((r) => r.routerCost > 0 || r.decideMs > 0).length;
+    const sum = (k) => groups.reduce((a, g) => a + g[k], 0);
+    const pctText = typeof sm.saved_pct === 'number' && num(sm.standard_usd) > 0 ? ` (${pct(sm.saved_pct, true)})` : '';
+    fill(target,
+      kpi('Poupado face ao standard', usd(saved, Math.abs(saved) < 10 ? 3 : 2, true) + pctText,
+        `JEV ${usd(num(sm.jev_usd), 2)}, standard ${usd(num(sm.standard_usd), 2)}`, kindOf(Number(saved.toFixed(4)))),
+      kpi('Decisões do Jev', usd(rows.reduce((a, r) => a + r.routerCost, 0), 4),
+        decN ? `${decN} decisões, mediana ${fmtDuration(median(rows.map((r) => (r.decideMs > 0 ? r.decideMs : null))))}` : 'sem tempos de decisão registados'),
+      kpi('Trocas de modelo', String(sum('switches')), `${sum('held')} mantidos, ${sum('skipped')} sem Jev, ${sum('gate')} pela porta`),
+      kpi('Tempo à espera', fmtDuration(rows.reduce((a, r) => a + num(r.jevMs), 0)),
+        `mediana de ${fmtDuration(median(rows.map((r) => r.jevMs)))} por turno`));
   }
 
-  function drawSessionPick() {
-    const k = state.session;
-    els.sessionPick.hidden = !k;
-    if (!k) { els.sessionPick.replaceChildren(); return; }
-    const all = h('button', { type: 'button' }, 'ver todas');
-    all.addEventListener('click', () => { state.session = null; state.shown = PAGE; applySession(); });
-    fill(els.sessionPick, h('span', {}, 'Sessão ', h('code', { title: k }, k.length > 24 ? k.slice(0, 8) : k)), all);
+  function drawAllTurns() {
+    const newest = state.all.slice().reverse(), shown = newest.slice(0, state.shown);
+    els.allTurns.replaceChildren(...shown.map((r) => turnItem(r, null, true)));
+    const rest = newest.length - shown.length;
+    els.more.hidden = rest <= 0;
+    els.more.textContent = `Mostrar mais ${Math.min(PAGE, rest)} (faltam ${rest})`;
+  }
+
+  function pickConv(key, focus) {
+    state.session = key;
+    state.shown = PAGE;
+    try { history.replaceState(null, '', key ? `#conversa=${encodeURIComponent(key)}` : location.pathname + location.search); } catch (_) { /* sem history */ }
+    applySession();
+    if (focus) { const b = els.convList.querySelector('[aria-current="true"]'); if (b) b.focus(); }
+    const top = els.detail.getBoundingClientRect().top;
+    if (top < 0) window.scrollBy({ top: top - 12 });
+  }
+
+  function drawConvList() {
+    const q = state.query.trim().toLowerCase();
+    const groups = q ? state.convs.filter((g) => g.search.includes(q)) : state.convs;
+    const sm = obj(state.serverSummary);
+    const all = h('button', { type: 'button', class: 'conv conv-all', 'aria-current': String(!state.session) },
+      h('div', { class: 'conv-top' }, h('span', {}, `${state.convs.length} ${state.convs.length === 1 ? 'conversa' : 'conversas'}`),
+        h('span', { class: 'conv-cost' }, usd(num(sm.jev_usd), 2))),
+      h('div', { class: 'conv-title' }, 'Todas as conversas'),
+      h('div', { class: 'conv-meta' }, h('span', {}, `${num(sm.tasks)} transações`), savedSpan(num(sm.saved_usd), num(sm.saved_pct))));
+    all.addEventListener('click', () => pickConv(null));
+    fill(els.convList, h('li', {}, all), groups.map((g) => h('li', {}, convItem(g))),
+      q && !groups.length && h('li', { class: 'conv-none' }, h('p', { class: 'kpi-sub' }, 'Nenhuma conversa tem esse texto nos prompts.')));
+  }
+
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const isPilot = (sourceId) => !!sourceId && sourceId !== 'uso';
+  function convItem(g) {
+    const w = when(g.first), pilot = isPilot(g.sourceId);
+    const b = h('button', { type: 'button', class: 'conv', 'aria-current': String(state.session === g.key), title: g.title },
+      h('div', { class: 'conv-top' }, h('span', {}, h('b', {}, w.day), ` ${w.time}`),
+        h('span', { class: 'conv-cost' }, usd(g.sm.jev_usd, g.sm.jev_usd < 1 ? 3 : 2))),
+      pilot ? h('div', { class: 'conv-title is-origin' }, cap(originOf(g))) : h('div', { class: 'conv-title' }, g.title || 'Conversa sem prompt'),
+      pilot && g.title && h('div', { class: 'conv-sub' }, g.title),
+      h('div', { class: 'lane lane-mini', 'aria-hidden': 'true' }, laneSegments(g, false)),
+      h('div', { class: 'conv-meta' }, !pilot && h('span', {}, originOf(g)), g.policies.length > 0 && h('span', {}, g.policies.join(', ')),
+        h('span', {}, `${g.turns} ${g.turns === 1 ? 'turno' : 'turnos'}`), savedSpan(g.sm.saved_usd)));
+    b.addEventListener('click', () => pickConv(g.key));
+    return b;
+  }
+
+  // A faixa: um segmento por turno principal, com a cor do modelo e a largura do custo (um mínimo para se ver);
+  // na grande, um entalhe marca cada troca de modelo e um clique leva ao turno
+  function laneSegments(g, big) {
+    const total = g.main.reduce((a, r) => a + r.jevCost, 0) || 1, floor = total * (big ? 0.025 : 0.02);
+    let prev = null;
+    return g.main.map((r, i) => {
+      const m = modelKey(r), sw = prev !== null && m !== prev, grow = Math.max(r.jevCost, floor);
+      prev = m;
+      const seg = h('i', { 'data-m': m, class: big && sw ? 'is-switch' : null, style: `flex: ${grow.toFixed(6)} 1 0`,
+        title: big ? `Turno ${i + 1}: ${r.model || MODEL_NAME[m]}${r.effort ? ` · ${r.effort}` : ''}, ${usd(r.jevCost, 4)}${sw ? ', troca de modelo' : ''}` : null });
+      if (big) {
+        if (grow / total >= 0.04) seg.append(h('span', {}, String(i + 1)));
+        seg.addEventListener('click', () => flashTurn(i + 1));
+      }
+      return seg;
+    });
+  }
+
+  function flashTurn(n) {
+    const li = document.getElementById(`turn-${n}`);
+    if (!li) return;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    li.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+    li.classList.add('is-flash');
+    setTimeout(() => li.classList.remove('is-flash'), 1400);
+  }
+
+  function kpi(label, value, sub, kind) {
+    return h('div', { class: 'kpi' }, h('span', { class: 'kpi-label' }, label),
+      h('span', { class: `kpi-value${kind === 'gain' ? ' is-gain' : kind === 'loss' ? ' is-loss' : ''}` }, value),
+      h('span', { class: 'kpi-sub' }, sub));
+  }
+
+  function drawConversation(g) {
+    const pilot = isPilot(g.sourceId);
+    els.convTitle.textContent = pilot ? cap(originOf(g)) : g.title || 'Conversa sem prompt';
+    els.convTitle.title = g.title || '';
+    els.convTitle.classList.toggle('prompt', !pilot);
+    els.convSub.hidden = !pilot || !g.title;
+    els.convSub.textContent = pilot ? g.title : '';
+    const a = when(g.first), z = when(g.last);
+    const span = z.day === a.day ? (z.time !== a.time ? `${a.time} às ${z.time}` : a.time) : `${a.time} a ${z.day}, ${z.time}`;
+    fill(els.convMeta,
+      h('span', {}, `${a.day}, ${span}`),
+      !pilot && h('span', {}, originOf(g)),
+      g.policies.length > 0 && h('span', {}, `versão ${g.policies.join(', ')}`),
+      h('span', {}, `${g.turns} ${g.turns === 1 ? 'turno' : 'turnos'}${g.agents ? ` e ${g.agents} de subagentes` : ''}`),
+      g.session && h('span', {}, 'sessão ', h('code', { title: g.session }, g.session.slice(0, 8))));
+    drawKpis(els.convKpis, [g], g.rows, g.sm);
+    els.convLane.replaceChildren(...laneSegments(g, true));
+    const used = ['sonnet', 'opus', 'haiku', 'free', 'std'].filter((m) => g.main.some((r) => modelKey(r) === m));
+    els.convLane.setAttribute('aria-label', `${g.turns} turnos: ${used.map((m) => `${g.main.filter((r) => modelKey(r) === m).length} em ${MODEL_NAME[m]}`).join(', ')}; ${g.switches} trocas de modelo`);
+    fill(els.laneLegend, used.map((m) => h('li', {}, h('i', { class: 'key-m', 'data-m': m }), MODEL_NAME[m])));
+    let n = 0;
+    els.turns.replaceChildren(...g.rows.map((r) => turnItem(r, r.scope === 'agent' ? null : ++n)));
+    els.turnsMeta.textContent = 'Clica num prompt para o ler inteiro';
+  }
+
+  function openConv(key) {
+    const b = h('button', { type: 'button', class: 'turn-open' }, 'abrir a conversa');
+    b.addEventListener('click', () => pickConv(key));
+    return b;
+  }
+
+  function turnItem(r, n, global) {
+    const m = modelKey(r), w = when(r.t), sg = r.signals;
+    const prompt = h('div', { class: 'turn-prompt', title: 'Clica para ler o prompt inteiro' }, r.task || '(sem texto)');
+    prompt.addEventListener('click', () => prompt.classList.toggle('is-open'));
+    const signals = [sg.task, typeof sg.difficulty === 'number' && `dificuldade ${sg.difficulty} de 4`,
+      typeof sg.gain === 'number' && `ganho de um modelo maior ${nf(2).format(sg.gain)}`,
+      typeof sg.task_changed === 'number' && `tarefa nova ${nf(2).format(sg.task_changed)}`].filter(Boolean).join(', ');
+    const wait = [global ? `${w.day}, ${w.time}` : w.time, `à espera ${fmtDuration(r.jevMs)}`,
+      r.decideMs > 0 ? `decisão ${fmtDuration(r.decideMs)}` : sg.jev === 'saltado' ? 'sem decisão do Jev' : null,
+      r.contextTokens ? `${Math.round(r.contextTokens / 1000)}k de contexto` : null].filter(Boolean).join(', ');
+    const k = kindOf(Number(r.saved.toFixed(4)));
+    const name = m === 'free' ? shortModel(r.model) : r.model || MODEL_NAME[m];
+    return h('li', { class: `turn${r.scope === 'agent' ? ' is-agent' : ''}${global ? ' is-global' : ''}`, id: n ? `turn-${n}` : null },
+      !global && h('div', { class: 'turn-n', title: n ? null : 'Turno de um subagente' }, n ? String(n) : '↳'),
+      h('div', {},
+        prompt,
+        h('div', { class: 'turn-how' },
+          h('span', { class: 'chip-m', title: r.rationale || null }, h('i', { class: 'key-m', 'data-m': m }), `${name}${r.effort ? ` · ${r.effort}` : ''}`),
+          tagsOf(r),
+          signals && h('span', { class: 'turn-sig' }, signals)),
+        h('div', { class: 'turn-sig', style: 'margin-top: 4px' }, wait),
+        global && h('div', { class: 'turn-sig', style: 'margin-top: 4px' }, `${cap(originOf({ sourceId: r.sourceId }))}${r.session ? `, sessão ${r.session.slice(0, 8)}` : ''} `,
+          openConv(sessionKey(r)))),
+      h('div', { class: 'turn-cost' },
+        h('b', { title: 'Execução e decisão' }, usd(r.jevCost, 4)),
+        h('span', {}, `standard ${usd(r.stdCost, 4)}`),
+        h('span', { class: k === 'gain' ? 'is-gain' : k === 'loss' ? 'is-loss' : null }, usd(r.saved, 4, true)),
+        r.routerCost > 0 && h('span', {}, `decisão ${usd(r.routerCost, 4)}`)));
   }
 
   // ----------------------------------------------------------- origens
@@ -1737,13 +1798,24 @@ tr.row-active td { background: var(--plane); font-weight: 600; }
   for (const b of document.querySelectorAll('.seg button')) {
     b.addEventListener('click', () => { state.view = b.dataset.view; if (state.rows.length) drawView(); });
   }
-  els.more.addEventListener('click', () => { state.shown += PAGE; drawTasks(); });
+  els.more.addEventListener('click', () => { state.shown += PAGE; drawAllTurns(); });
   els.source.addEventListener('change', () => {
     state.source = els.source.value;
     storeSource(state.source);
     Object.assign(state, { session: null, shown: PAGE, lastText: null, loaded: false, seen: new Set() });
     clearTimeout(timer);
     poll();
+  });
+  els.convSearch.addEventListener('input', () => { state.query = els.convSearch.value; if (state.all.length) drawConvList(); });
+  els.convList.addEventListener('keydown', (e) => {   // ↑ ↓ entre conversas
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const items = [...els.convList.querySelectorAll('.conv')], i = items.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const next = items[Math.min(items.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)))];
+    next.click();
+    const again = [...els.convList.querySelectorAll('.conv')][items.indexOf(next)];
+    if (again) again.focus();
   });
   els.exportCsv.addEventListener('click', exportCsv);
   els.exportJson.addEventListener('click', exportJson);
