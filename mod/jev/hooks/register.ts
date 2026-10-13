@@ -300,23 +300,26 @@ export const register: Register = (on, options) => {
       queuedUnrouted.push({ task: e.prompt, why: 'fork', same: !sessionModel })
       return next(e)
     }
+    const declared = e.model as Model | undefined
+    // Sem decisão do Jev, a regra é o standard: nunca herdar o modelo da faixa, que pode ser baixo
+    const standard = (): Model => (declared && RANK[declared] > RANK.opus ? declared : 'opus')
     const started = Date.now()
     let ran
     try {
       ran = await jev($, ['route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
     } catch {
-      queuedUnrouted.push({ task: e.prompt, why: 'núcleo em falta', same: true, model: e.model })
-      return next(e) // sem núcleo, o subagente corre como pedido
+      queuedUnrouted.push({ task: e.prompt, why: 'núcleo em falta', same: true, model: standard() })
+      return next({ ...e, model: standard() })
     }
     const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     const d = route?.decision
     if (!route || !d || d.is_standard || d.runner !== 'anthropic') {
-      queuedUnrouted.push({ task: e.prompt, why: 'Jev sem resposta', same: true, model: e.model })
-      return next(e)
+      queuedUnrouted.push({ task: e.prompt, why: 'Jev sem resposta', same: true, model: standard() })
+      return next({ ...e, model: standard() })
     }
-    const declared = e.model as Model | undefined
-    if (declared && declared in RANK && RANK[declared] < (RANK[d.model as Model] ?? 0)) { // já é mais barato
+    // Um modelo declarado mais barato do que o do Jev não vale: a tarefa pode precisar do que o Jev escolheu
+    if (declared && declared in RANK && RANK[declared] >= (RANK[d.model as Model] ?? 0)) { // o declarado já chega
       queuedUnrouted.push({ task: e.prompt, why: 'modelo declarado', same: true, model: declared })
       return next(e)
     }

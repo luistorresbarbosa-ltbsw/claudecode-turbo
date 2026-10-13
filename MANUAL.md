@@ -61,7 +61,8 @@ As variáveis lêem-se quando a sessão arranca. Para mudar de versão, abre uma
 - **Passam:** os prompts que escreves no terminal, os enviados pelo telemóvel (Remote Control) e os do `claude -p`.
 - **Subagentes:** o Jev escolhe o modelo de cada um a partir da tarefa do agente.
   - Um fork herda o modelo.
-  - Um subagente que já pede um modelo mais barato fica com o seu.
+  - Um subagente que pede um modelo mais barato do que o do Jev sobe para o do Jev (a tarefa pode precisar dele).
+  - Se o Jev falhar, o subagente corre em opus, nunca no modelo da faixa.
 - **Não passam:** os comandos começados por `/` e as notificações. Correm no modelo da faixa atual.
 - **Compactação:** depois de uma (manual ou automática), o Jev volta a escolher à vontade, porque a cache ficou fria.
 

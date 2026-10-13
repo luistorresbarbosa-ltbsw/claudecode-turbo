@@ -51,7 +51,8 @@ subscrição, como sempre. Se alguma coisa falhar, o prompt corre no standard, s
      **sonnet**, com o esforço do Jev. (Ia para o haiku, mas no primeiro piloto o haiku falhou a
      maioria destas tarefas.)
    - **Subagentes:** o Jev decide com a tarefa do agente. O modelo vai na chamada `Agent` e o esforço
-     nos passos do subagente. Um subagente nunca vai para um free (usa ferramentas).
+     nos passos do subagente. Um subagente nunca vai para um free (usa ferramentas). Vale sempre o
+     modelo mais alto entre o declarado e o do Jev, e sem decisão do Jev corre em opus.
    - Os modelos free só executam; nunca decidem.
 3. **Registar (`jev record`).** No fim de cada turno, também dos que não passam pelo Jev (forks, subagentes com
    o modelo declarado, notificações, sessões com o modelo fixado), com o motivo, para o custo de uma conversa ser o

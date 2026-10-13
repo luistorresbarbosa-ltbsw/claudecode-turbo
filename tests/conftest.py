@@ -23,3 +23,11 @@ def no_internet(monkeypatch):
         return _real_connect(self, address)
 
     monkeypatch.setattr(socket.socket, "connect", guarded)
+
+
+@pytest.fixture(autouse=True)
+def jev_defaults(monkeypatch):
+    """Os testes valem com os defeitos (v3, pool Anthropic), seja qual for o JEV_POLICY/JEV_POOL de quem os corre.
+    Os que querem outra política fixam-na com monkeypatch.setenv."""
+    monkeypatch.delenv("JEV_POLICY", raising=False)
+    monkeypatch.delenv("JEV_POOL", raising=False)

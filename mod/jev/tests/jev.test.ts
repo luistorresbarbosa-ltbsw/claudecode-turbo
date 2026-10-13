@@ -214,11 +214,11 @@ test('o turno de um fork fica no registo como subagente', async ($, on) => {
   expect(rec.decision.signals).toEqual({ jev: 'sem decisão', rule: 'fork' })
 })
 
-test('um subagente com um modelo declarado mais barato fica no registo, sem poupança atribuída ao JEV', async ($, on) => {
+test('um subagente declarado com um modelo que já chega fica no registo, sem poupança atribuída ao JEV', async ($, on) => {
   const { records } = engine(on, { agent: SONNET_LOW })
 
-  await $.tool.call({ tool: 'Agent', description: 'procurar', prompt: 'onde está o timeout?', model: 'haiku' } as never)
-  await turn($, 't9', { agentId: 'a7', model: 'claude-haiku-4-5' })
+  await $.tool.call({ tool: 'Agent', description: 'procurar', prompt: 'onde está o timeout?', model: 'opus' } as never)
+  await turn($, 't9', { agentId: 'a7', model: 'claude-opus-5-5' })
 
   const [rec] = records()
   expect(rec.decision.signals.rule).toBe('modelo declarado')
@@ -379,12 +379,51 @@ test('um /model escrito por ti fixa o modelo: os prompts seguintes já não pass
   expect(calls.filter(c => c.argv.includes('route'))).toHaveLength(0)
 })
 
-test('um subagente declarado com um modelo mais barato do que o do Jev fica com o seu', async ($, on) => {
+test('um subagente declarado com um modelo mais barato do que o do Jev sobe para o do Jev', async ($, on) => {
   const { agentCalls } = engine(on, { agent: SONNET_LOW })
 
   await $.tool.call({ tool: 'Agent', description: 'procurar', prompt: 'onde está o timeout?', model: 'haiku' } as never)
 
-  expect(agentCalls[0]?.model).toBe('haiku')
+  expect(agentCalls[0]?.model).toBe('sonnet')
+})
+
+test('um subagente declarado com um modelo mais alto do que o do Jev fica com o seu', async ($, on) => {
+  const { agentCalls } = engine(on, { agent: SONNET_LOW })
+
+  await $.tool.call({ tool: 'Agent', description: 'rever', prompt: 'revê a migração', model: 'opus' } as never)
+
+  expect(agentCalls[0]?.model).toBe('opus')
+})
+
+test('sem decisão do Jev (standard), o subagente corre em opus e não herda o modelo da faixa', async ($, on) => {
+  const { agentCalls, records } = engine(on, { agent: STANDARD })
+
+  await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'analisa o módulo' } as never)
+  await turn($, 't9', { agentId: 'a2', model: 'claude-opus-5-5' })
+
+  expect(agentCalls[0]?.model).toBe('opus')
+  expect(records()[0].decision.signals.rule).toBe('Jev sem resposta')
+})
+
+test('com o núcleo em falta, o subagente corre em opus, e um declarado fable não desce', async ($, on) => {
+  const { agentCalls } = engine(on, { missing: true })
+
+  await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'analisa', model: 'haiku' } as never)
+  await $.tool.call({ tool: 'Agent', description: 'y', prompt: 'analisa', model: 'fable' } as never)
+
+  expect(agentCalls.map(c => c.model)).toEqual(['opus', 'fable'])
+})
+
+test('dois subagentes do mesmo modelo com esforços diferentes ficam cada um com o seu esforço', async ($, on) => {
+  const HIGH = { ...SONNET_LOW, decision: { ...SONNET_LOW.decision, effort: 'high' } }
+  const { steps } = engine(on, { agent: SONNET_LOW, sequence: [JSON.stringify(SONNET_LOW), JSON.stringify(HIGH)] })
+
+  await $.tool.call({ tool: 'Agent', description: 'a', prompt: 'tarefa simples' } as never)
+  await $.tool.call({ tool: 'Agent', description: 'b', prompt: 'tarefa difícil' } as never)
+  await turn($, 't1', { agentId: 'a', model: 'claude-sonnet-5-5' })
+  await turn($, 't2', { agentId: 'b', model: 'claude-sonnet-5-5' })
+
+  expect(steps.map(s => s.effort)).toEqual(['low', 'high'])
 })
 
 // Publicado num marketplace: o núcleo é o `jev` instalado com `uv tool install`, e a chave vem da configuração
