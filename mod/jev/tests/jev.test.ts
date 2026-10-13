@@ -27,14 +27,20 @@ const USAGE = { input_tokens: 2, output_tokens: 4, cache_read_input_tokens: 1073
 type Call = { argv: readonly string[]; init?: ProcessRunInit }
 
 function engine(on: On, routes: { route?: object; agent?: object; raw?: string; sequence?: string[];
-                                  env?: Record<string, string>; missing?: boolean }) {
+                                  env?: Record<string, string>; missing?: boolean; delayMs?: number }) {
   const calls: Call[] = []
   const status: (string | undefined)[] = []
   const appended: unknown[] = []
   const steps: TurnStepInput[] = []
   const agentCalls: { model?: string }[] = []
-  on('process.run', (_$, e) => {
+  let inflight = 0
+  let maxInflight = 0
+  on('process.run', async (_$, e) => {
     calls.push(e)
+    inflight++
+    maxInflight = Math.max(maxInflight, inflight)
+    if (routes.delayMs) await new Promise(r => setTimeout(r, routes.delayMs))
+    inflight--
     if (routes.missing) throw new Error(`spawn ${e.argv[0]} ENOENT`)
     const out = e.argv.includes('record') ? { summary: { tasks: 2, saved_usd: 0.0571, saved_pct: 49.1 } }
       : e.argv.includes('--agent') ? routes.agent : routes.route
@@ -66,7 +72,7 @@ function engine(on: On, routes: { route?: object; agent?: object; raw?: string; 
     return { result: { content: 'feito' } as never }
   })
   const records = () => calls.filter(c => c.argv.includes('record')).map(c => JSON.parse(c.init?.stdin ?? '{}'))
-  return { calls, status, appended, steps, agentCalls, records }
+  return { calls, status, appended, steps, agentCalls, records, maxInflight: () => maxInflight }
 }
 
 function typed($: Engine, text: string, kind: 'composer' | 'task-notification' = 'composer') {
@@ -480,4 +486,23 @@ test('o núcleo fala sempre em UTF-8 (no Windows, os acentos estragavam-se)', as
   await turn($, 't1')
 
   expect(calls.every(c => c.init?.env?.PYTHONIOENCODING === 'utf-8')).toBe(true)
+})
+
+test('seis subagentes lançados de uma vez não disparam mais de quatro decisões ao mesmo tempo', async ($, on) => {
+  const { agentCalls, maxInflight } = engine(on, { agent: SONNET_LOW, delayMs: 20 })
+
+  await Promise.all(Array.from({ length: 6 }, (_, i) =>
+    $.tool.call({ tool: 'Agent', description: `t${i}`, prompt: `tarefa ${i}` } as never)))
+
+  expect(agentCalls).toHaveLength(6)
+  expect(agentCalls.every(c => c.model === 'sonnet')).toBe(true)
+  expect(maxInflight()).toBe(4)
+})
+
+test('o jev route de um subagente espera no máximo 30 s', async ($, on) => {
+  const { calls } = engine(on, { agent: SONNET_LOW })
+
+  await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'analisa' } as never)
+
+  expect(calls.find(c => c.argv.includes('--agent'))?.init?.timeoutMs).toBe(30_000)
 })

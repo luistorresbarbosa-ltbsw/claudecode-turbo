@@ -292,3 +292,24 @@ def test_without_an_openrouter_key_the_standard_says_what_is_missing(monkeypatch
     d = router.decide("explica o que é uma closure")
 
     assert d.is_standard and "OPENROUTER_API_KEY" in d.router_error and "chave" in d.router_error
+
+
+def test_a_huge_prompt_goes_to_the_jev_clipped_with_its_start_and_end():
+    seen = {}
+
+    def spy(body, headers):
+        seen.update(body=body)
+        return jev_reply("jev_decision_simple")(body, headers)
+
+    task = "INICIO" + "x" * 50_000 + "FIM"
+    router.decide(task, post=spy)
+
+    sent = seen["body"]["messages"][-1]["content"]
+    assert len(sent) < router.TASK_CHARS + 100
+    assert sent.startswith("INICIO") and sent.endswith("FIM")
+    assert "caracteres cortados" in sent
+
+
+def test_a_normal_prompt_goes_to_the_jev_untouched():
+    assert router.clip_task("analisa o módulo de faturação") == "analisa o módulo de faturação"
+    assert router.clip_task("y" * router.TASK_CHARS) == "y" * router.TASK_CHARS

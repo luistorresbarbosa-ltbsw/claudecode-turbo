@@ -84,6 +84,22 @@ function claimAgent(e: TurnStepInput): Routed | undefined {
   return routed
 }
 
+// Vários subagentes lançados de uma vez não disparam todos o `jev route` ao mesmo tempo: no máximo MAX_AGENT_ROUTES
+const MAX_AGENT_ROUTES = 4
+let routing = 0
+const waiting: (() => void)[] = []
+async function limited<T>(job: () => Promise<T>): Promise<T> {
+  if (routing >= MAX_AGENT_ROUTES) await new Promise<void>(go => waiting.push(go))
+  else routing++
+  try {
+    return await job()
+  } finally {
+    const go = waiting.shift()
+    if (go) go() // a vaga passa diretamente ao próximo
+    else routing--
+  }
+}
+
 let opts: Options = {}
 let bin: string | undefined
 // Chama o núcleo; a chave configurada no plugin vai no ambiente dele (sem ela, vale a do teu ambiente)
@@ -306,7 +322,8 @@ export const register: Register = (on, options) => {
     const started = Date.now()
     let ran
     try {
-      ran = await jev($, ['route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
+      // o HTTP ao Jev tem 15 s: com 30 s o subagente não fica parado se o núcleo encravar
+      ran = await limited(() => jev($, ['route', '--agent'], { stdin: e.prompt, timeoutMs: 30_000 }))
     } catch {
       queuedUnrouted.push({ task: e.prompt, why: 'núcleo em falta', same: true, model: standard() })
       return next({ ...e, model: standard() })

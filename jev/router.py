@@ -62,6 +62,11 @@ _TOOL_TASKS = {"devops", "security_audit"}
 # Da troca anterior, cada mensagem vai aparada: o início do pedido e o fim da resposta, onde costuma
 # estar a pergunta ou a proposta a que o prompt seguinte responde
 HISTORY_CHARS = 2000
+# O prompt de um subagente (ou um colado pelo utilizador) pode ser enorme, e vai inteiro para o OpenRouter: a decisão
+# paga-se por token. Acima deste tamanho vão o início (a tarefa e o papel) e o fim (o que se pede no fim). Sem medição
+# do que o Jev precisa, o teto é largo (~3k tokens); só corta prompts fora do normal
+TASK_CHARS = 12_000
+_TASK_HEAD = 8_000
 
 
 @dataclass(frozen=True)
@@ -128,6 +133,14 @@ def _why(data: dict) -> str:
     return " · ".join(parts)
 
 
+def clip_task(task: str) -> str:
+    """O prompt para o Jev: inteiro até TASK_CHARS; acima, o início e o fim, com a marca do corte."""
+    if len(task) <= TASK_CHARS:
+        return task
+    tail = TASK_CHARS - _TASK_HEAD
+    return f"{task[:_TASK_HEAD]}\n[…{len(task) - TASK_CHARS} caracteres cortados…]\n{task[-tail:]}"
+
+
 def history_messages(history) -> list[dict]:
     """A troca anterior em mensagens para o Jev (e para o free), aparadas; vazias e outros papéis ficam de fora."""
     out = []
@@ -173,7 +186,7 @@ def decide(task: str, *, history=(), post=_post) -> Decision:
     cost = 0.0
     try:
         resp = post(
-            {"model": JEV_MODEL, "messages": [*history_messages(history), {"role": "user", "content": task}],
+            {"model": JEV_MODEL, "messages": [*history_messages(history), {"role": "user", "content": clip_task(task)}],
              "max_tokens": 1,
              # uma sessão nova em cada decisão: sem ela, o Jev guarda um incumbente por chave da API e uma
              # sessão (ou um braço do piloto) herdava o modelo de outra; com ela, dá sempre a opinião fresca
