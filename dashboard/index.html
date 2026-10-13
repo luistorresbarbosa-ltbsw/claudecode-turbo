@@ -710,7 +710,27 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
     return v.length ? (v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2) : null;
   }
 
+  // Velocidade de saída medida nos pilotos (jev/policy.py: SECONDS_PER_TOKEN), em ms por token. Só sonnet e opus têm medição
+  const MS_PER_TOKEN = { sonnet: 5.6, opus: 8.2 };
+  // O standard não corre ao lado do JEV, por isso o tempo que se poupou é uma estimativa e é conservadora: conta só o que
+  // se mediu (o standard escreve a mesma saída à velocidade do opus; o JEV espera pela decisão), não o thinking extra do
+  // xhigh. Com o tempo do standard medido, vale esse. Sem velocidade medida (haiku, free, falhas), não há estimativa.
+  function savedMsOf(r) {
+    if (r.failed || r.jevMs == null) return null;
+    if (r.stdMs != null) return r.stdMs - r.jevMs;
+    const alias = ['sonnet', 'opus'].find((m) => r.model.toLowerCase().includes(m));
+    if (r.runner !== 'anthropic' || !alias || !r.stdModelId.toLowerCase().includes('opus') || r.outTokens == null) return null;
+    const wait = r.routeMs != null ? r.routeMs : num(r.decideMs);
+    return r.outTokens * (MS_PER_TOKEN.opus - MS_PER_TOKEN[alias]) - Math.min(wait, r.jevMs);
+  }
+
   function toRow(rec, index) {
+    const row = toBaseRow(rec, index);
+    row.savedMs = savedMsOf(row);
+    return row;
+  }
+
+  function toBaseRow(rec, index) {
     const dec = obj(rec.decision), jev = obj(rec.jev), std = obj(rec.standard);
     const jevCost = num(jev.cost_usd), stdCost = num(std.cost_usd);
     const failed = jev.ok === false;
@@ -731,6 +751,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       fallback: fb ? { from: str(obj(fb).from), reason: str(obj(fb).reason) } : null,
       stdKind: str(std.kind), stdModelId: str(std.model_id), stdEffort: str(std.effort),
       jevMs: msOf(jev.duration_ms, 0),
+      outTokens: typeof obj(jev.tokens).output === 'number' ? obj(jev.tokens).output : null,
       stdMs: std.kind === 'measured' ? msOf(std.duration_ms, 1) : null,
       scope: str(dec.scope),                       // "agent": turno de subagente; em falta ou "main": prompt do utilizador
       // para avaliar: o custo da decisão do Jev, os tempos, os sinais, a versão, a sessão e de onde veio o registo
@@ -1522,7 +1543,17 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
           noDecision(rows) ? `${noDecision(rows)} turnos sem decisão` : null].filter(Boolean).join(', ')),
       kpi('Trocas de modelo', String(sum('switches')), `${sum('held')} mantidos, ${sum('skipped')} sem Jev, ${sum('gate')} pela porta`),
       kpi('Tempo à espera', fmtDuration(rows.reduce((a, r) => a + num(r.jevMs), 0)),
-        `mediana de ${fmtDuration(median(rows.map((r) => r.jevMs)))} por turno`));
+        `mediana de ${fmtDuration(median(rows.map((r) => r.jevMs)))} por turno`),
+      timeSavedKpi(rows));
+  }
+
+  // O tempo que se poupou face ao standard, estimado (ver savedMsOf): só entram os turnos com estimativa
+  function timeSavedKpi(rows) {
+    const est = rows.filter((r) => r.savedMs != null), total = est.reduce((a, r) => a + r.savedMs, 0);
+    const text = `${total < 0 ? '−' : '+'}${fmtDuration(Math.abs(total))}`;
+    return kpi('Tempo poupado (estimado)', est.length ? text : 'sem estimativa',
+      est.length ? `${est.length} de ${rows.length} turnos, ${est.length ? fmtDuration(Math.abs(total) / est.length) : '0 s'} por turno. Conservador: só a velocidade de saída e a espera do Jev, sem o thinking do xhigh`
+        : 'só há estimativa para turnos em sonnet ou opus', est.length ? kindOf(Number((total / 1000).toFixed(1))) : undefined);
   }
 
   function drawAllTurns() {
@@ -1698,6 +1729,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       typeof sg.task_changed === 'number' && `tarefa nova ${nf(2).format(sg.task_changed)}`].filter(Boolean).join(', ');
     const wait = [global ? `${w.day}, ${w.time}` : w.time, `à espera ${fmtDuration(r.jevMs)}`,
       r.decideMs > 0 ? `decisão ${fmtDuration(r.decideMs)}` : sg.jev === 'saltado' ? 'sem decisão do Jev' : null,
+      r.savedMs != null ? `${r.stdMs != null ? '' : '≈ '}${r.savedMs < 0 ? 'perde' : 'poupa'} ${fmtDuration(Math.abs(r.savedMs))} face ao standard` : null,
       r.contextTokens ? `${Math.round(r.contextTokens / 1000)}k de contexto` : null].filter(Boolean).join(', ');
     const k = kindOf(Number(r.saved.toFixed(4)));
     const name = m === 'free' ? shortModel(r.model) : r.model || MODEL_NAME[m];
@@ -1768,7 +1800,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       : num(tok(r, 'cache_write_5m')) + num(tok(r, 'cache_write_1h')))],
     ['custo_decisao_usd', (r) => r.routerCost], ['custo_jev_usd', (r) => r.jevCost], ['custo_standard_usd', (r) => r.stdCost],
     ['standard', (r) => r.stdKind], ['poupado_usd', (r) => r.saved],
-    ['decisao_ms', (r) => r.decideMs], ['route_ms', (r) => r.routeMs], ['duracao_ms', (r) => r.jevMs],
+    ['poupado_ms_estimado', (r) => (r.savedMs == null ? '' : Math.round(r.savedMs))], ['decisao_ms', (r) => r.decideMs], ['route_ms', (r) => r.routeMs], ['duracao_ms', (r) => r.jevMs],
     ['ok', (r) => (r.failed ? 0 : 1)], ['erro_jev', (r) => r.routerError], ['fallback', (r) => (r.fallback ? r.fallback.from : '')],
     ['porque', (r) => r.rationale],
   ];
