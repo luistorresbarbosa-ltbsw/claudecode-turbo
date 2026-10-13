@@ -147,6 +147,9 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
         # uma resposta free não muda a faixa (e numa sessão nova ainda não há faixa nenhuma)
         policy.save_state(session, {**(policy.next_state(decision, state, new_task=new_task) or {}),
                                     "last_prompt": task[:2000], "last_answer": "", "last_runner": decision.runner})
+        if decision.runner == "anthropic":  # um free responde já e regista-se já: não fica em curso
+            ledger.set_live(session, {"task": task[:ledger.MAX_TASK_CHARS], "decision": decision.to_ledger(),
+                                      "policy": policy.current()})
     out = {"decision": decision.to_ledger(), "decide_ms": decide_ms, "free": None, "policy": policy.current(),
            "model_id": None if decision.is_standard else pricing.ALIASES.get(decision.model, decision.model)}
     if decision.runner != "openrouter-free":
@@ -179,6 +182,8 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
 
 
 def _record(payload: dict) -> dict:
+    if payload.get("session") and payload.get("scope") != "agent":
+        ledger.clear_live(payload["session"])  # o turno acabou (bem ou não): deixa de estar em curso
     decision = dict(payload["decision"])
     if payload.get("scope"):
         decision["scope"] = payload["scope"]

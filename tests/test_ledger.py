@@ -174,3 +174,29 @@ def test_summarize_speed_without_measured_standard_has_no_comparison():
     assert ledger.summarize([_timed(5000)])["speed"] == {
         "jev_median_ms": 5000, "standard_median_ms": None, "standard_measured": 0,
     }
+
+
+# --- o turno em curso: o que o Jev decidiu e ainda não acabou (para o dashboard o mostrar já) -------------
+
+def test_a_turn_in_progress_is_kept_per_session_until_cleared(tmp_path):
+    ledger.set_live("s1", {"task": "corre os testes", "decision": {"model": "sonnet", "effort": "high"}}, home=tmp_path)
+    ledger.set_live("s2", {"task": "outra", "decision": {"model": "opus", "effort": "medium"}}, home=tmp_path)
+
+    live = ledger.read_live(home=tmp_path)
+    assert sorted(x["session"] for x in live) == ["s1", "s2"] and all("ts" in x for x in live)
+
+    ledger.clear_live("s1", home=tmp_path)
+    assert [x["session"] for x in ledger.read_live(home=tmp_path)] == ["s2"]
+
+
+def test_a_stale_turn_in_progress_is_ignored(tmp_path):
+    ledger.set_live("s1", {"task": "x"}, home=tmp_path, now=ledger.datetime(2026, 10, 13, 9, 0, tzinfo=ledger.timezone.utc))
+
+    assert ledger.read_live(home=tmp_path, now=ledger.datetime(2026, 10, 13, 10, 0, tzinfo=ledger.timezone.utc)) == []
+
+
+def test_a_strange_session_id_never_becomes_a_path(tmp_path):
+    ledger.set_live("../../fora", {"task": "x"}, home=tmp_path)
+    ledger.clear_live("../../fora", home=tmp_path)
+
+    assert not list(tmp_path.parent.rglob("fora*"))

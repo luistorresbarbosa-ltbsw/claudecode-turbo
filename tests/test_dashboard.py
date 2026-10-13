@@ -210,7 +210,7 @@ def test_every_other_path_is_404(server, path):
     assert get(server, path).status == 404
 
 
-@pytest.mark.parametrize("path", ["/?x=1", "/api/ledger?_=1760000000", "/api/pilots?_=1760000000"])
+@pytest.mark.parametrize("path", ["/?x=1", "/api/ledger?_=1760000000", "/api/pilots?_=1760000000", "/api/live?_=1"])
 def test_query_string_does_not_change_routing(server, path):
     """Falha se um cache-buster (?_=...) transformar rotas válidas em 404."""
     assert get(server, path).status == 200
@@ -271,6 +271,52 @@ def test_all_sources_together_are_one_log_in_time_order(server, jev_home):
 def test_an_unknown_source_is_a_404_never_a_path_on_disk(server, jev_home):
     """Falha se ?source= for usado como caminho (../../) em vez de escolhido entre as origens conhecidas."""
     assert get(server, "/api/ledger?source=../../etc").status == 404
+
+
+# ------------------------------------------ ao vivo: o turno em curso e o aviso de que algo mudou
+
+def test_live_lists_the_turns_in_progress_of_every_source(server, jev_home):
+    """Falha se /api/live não juntar os turnos em curso do uso real e dos pilotos, cada um com a sua origem."""
+    ledger.set_live("s1", {"task": "corre os testes", "decision": {"model": "sonnet"}}, home=jev_home)
+    ledger.set_live("s9", {"task": "piloto", "decision": {"model": "opus"}},
+                    home=pilot.pilots_dir(jev_home) / "calc-anthropic-20261012-1811" / "jev-v4-home")
+    _arm_ledger(jev_home, "calc-anthropic-20261012-1811", "jev-v4", _rec(task="a"))
+
+    live = get(server, "/api/live").json()["live"]
+
+    assert sorted((x["session"], x["source"]["id"]) for x in live) == [
+        ("s1", "uso"), ("s9", "calc-anthropic-20261012-1811/jev-v4")]
+
+
+def _read_event(sock_file, deadline):
+    """Lê o stream até um evento completo (linhas até uma linha vazia); devolve o nome do evento."""
+    name = None
+    while time.monotonic() < deadline:
+        line = sock_file.readline().decode("utf-8")
+        if line.startswith("event:"):
+            name = line.split(":", 1)[1].strip()
+        elif line in ("\n", "\r\n") and name:
+            return name
+    raise AssertionError("o stream não mandou nenhum evento a tempo")
+
+
+def test_events_say_when_a_ledger_changes(server, jev_home):
+    """Falha se a página tiver de esperar pela próxima leitura: o servidor avisa logo que o ledger muda."""
+    sock = socket.create_connection(("127.0.0.1", server.server_port), timeout=5)
+    try:
+        sock.sendall(b"GET /api/events HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+        f = sock.makefile("rb")
+        status = f.readline().decode()
+        assert " 200 " in status
+        while f.readline() not in (b"\r\n", b"\n"):
+            pass  # cabeçalhos
+        assert _read_event(f, time.monotonic() + 5) == "ready"
+
+        ledger.append(_rec(task="acabou agora"), home=jev_home)
+
+        assert _read_event(f, time.monotonic() + 5) == "change"
+    finally:
+        sock.close()
 
 
 # ------------------------------------------------------------ the page (/)

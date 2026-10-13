@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import statistics
 import uuid
 from datetime import datetime, timezone
@@ -139,3 +140,57 @@ def _speed(records: list[dict]) -> dict:
         "standard_median_ms": _median_ms(measured),
         "standard_measured": len(measured),
     }
+
+
+# --- o turno em curso -------------------------------------------------------------------------------------
+# O ledger só ganha um registo no fim do turno; para o dashboard mostrar logo o que o Jev decidiu, o `jev route`
+# guarda o turno em curso num ficheiro por sessão, que o `jev record` apaga. Um que ficou esquecido (o Claude
+# Code fechado a meio) deixa de contar ao fim de LIVE_MAX_AGE_S.
+LIVE_MAX_AGE_S = 1800
+_LIVE_SESSION = re.compile(r"[A-Za-z0-9_-]{1,128}")
+
+
+def live_dir(home: str | Path | None = None) -> Path:
+    return ledger_path(home).parent / "live"
+
+
+def _live_path(session: str, home) -> Path | None:
+    if not isinstance(session, str) or not _LIVE_SESSION.fullmatch(session):
+        return None  # nunca um caminho a partir de um id estranho
+    return live_dir(home) / f"{session}.json"
+
+
+def set_live(session: str, entry: dict, home: str | Path | None = None, now: datetime | None = None) -> None:
+    path = _live_path(session, home)
+    if path is None:
+        return
+    ts = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    record = {**entry, "session": session, "ts": ts.isoformat(timespec="milliseconds").replace("+00:00", "Z")}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)  # quem lê nunca vê meio ficheiro
+
+
+def clear_live(session: str, home: str | Path | None = None) -> None:
+    path = _live_path(session, home)
+    if path is not None:
+        path.unlink(missing_ok=True)
+
+
+def read_live(home: str | Path | None = None, now: datetime | None = None) -> list[dict]:
+    """Os turnos em curso, do mais antigo para o mais recente; os esquecidos ficam de fora."""
+    folder = live_dir(home)
+    if not folder.is_dir():
+        return []
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    out = []
+    for path in folder.glob("*.json"):
+        try:
+            entry = json.loads(path.read_text(encoding="utf-8"))
+            started = datetime.fromisoformat(str(entry["ts"]).replace("Z", "+00:00"))
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if (now - started).total_seconds() <= LIVE_MAX_AGE_S:
+            out.append(entry)
+    return sorted(out, key=lambda e: e["ts"])

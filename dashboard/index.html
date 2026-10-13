@@ -318,6 +318,17 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
 @media (prefers-reduced-motion: no-preference) {
   .turn.is-flash { transition: background 0.9s ease; }
 }
+.turn.is-live { background: linear-gradient(90deg, var(--plane), transparent 75%); }
+.live-line { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--jev); font-weight: 600; }
+.live-tag { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; color: var(--jev); font-weight: 600; }
+.conv-new .live-tag { margin-left: 0; }
+.conv-new { cursor: default; background: var(--plane); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--jev); flex: none; }
+.lane > i.is-live { opacity: 0.45; outline: 1.5px dashed var(--ink-2); outline-offset: -1.5px; }
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot { animation: live-pulse 1.6s ease-in-out infinite; }
+  @keyframes live-pulse { 50% { opacity: 0.3; } }
+}
 .src { color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
 
 #content { transition: opacity 0.2s; }
@@ -629,6 +640,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
     pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map(), judgeSeen: new Map(),
     // o log para avaliar: de que origem (o uso real, um braço de um piloto, ou tudo) e, dentro dela, que sessão
     source: storedSource(), sources: [], sourcesText: null, all: [], records: [], convs: [], query: '',
+    live: [], liveText: null, pushing: false, polling: false, pollAgain: false,
     session: location.hash.startsWith('#conversa=') ? decodeURIComponent(location.hash.slice(10)) : null };
 
   // ---------------------------------------------------------------- DOM
@@ -1459,10 +1471,21 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
   function applySession() {
     if (state.session && !state.all.some((r) => sessionKey(r) === state.session)) state.session = null;
     state.convs = sessionsOf(state.all);
-    els.empty.hidden = state.all.length > 0;
-    els.content.hidden = state.all.length === 0;
-    if (!state.all.length) return;
+    const hasLive = liveHere().length > 0;          // a primeira conversa de sempre ainda não tem turnos acabados
+    els.empty.hidden = state.all.length > 0 || hasLive;
+    els.content.hidden = !state.all.length && !hasLive;
+    if (!state.all.length && !hasLive) return;
     drawConvList();
+    els.plot.closest('section').hidden = !state.all.length;
+    if (!state.all.length) {
+      state.session = null;
+      els.globalView.hidden = false;
+      els.convView.hidden = true;
+      fill(els.globalMeta, h('span', {}, 'A primeira conversa está a correr'));
+      els.globalKpis.replaceChildren();
+      drawAllTurns();
+      return;
+    }
     const g = state.session ? state.convs.find((x) => x.key === state.session) : null;
     els.globalView.hidden = !!g;
     els.convView.hidden = !g;
@@ -1497,7 +1520,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
 
   function drawAllTurns() {
     const newest = state.all.slice().reverse(), shown = newest.slice(0, state.shown);
-    els.allTurns.replaceChildren(...shown.map((r) => turnItem(r, null, true)));
+    els.allTurns.replaceChildren(...liveHere().map((x) => liveItem(x, null, true)), ...shown.map((r) => turnItem(r, null, true)));
     const rest = newest.length - shown.length;
     els.more.hidden = rest <= 0;
     els.more.textContent = `Mostrar mais ${Math.min(PAGE, rest)} (faltam ${rest})`;
@@ -1523,7 +1546,9 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       h('div', { class: 'conv-title' }, 'Todas as conversas'),
       h('div', { class: 'conv-meta' }, h('span', {}, `${num(sm.tasks)} transações`), savedSpan(num(sm.saved_usd), num(sm.saved_pct))));
     all.addEventListener('click', () => pickConv(null));
-    fill(els.convList, h('li', {}, all), groups.map((g) => h('li', {}, convItem(g))),
+    const known = new Set(state.convs.map((g) => g.key));
+    const fresh = liveHere().filter((x) => !known.has(str(x.session)));
+    fill(els.convList, h('li', {}, all), fresh.map((x) => h('li', {}, newConvItem(x))), groups.map((g) => h('li', {}, convItem(g))),
       q && !groups.length && h('li', { class: 'conv-none' }, h('p', { class: 'kpi-sub' }, 'Nenhuma conversa tem esse texto nos prompts.')));
   }
 
@@ -1532,7 +1557,8 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
   function convItem(g) {
     const w = when(g.first), pilot = isPilot(g.sourceId);
     const b = h('button', { type: 'button', class: 'conv', 'aria-current': String(state.session === g.key), title: g.title },
-      h('div', { class: 'conv-top' }, h('span', {}, h('b', {}, w.day), ` ${w.time}`),
+      h('div', { class: 'conv-top' }, h('span', {}, h('b', {}, w.day), ` ${w.time}`,
+          liveFor(g.key) && h('span', { class: 'live-tag' }, h('span', { class: 'live-dot', 'aria-hidden': 'true' }), 'a correr')),
         h('span', { class: 'conv-cost' }, usd(g.sm.jev_usd, g.sm.jev_usd < 1 ? 3 : 2))),
       pilot ? h('div', { class: 'conv-title is-origin' }, cap(originOf(g))) : h('div', { class: 'conv-title' }, g.title || 'Conversa sem prompt'),
       pilot && g.title && h('div', { class: 'conv-sub' }, g.title),
@@ -1558,7 +1584,8 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
         seg.addEventListener('click', () => flashTurn(i + 1));
       }
       return seg;
-    });
+    }).concat(big && liveFor(g.key) ? [h('i', { 'data-m': modelKey(liveRow(liveFor(g.key))), class: 'is-live',
+      style: `flex: ${(total / Math.max(1, g.main.length)).toFixed(6)} 1 0`, title: `Turno ${g.main.length + 1}: a correr` })] : []);
   }
 
   function flashTurn(n) {
@@ -1597,8 +1624,56 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
     els.convLane.setAttribute('aria-label', `${g.turns} turnos: ${used.map((m) => `${g.main.filter((r) => modelKey(r) === m).length} em ${MODEL_NAME[m]}`).join(', ')}; ${g.switches} trocas de modelo`);
     fill(els.laneLegend, used.map((m) => h('li', {}, h('i', { class: 'key-m', 'data-m': m }), MODEL_NAME[m])));
     let n = 0;
-    els.turns.replaceChildren(...g.rows.map((r) => turnItem(r, r.scope === 'agent' ? null : ++n)));
+    const lv = liveFor(g.key);
+    els.turns.replaceChildren(...g.rows.map((r) => turnItem(r, r.scope === 'agent' ? null : ++n)), ...(lv ? [liveItem(lv, n + 1, false)] : []));
     els.turnsMeta.textContent = 'Clica num prompt para o ler inteiro';
+  }
+
+  // ------------------------------------------------------------ ao vivo
+  // O turno em curso: o Jev já decidiu, o turno ainda corre (o custo só existe no fim)
+  function readLive(res) {
+    if (res.status !== 'fulfilled' || !res.value.ok || res.value.text === state.liveText) return false;
+    try {
+      const list = obj(JSON.parse(res.value.text)).live;
+      state.live = Array.isArray(list) ? list.map(obj) : [];
+      state.liveText = res.value.text;
+      return true;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  }
+  const ago = (ms) => (ms < 1000 ? 'agora mesmo' : `há ${fmtDuration(ms)}`);
+  const liveHere = () => state.live.filter((x) => state.source === 'tudo' || str(obj(x.source).id) === (state.source || 'uso'));
+  const liveFor = (key) => liveHere().find((x) => str(x.session) === key);
+  function liveRow(x) {                            // o turno em curso com a forma de uma linha do ledger
+    const dec = obj(x.decision);
+    return { runner: str(dec.runner), model: str(dec.model), effort: str(dec.effort), isStandard: dec.is_standard === true,
+      rationale: str(dec.rationale), routerModel: str(dec.router_model), signals: obj(dec.signals), scope: str(dec.scope),
+      routerError: dec.router_error == null ? null : str(dec.router_error), fallback: null, failed: false, jevModelId: '' };
+  }
+  function liveItem(x, n, global) {
+    const r = liveRow(x), m = modelKey(r), since = Date.parse(x.ts);
+    const name = m === 'free' ? shortModel(r.model) : r.model || MODEL_NAME[m];
+    return h('li', { class: `turn is-live${global ? ' is-global' : ''}` },
+      !global && h('div', { class: 'turn-n' }, String(n)),
+      h('div', {},
+        h('div', { class: 'turn-prompt' }, str(x.task) || '(sem texto)'),
+        h('div', { class: 'turn-how' },
+          h('span', { class: 'chip-m', title: r.rationale || null }, h('i', { class: 'key-m', 'data-m': m }), `${name}${r.effort ? ` · ${r.effort}` : ''}`),
+          tagsOf(r)),
+        h('div', { class: 'turn-sig live-line' }, h('span', { class: 'live-dot', 'aria-hidden': 'true' }), 'a correr ',
+          h('span', { 'data-since': String(since) }, ago(Date.now() - since)),
+          global ? ` em ${originOf({ sourceId: str(obj(x.source).id) })}` : '')),
+      h('div', { class: 'turn-cost' }, h('span', {}, 'o custo chega no fim do turno')));
+  }
+  function newConvItem(x) {                        // uma conversa nova, ainda sem nenhum turno acabado
+    const since = Date.parse(x.ts), r = liveRow(x);
+    return h('div', { class: 'conv conv-new' },
+      h('div', { class: 'conv-top' }, h('span', { class: 'live-tag' }, h('span', { class: 'live-dot', 'aria-hidden': 'true' }), 'conversa nova, a correr'),
+        h('span', { 'data-since': String(since) }, ago(Date.now() - since))),
+      h('div', { class: 'conv-title' }, str(x.task) || '(sem texto)'),
+      h('div', { class: 'conv-meta' }, h('span', {}, `${r.model || 'standard'}${r.effort ? ` · ${r.effort}` : ''}`), h('span', {}, originOf({ sourceId: str(obj(x.source).id) }))));
   }
 
   function openConv(key) {
@@ -1747,7 +1822,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       if (res.value.text !== state.lastText) { render(JSON.parse(res.value.text)); state.lastText = res.value.text; }
       showProblem('');
       const n = new Date();
-      setLive(true, `Lido às ${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`);
+      setLive(true, `${state.pushing ? 'Ao vivo, lido' : 'Lido'} às ${pad2(n.getHours())}:${pad2(n.getMinutes())}:${pad2(n.getSeconds())}`);
     } catch (err) {
       console.error(err);
       showProblem(`Erro ao desenhar o dashboard: ${err.message}`);
@@ -1784,16 +1859,36 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
 
   async function poll() {
     if (document.hidden) return schedule();
-    const [sourcesRes, pilotsRes] = await Promise.allSettled([fetchText('/api/sources'), fetchText('/api/pilots')]);
-    readSources(sourcesRes);
-    const source = state.source || 'uso';
-    const [ledgerRes] = await Promise.allSettled([fetchText(source === 'uso' ? '/api/ledger' : `/api/ledger?source=${encodeURIComponent(source)}`)]);
-    if (source === (state.source || 'uso')) readLedger(ledgerRes);  // a origem mudou entretanto: a próxima leitura trata
-    readPilots(pilotsRes);
+    if (state.polling) { state.pollAgain = true; return; }   // um aviso a meio de uma leitura: relê no fim dela
+    state.polling = true;
+    try {
+      const [sourcesRes, pilotsRes, liveRes] = await Promise.allSettled([fetchText('/api/sources'), fetchText('/api/pilots'), fetchText('/api/live')]);
+      readSources(sourcesRes);
+      const liveChanged = readLive(liveRes);
+      const source = state.source || 'uso';
+      const before = state.lastText;
+      const [ledgerRes] = await Promise.allSettled([fetchText(source === 'uso' ? '/api/ledger' : `/api/ledger?source=${encodeURIComponent(source)}`)]);
+      if (source === (state.source || 'uso')) readLedger(ledgerRes);  // a origem mudou entretanto: a próxima leitura trata
+      if (liveChanged && state.loaded && state.lastText === before) applySession();
+      readPilots(pilotsRes);
+    } finally {
+      state.polling = false;
+    }
+    if (state.pollAgain) { state.pollAgain = false; return poll(); }
     schedule();
   }
   let timer = 0;
-  function schedule() { clearTimeout(timer); timer = setTimeout(poll, POLL_MS); }
+  // Com o aviso do servidor ligado, a releitura periódica é só uma rede de segurança
+  function schedule() { clearTimeout(timer); timer = setTimeout(poll, state.pushing ? 30000 : POLL_MS); }
+  if ('EventSource' in window) {
+    const events = new EventSource('/api/events');
+    events.addEventListener('ready', () => { state.pushing = true; });
+    events.addEventListener('change', () => { if (!document.hidden) { clearTimeout(timer); poll(); } });
+    events.addEventListener('error', () => { state.pushing = false; });
+  }
+  setInterval(() => {                               // "a correr há 12 s" avança sozinho
+    for (const el of document.querySelectorAll('[data-since]')) el.textContent = ago(Date.now() - Number(el.dataset.since));
+  }, 1000);
 
   for (const b of document.querySelectorAll('.seg button')) {
     b.addEventListener('click', () => { state.view = b.dataset.view; if (state.rows.length) drawView(); });

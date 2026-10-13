@@ -7,6 +7,9 @@ Serve só em 127.0.0.1 e só com a stdlib:
                      ?source=<id> (de /api/sources) ou ?source=tudo, essa origem ou todas, cada registo
                      com o seu "source"
     GET /api/sources {"sources": [...]}: o uso real e o ledger de cada braço de cada piloto
+    GET /api/live    {"live": [...]}: os turnos em curso (o Jev já decidiu, o turno ainda não acabou)
+    GET /api/events  um stream (text/event-stream) que diz "change" quando um ledger, um turno em curso ou um
+                     piloto muda, para a página reler logo em vez de esperar pela próxima leitura
     GET /api/pilots  {"pilots": [...]}, os pilotos do mais recente para o mais antigo, relidos a cada pedido
 
 O ledger e os pilotos são contratos partilhados (ver jev/ledger.py e jev/pilot.py). Aqui só se lê.
@@ -16,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -35,6 +39,7 @@ INDEX_HTML = (_PACKAGED_HTML if _PACKAGED_HTML.is_file()
 # seu domínio para 127.0.0.1 e ler o ledger no browser do utilizador; o que a denuncia é
 # o cabeçalho Host, por isso só aceitamos os nomes que o próprio utilizador digita.
 LOCAL_HOSTNAMES = {"127.0.0.1", "localhost"}
+EVENTS_CHECK_S, EVENTS_PING_S = 0.5, 15.0
 
 
 def _ledger_payload() -> dict:
@@ -72,6 +77,35 @@ def _sources_payload() -> dict:
     return {"sources": rows}
 
 
+def _live_payload() -> dict:
+    live = []
+    for src in _sources():
+        tag = {"id": src["id"], "kind": src["kind"], "label": src["label"]}
+        live += [{**entry, "source": tag} for entry in ledger.read_live(home=src["home"])]
+    return {"live": sorted(live, key=lambda e: e["ts"])}
+
+
+def _signature() -> tuple:
+    """O que, ao mudar, a página deve reler: cada ledger, cada turno em curso e as linhas dos pilotos."""
+    paths = []
+    for src in _sources():
+        paths.append(src["home"] / "ledger.jsonl")
+        folder = src["home"] / "live"
+        if folder.is_dir():
+            paths += sorted(folder.glob("*.json"))
+    root = pilot.pilots_dir()
+    if root.is_dir():
+        paths += sorted(root.glob("*.jsonl"))
+    sig = []
+    for path in paths:
+        try:
+            st = path.stat()
+            sig.append((str(path), st.st_mtime_ns, st.st_size))
+        except OSError:
+            sig.append((str(path), None, None))
+    return tuple(sig)
+
+
 def _source_payload(wanted: str) -> dict:
     """Os registos de uma origem (ou de todas, "tudo"), cada um com o "source" de onde veio, por ordem de tempo.
     O id escolhe-se entre as origens conhecidas, nunca é um caminho."""
@@ -107,8 +141,40 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(_sources_payload)
         elif route == "/api/pilots":
             self._send_json(lambda: {"pilots": pilot.read_all()})
+        elif route == "/api/live":
+            self._send_json(_live_payload)
+        elif route == "/api/events":
+            self._stream_events()
         else:
             self._reply(HTTPStatus.NOT_FOUND, "Não encontrado.")
+
+    def _stream_events(self) -> None:
+        """Diz "change" assim que alguma coisa que a página mostra muda (verifica de meio em meio segundo) e manda
+        um sinal de vida de 15 em 15 s; acaba quando a página fecha a ligação."""
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        try:
+            self.wfile.write(b"event: ready\ndata: {}\n\n")
+            self.wfile.flush()
+            last, quiet = _signature(), 0.0
+            while True:
+                time.sleep(EVENTS_CHECK_S)
+                now = _signature()
+                if now != last:
+                    last, quiet = now, 0.0
+                    self.wfile.write(b"event: change\ndata: {}\n\n")
+                    self.wfile.flush()
+                else:
+                    quiet += EVENTS_CHECK_S
+                    if quiet >= EVENTS_PING_S:
+                        quiet = 0.0
+                        self.wfile.write(b": vivo\n\n")
+                        self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+            return  # a página fechou: acabou
 
     def _host_is_local(self) -> bool:
         host = self.headers.get("Host")

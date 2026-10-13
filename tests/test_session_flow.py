@@ -384,3 +384,18 @@ def test_a_free_answer_is_logged_with_its_session(capsys, monkeypatch):
 
     rec = ledger.read_all()[-1]
     assert (rec["session"], rec["policy"]) == ("s1", "v3")
+
+
+def test_route_marks_the_turn_in_progress_and_record_clears_it(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v3")
+
+    cli.main(["route", "--json"], decide=lambda t, **k: OPUS_NEW, run_free=free_ok(),
+             stdin=io.StringIO(json.dumps({"task": TASK, "history": [], "session": "s1"})))
+    out = json.loads(capsys.readouterr().out)
+
+    live = ledger.read_live()
+    assert [(x["session"], x["task"], x["decision"]["model"], x["policy"]) for x in live] == [("s1", TASK, "opus", "v3")]
+
+    record({"task": TASK, "decision": out["decision"], "model_id": out["model_id"], "usage": SONNET_USAGE,
+            "duration_ms": 900, "reason": "aborted", "scope": "main", "session": "s1"}, capsys)
+    assert ledger.read_live() == []  # mesmo um turno interrompido deixa de estar em curso

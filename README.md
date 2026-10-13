@@ -128,6 +128,8 @@ Dashboard (local, só em 127.0.0.1): o registo do que o JEV fez, conversa a conv
   decisões do Jev, as trocas de modelo e a espera, a faixa grande (largura = custo do turno, entalhe = troca de
   modelo) e cada turno com o prompt, a escolha do Jev, a regra aplicada, os sinais e o custo.
 - **Todas as conversas:** o mesmo resumo para a origem inteira, o custo acumulado e todas as transações.
+- **Ao vivo:** assim que o Jev decide, o turno aparece "a correr" (o prompt e o modelo escolhido), e a página
+  atualiza-se logo que um ledger muda, sem esperar pela leitura de 5 em 5 s.
 - **Origem:** o uso real (o teu ledger), cada braço de cada piloto, ou tudo junto.
 - **Exportar:** CSV ou JSON do que estás a ver (uma conversa, ou todas), com os sinais do Jev, os tokens, os custos
   e os tempos de cada transação.

@@ -1,6 +1,6 @@
 [project]
 name = "jev"
-version = "0.2.1"
+version = "0.2.2"
 description = "JEV: escolhe o modelo e o esforço certos para cada tarefa, e mostra quanto poupaste."
 requires-python = ">=3.12,<3.14"  # o litellm depende do fastuuid, sem rodas prontas para 3.14+
 dependencies = [
