@@ -196,6 +196,9 @@ def _record(payload: dict) -> dict:
         std = router.standard()
         standard = {"kind": "measured", "model_id": model_id, "effort": std.effort, "cost_usd": run_cost,
                     "tokens": tokens, "duration_ms": duration}
+    elif payload.get("baseline") == "same":  # o JEV não mudou este turno: sem ele corria igual, nada a atribuir
+        standard = {"kind": "measured", "model_id": model_id, "effort": decision.get("effort"), "cost_usd": run_cost,
+                    "tokens": tokens, "duration_ms": duration}
     else:
         standard = _estimated_standard(tokens)
     rec = ledger.make_record(

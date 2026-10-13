@@ -93,16 +93,48 @@ async function jev($: EngineInterface, args: string[], init: ProcessRunInit) {
   return $.process.run([bin, ...args], { ...init, ...env })
 }
 
+// Os turnos que não passam pelo Jev também ficam no registo (o custo de uma conversa é o de todos os turnos),
+// com o porquê; `same`: sem o JEV teriam corrido igual, por isso nada se atribui ao JEV
+type Unrouted = { task: string; why: string; same: boolean; effort?: string | null; model?: string }
+let unroutedPending: Unrouted | undefined
+const unrouted = new Map<string, Unrouted>() // turno principal -> porquê
+const queuedUnrouted: Unrouted[] = [] // subagentes lançados sem o Jev, à espera do 1.º passo
+const unroutedAgents = new Map<string, Unrouted>() // subagente -> porquê
+const ORIGIN_WHY: Record<string, string> = {
+  'task-notification': 'notificação', 'scheduled-trigger': 'tarefa agendada', peer: 'outra sessão',
+  'peer-send-message': 'outra sessão', 'projects-relay': 'outra sessão', channel: 'canal',
+}
+const alias = (id: string) => (['opus', 'sonnet', 'haiku', 'fable'] as const).find(k => id.includes(k)) ?? id
+
+// No 1.º passo de um turno sem decisão: o esforço com que correu e, num subagente, a que lançamento pertence
+function noteUnrouted(e: TurnStepInput, laneEffort: string | null | undefined) {
+  const stepEffort = typeof e.effort === 'string' ? e.effort : null // um orçamento em tokens não é um nome de esforço
+  if (!e.agentId) {
+    const u = unrouted.get(e.turnId)
+    if (u && u.effort === undefined) u.effort = laneEffort ?? stepEffort
+    return
+  }
+  if (unroutedAgents.has(e.agentId)) return
+  const i = queuedUnrouted.findIndex(u => !!u.model && e.model.includes(u.model))
+  const [u] = queuedUnrouted.length ? queuedUnrouted.splice(i >= 0 ? i : 0, 1) : []
+  unroutedAgents.set(e.agentId, { ...(u ?? { task: '', why: 'subagente', same: false }), effort: stepEffort })
+}
+
 export const register: Register = (on, options) => {
   opts = options as Options
   on('prompt.submit', async ($, e, next) => {
     const task = e.text.trim()
+    unroutedPending = undefined
     if (ROUTED_ORIGINS.has(e.origin.kind) && /^\/model\b/.test(task)) {
       pinned = true
       sessionModel = undefined
       return next(e)
     }
-    if (pinned || !ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) return next(e)
+    if (pinned || !ROUTED_ORIGINS.has(e.origin.kind) || !task || task.startsWith('/')) {
+      const why = pinned ? 'modelo fixado' : !ROUTED_ORIGINS.has(e.origin.kind) ? (ORIGIN_WHY[e.origin.kind] ?? e.origin.kind) : 'comando'
+      if (task) unroutedPending = { task, why, same: pinned || !sessionModel }
+      return next(e)
+    }
 
     $.ui.status('JEV: a decidir…')
     let session: string | undefined
@@ -122,12 +154,14 @@ export const register: Register = (on, options) => {
       })
     } catch {
       sessionModel = undefined // o núcleo não arrancou: o prompt segue como sem o JEV
+      unroutedPending = { task, why: 'núcleo em falta', same: true }
       $.ui.status(`JEV: o núcleo não arrancou; instala-o com ${INSTALL}`)
       return next(e)
     }
     const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     if (!route) {
+      unroutedPending = { task, why: 'Jev sem resposta', same: true }
       sessionModel = undefined // a regra: qualquer falha cai no standard, também na v2
       $.ui.status('JEV: sem decisão, segue o standard')
       return next(e)
@@ -164,13 +198,17 @@ export const register: Register = (on, options) => {
     if (pending) {
       turns.set(e.turnId, pending)
       pending = undefined
+    } else {
+      unrouted.set(e.turnId, unroutedPending ?? { task: e.text || lastExchange?.prompt || '', why: 'continuação', same: !sessionModel })
     }
+    unroutedPending = undefined
     return next(e)
   })
 
   // Cada pedido do turno sai com o modelo e o esforço que o Jev escolheu (pela subscrição)
   on('turn.step', async function* ($, e, next) {
     const routed = e.agentId ? claimAgent(e) : turns.get(e.turnId)
+    if (!routed) noteUnrouted(e, !e.agentId && sessionModel ? sessionModel.effort : undefined)
     if (!routed && !e.agentId && sessionModel) {
       const effort = sessionModel.effort ? { effort: sessionModel.effort } : {}
       return yield* next({ ...e, model: sessionModel.model, ...effort })
@@ -216,6 +254,34 @@ export const register: Register = (on, options) => {
         const secs = ((e.durationMs + routed.waitMs) / 1000).toFixed(1)
         $.ui.status(`JEV: ${label(routed.route.decision)} · ${secs} s${totals(out?.summary)}`)
       }
+    } else {
+      const u = (e.agentId ? unroutedAgents.get(e.agentId) : unrouted.get(e.turnId))
+        ?? { task: '', why: e.agentId ? 'subagente' : 'continuação', same: false }
+      if (e.agentId) unroutedAgents.delete(e.agentId)
+      else unrouted.delete(e.turnId)
+      if (e.usage) {
+        let session: string | undefined
+        let context: number | undefined
+        try {
+          session = await $.session.id()
+          if (!e.agentId) context = (await $.session.usage()).context.tokens
+        } catch {
+          // sem isto o registo fica sem sessão; não é razão para falhar o turno
+        }
+        const decision = {
+          runner: 'anthropic', model: alias(e.usage.model), effort: u.effort ?? null, rationale: `sem decisão do Jev: ${u.why}`,
+          is_standard: false, router_model: 'sem decisão', router_cost_usd: 0, router_error: null,
+          signals: { jev: 'sem decisão', rule: u.why },
+        }
+        await jev($, ['record'], {
+          stdin: JSON.stringify({
+            task: u.task, decision, model_id: e.usage.model, usage: e.usage, duration_ms: e.durationMs, reason: e.reason,
+            scope: e.agentId ? 'agent' : 'main', session, answer: e.agentId ? undefined : e.answer.slice(-2000), context,
+            ...(u.same ? { baseline: 'same' } : {}),
+          }),
+          timeoutMs: 60_000,
+        }).catch(() => undefined)
+      }
     }
     return next(e)
   })
@@ -229,20 +295,30 @@ export const register: Register = (on, options) => {
 
   // Subagentes: o Jev escolhe o modelo a partir da tarefa do agente (um subagente nunca vai para um free)
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
-    if (e.subagent_type === 'fork') return next(e) // um fork herda sempre o modelo
+    if (e.subagent_type === 'fork') { // um fork herda sempre o modelo
+      queuedUnrouted.push({ task: e.prompt, why: 'fork', same: !sessionModel })
+      return next(e)
+    }
     const started = Date.now()
     let ran
     try {
       ran = await jev($, ['route', '--agent'], { stdin: e.prompt, timeoutMs: 60_000 })
     } catch {
+      queuedUnrouted.push({ task: e.prompt, why: 'núcleo em falta', same: true, model: e.model })
       return next(e) // sem núcleo, o subagente corre como pedido
     }
     const routeMs = Date.now() - started
     const route = readJson<Route>(ran.stdout)
     const d = route?.decision
-    if (!route || !d || d.is_standard || d.runner !== 'anthropic') return next(e)
+    if (!route || !d || d.is_standard || d.runner !== 'anthropic') {
+      queuedUnrouted.push({ task: e.prompt, why: 'Jev sem resposta', same: true, model: e.model })
+      return next(e)
+    }
     const declared = e.model as Model | undefined
-    if (declared && declared in RANK && RANK[declared] < (RANK[d.model as Model] ?? 0)) return next(e) // já é mais barato
+    if (declared && declared in RANK && RANK[declared] < (RANK[d.model as Model] ?? 0)) { // já é mais barato
+      queuedUnrouted.push({ task: e.prompt, why: 'modelo declarado', same: true, model: declared })
+      return next(e)
+    }
     queuedAgents.push({ task: e.prompt, route, waitMs: Math.max(routeMs, route.decide_ms), routeMs, scope: 'agent' })
     return next({ ...e, model: d.model as Model })
   })

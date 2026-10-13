@@ -399,3 +399,17 @@ def test_route_marks_the_turn_in_progress_and_record_clears_it(capsys, monkeypat
     record({"task": TASK, "decision": out["decision"], "model_id": out["model_id"], "usage": SONNET_USAGE,
             "duration_ms": 900, "reason": "aborted", "scope": "main", "session": "s1"}, capsys)
     assert ledger.read_live() == []  # mesmo um turno interrompido deixa de estar em curso
+
+
+def test_a_turn_the_jev_did_not_change_saves_nothing(capsys):
+    # um subagente que ficou com o modelo que declarou, ou uma sessão com o modelo fixado: sem o JEV era igual
+    unrouted = {"runner": "anthropic", "model": "haiku", "effort": None, "rationale": "sem decisão do Jev: modelo declarado",
+                "is_standard": False, "router_model": "sem decisão", "router_cost_usd": 0, "router_error": None,
+                "signals": {"jev": "sem decisão", "rule": "modelo declarado"}}
+    _, out = record({"task": "onde está o timeout?", "decision": unrouted, "model_id": "claude-sonnet-5-5",
+                     "usage": SONNET_USAGE, "duration_ms": 3000, "reason": "answer", "scope": "agent",
+                     "session": "s1", "baseline": "same"}, capsys)
+
+    rec = out["record"]
+    assert rec["standard"]["kind"] == "measured"
+    assert rec["standard"]["cost_usd"] == pytest.approx(rec["jev"]["cost_usd"]) and rec["savings_usd"] == 0

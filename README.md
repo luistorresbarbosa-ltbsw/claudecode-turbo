@@ -53,7 +53,9 @@ subscrição, como sempre. Se alguma coisa falhar, o prompt corre no standard, s
    - **Subagentes:** o Jev decide com a tarefa do agente. O modelo vai na chamada `Agent` e o esforço
      nos passos do subagente. Um subagente nunca vai para um free (usa ferramentas).
    - Os modelos free só executam; nunca decidem.
-3. **Registar (`jev record`).** No fim de cada turno: o custo real (preços via litellm, mais a decisão
+3. **Registar (`jev record`).** No fim de cada turno, também dos que não passam pelo Jev (forks, subagentes com
+   o modelo declarado, notificações, sessões com o modelo fixado), com o motivo, para o custo de uma conversa ser o
+   real: o custo real (preços via litellm, mais a decisão
    do Jev) e o tempo que esperaste (decisão + turno), contra o standard. O ledger guarda também quanto
    levou o `jev route` inteiro (`route_ms`) e, dentro dele, a decisão do Jev (`decide_ms`). Quando o Jev falha e a sessão
    segue no standard, esse turno fica como **medição real do standard**.

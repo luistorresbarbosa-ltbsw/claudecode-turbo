@@ -105,8 +105,48 @@ test('prompts que não escreveste não passam pelo Jev', async ($, on) => {
   await typed($, 'tarefa terminada', 'task-notification')
   await turn($, 't1')
 
-  expect(calls).toHaveLength(0)
+  expect(calls.filter(c => c.argv.includes('route'))).toHaveLength(0)
   expect(steps[0]?.model).toBe('claude-opus-5-5')
+})
+
+// O custo de uma conversa é o de todos os turnos: os que não passam pelo Jev também ficam no registo, com o motivo
+test('uma notificação fica no registo, sem decisão do Jev', async ($, on) => {
+  const { records } = engine(on, { route: SONNET_LOW })
+
+  await typed($, 'tarefa terminada', 'task-notification')
+  await turn($, 't1')
+
+  const [rec] = records()
+  expect(rec.decision.signals).toEqual({ jev: 'sem decisão', rule: 'notificação' })
+  expect(rec.decision.router_cost_usd).toBe(0)
+  expect(rec.decision.model).toBe('sonnet') // o modelo que respondeu (USAGE)
+  expect(rec.baseline).toBe('same') // na v1 corre no modelo por defeito: o JEV não mudou nada
+})
+
+test('na v3, uma notificação corre na faixa e conta como do JEV', async ($, on) => {
+  const { records } = engine(on, { route: { ...SONNET_LOW, policy: 'v3' } })
+
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1')
+  await typed($, 'tarefa terminada', 'task-notification')
+  await turn($, 't2')
+
+  const second = records()[1]
+  expect(second.decision.signals.rule).toBe('notificação')
+  expect(second.baseline).toBeUndefined() // correu na faixa do Jev: compara-se com o standard
+})
+
+test('com o modelo fixado, os turnos ficam no registo como modelo fixado', async ($, on) => {
+  const { records } = engine(on, { route: SONNET_LOW })
+
+  await typed($, '/model sonnet')
+  await typed($, 'acrescenta fatura/io.py')
+  await turn($, 't1')
+
+  const [rec] = records()
+  expect(rec.decision.signals.rule).toBe('modelo fixado')
+  expect(rec.baseline).toBe('same')
+  expect(rec.task).toBe('acrescenta fatura/io.py')
 })
 
 test('quando o Jev falha a sessão segue com o standard, e o turno conta como medição do standard', async ($, on) => {
@@ -160,6 +200,29 @@ test('um fork herda o modelo e não passa pelo Jev', async ($, on) => {
 
   expect(calls).toHaveLength(0)
   expect(agentCalls[0]?.model).toBe(undefined)
+})
+
+test('o turno de um fork fica no registo como subagente', async ($, on) => {
+  const { records } = engine(on, { agent: HAIKU_AGENT })
+
+  await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'revê o diff', subagent_type: 'fork' } as never)
+  await turn($, 't9', { agentId: 'f1', model: 'claude-opus-5-5' })
+
+  const [rec] = records()
+  expect(rec.scope).toBe('agent')
+  expect(rec.task).toBe('revê o diff')
+  expect(rec.decision.signals).toEqual({ jev: 'sem decisão', rule: 'fork' })
+})
+
+test('um subagente com um modelo declarado mais barato fica no registo, sem poupança atribuída ao JEV', async ($, on) => {
+  const { records } = engine(on, { agent: SONNET_LOW })
+
+  await $.tool.call({ tool: 'Agent', description: 'procurar', prompt: 'onde está o timeout?', model: 'haiku' } as never)
+  await turn($, 't9', { agentId: 'a7', model: 'claude-haiku-4-5' })
+
+  const [rec] = records()
+  expect(rec.decision.signals.rule).toBe('modelo declarado')
+  expect(rec.baseline).toBe('same')
 })
 
 // Sem a troca anterior, o Jev lê "sim, avança" como conversa e manda-o para um free (sonda real, 2026-10-11)

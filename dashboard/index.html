@@ -1078,6 +1078,11 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       tags.push(h('span', { class: 'tag', title: 'Turno de um subagente: o Claude Code delegou esta parte a um agente, não foi um prompt teu.\nUm subagente usa ferramentas, por isso nunca corre num modelo free.' },
         icon('agent'), 'subagente'));
     }
+    if (r.signals.jev === 'sem decisão') {
+      tags.push(h('span', { class: 'tag', title: `Este turno não passou pelo Jev (${r.signals.rule}), mas conta no custo da conversa.`
+        + (r.stdKind === 'measured' ? '\nSem o JEV corria igual: o standard é o próprio custo, sem poupança atribuída.' : '') },
+        `sem decisão: ${r.signals.rule}`));
+    }
     if (r.signals.jev === 'saltado') {
       tags.push(h('span', { class: 'tag', title: 'Seguimento: correu na faixa da sessão sem perguntar ao Jev (v4).' }, 'sem Jev'));
     }
@@ -1504,6 +1509,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
   }
 
   // Os quatro números, para uma conversa ou para todas: o que se poupou, o que custou decidir, as trocas, a espera
+  const noDecision = (rows) => rows.filter((r) => r.signals.jev === 'sem decisão').length;
   function drawKpis(target, groups, rows, sm) {
     const saved = num(sm.saved_usd), decN = rows.filter((r) => r.routerCost > 0 || r.decideMs > 0).length;
     const sum = (k) => groups.reduce((a, g) => a + g[k], 0);
@@ -1512,7 +1518,8 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
       kpi('Poupado face ao standard', usd(saved, Math.abs(saved) < 10 ? 3 : 2, true) + pctText,
         `JEV ${usd(num(sm.jev_usd), 2)}, standard ${usd(num(sm.standard_usd), 2)}`, kindOf(Number(saved.toFixed(4)))),
       kpi('Decisões do Jev', usd(rows.reduce((a, r) => a + r.routerCost, 0), 4),
-        decN ? `${decN} decisões, mediana ${fmtDuration(median(rows.map((r) => (r.decideMs > 0 ? r.decideMs : null))))}` : 'sem tempos de decisão registados'),
+        [decN ? `${decN} decisões, mediana ${fmtDuration(median(rows.map((r) => (r.decideMs > 0 ? r.decideMs : null))))}` : 'sem tempos de decisão registados',
+          noDecision(rows) ? `${noDecision(rows)} turnos sem decisão` : null].filter(Boolean).join(', ')),
       kpi('Trocas de modelo', String(sum('switches')), `${sum('held')} mantidos, ${sum('skipped')} sem Jev, ${sum('gate')} pela porta`),
       kpi('Tempo à espera', fmtDuration(rows.reduce((a, r) => a + num(r.jevMs), 0)),
         `mediana de ${fmtDuration(median(rows.map((r) => r.jevMs)))} por turno`));
