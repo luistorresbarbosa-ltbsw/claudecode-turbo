@@ -273,13 +273,13 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 .dmeta { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--ink-2); font-size: 13px; }
 .dmeta code { font-size: 12px; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0; margin-top: 22px; border-block: 1px solid var(--hair); }
-.kpi { display: grid; align-content: start; gap: 3px; padding: 16px 18px 16px 0; }
+.kpi { display: grid; align-content: start; gap: 3px; padding: 16px 18px 16px 0; min-width: 0; }
 .kpi + .kpi { padding-left: 18px; border-left: 1px solid var(--hair); }
 .kpi-label { color: var(--ink-2); font-size: 12.5px; }
-.kpi-value { font-size: 26px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpi-value { font-size: clamp(21px, 2.3vw, 26px); line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .kpi-value.is-gain { color: var(--gain-ink); }
 .kpi-value.is-loss { color: var(--loss-ink); }
-.kpi-sub { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.kpi-sub { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .lane-sec, .turns-sec { margin-top: 30px; }
 h3 { margin: 0; font-size: 14px; font-weight: 650; }
 
@@ -310,6 +310,7 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
   .kpi, .kpi + .kpi { padding: 14px 12px 14px 0; border-left: 0; }
   .kpi:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--hair); }
   .kpi:nth-child(n+3) { border-top: 1px solid var(--hair); }
+  .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .kpi-value { font-size: 22px; }
   .convs { position: static; max-height: 44vh; padding: 0 0 14px; border-right: 0; border-bottom: 1px solid var(--hair); margin-bottom: 22px; }
   .turn { grid-template-columns: 26px minmax(0, 1fr); }
@@ -1536,8 +1537,8 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
     const sum = (k) => groups.reduce((a, g) => a + g[k], 0);
     const pctText = typeof sm.saved_pct === 'number' && num(sm.standard_usd) > 0 ? ` (${pct(sm.saved_pct, true)})` : '';
     fill(target,
-      kpi('Poupado face ao standard', usd(saved, Math.abs(saved) < 10 ? 3 : 2, true) + pctText,
-        `JEV ${usd(num(sm.jev_usd), 2)}, standard ${usd(num(sm.standard_usd), 2)}`, kindOf(Number(saved.toFixed(4)))),
+      kpi('Poupado face ao standard', usd(saved, Math.abs(saved) < 10 ? 3 : 2, true),
+        `${pctText ? `${pctText.trim().slice(1, -1)} · ` : ''}JEV ${usd(num(sm.jev_usd), 2)}, standard ${usd(num(sm.standard_usd), 2)}`, kindOf(Number(saved.toFixed(4)))),
       kpi('Decisões do Jev', usd(rows.reduce((a, r) => a + r.routerCost, 0), 4),
         [decN ? `${decN} decisões, mediana ${fmtDuration(median(rows.map((r) => (r.decideMs > 0 ? r.decideMs : null))))}` : 'sem tempos de decisão registados',
           noDecision(rows) ? `${noDecision(rows)} turnos sem decisão` : null].filter(Boolean).join(', ')),
@@ -1551,9 +1552,10 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
   function timeSavedKpi(rows) {
     const est = rows.filter((r) => r.savedMs != null), total = est.reduce((a, r) => a + r.savedMs, 0);
     const text = `${total < 0 ? '−' : '+'}${fmtDuration(Math.abs(total))}`;
-    return kpi('Tempo poupado (estimado)', est.length ? text : 'sem estimativa',
-      est.length ? `${est.length} de ${rows.length} turnos, ${est.length ? fmtDuration(Math.abs(total) / est.length) : '0 s'} por turno. Conservador: só a velocidade de saída e a espera do Jev, sem o thinking do xhigh`
-        : 'só há estimativa para turnos em sonnet ou opus', est.length ? kindOf(Number((total / 1000).toFixed(1))) : undefined);
+    const explain = 'Estimativa conservadora: conta só a velocidade de saída (o standard escreveria a mesma saída à velocidade do opus) e a espera pelo Jev. Não conta o thinking extra do xhigh, por isso o ganho real costuma ser maior.';
+    if (!est.length) return kpi('Tempo poupado ≈', 'sem estimativa', 'só em turnos sonnet ou opus', undefined, explain);
+    return kpi('Tempo poupado ≈', text, `${est.length} de ${rows.length} turnos, ${fmtDuration(Math.abs(total) / est.length)} por turno`,
+      kindOf(Number((total / 1000).toFixed(1))), explain);
   }
 
   function drawAllTurns() {
@@ -1635,8 +1637,8 @@ h3 { margin: 0; font-size: 14px; font-weight: 650; }
     setTimeout(() => li.classList.remove('is-flash'), 1400);
   }
 
-  function kpi(label, value, sub, kind) {
-    return h('div', { class: 'kpi' }, h('span', { class: 'kpi-label' }, label),
+  function kpi(label, value, sub, kind, title) {
+    return h('div', { class: 'kpi', title: title || null }, h('span', { class: 'kpi-label' }, label),
       h('span', { class: `kpi-value${kind === 'gain' ? ' is-gain' : kind === 'loss' ? ' is-loss' : ''}` }, value),
       h('span', { class: 'kpi-sub' }, sub));
   }
