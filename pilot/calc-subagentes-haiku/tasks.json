@@ -1,0 +1,23 @@
+[
+ {
+  "id": "T2",
+  "title": "Potência à direita",
+  "kind": "code",
+  "prompt": "Bug: `2^3^2` dá 64, mas devia dar 512. A potência associa à direita, como na matemática: `2^3^2` é `2^(3^2)`. Corrige.",
+  "inject": []
+ },
+ {
+  "id": "T3",
+  "title": "Erros com posição",
+  "kind": "code",
+  "prompt": "Antes de implementares, lança dois subagentes em paralelo com a ferramenta Agent, os dois na mesma mensagem e ambos com o parâmetro model definido como \"haiku\" (são só leituras do código): um explora o analisador (calc/lexico.py e calc/analisador.py) e o outro o avaliador (calc/avaliador.py e calc/erros.py), e cada um diz-te o que há a mudar para a tarefa abaixo. Depois implementas tu, com o que eles te disserem.\n\nOs erros de sintaxe não dizem onde está o erro. Muda-os para que a mensagem do ErroSintaxe (`str(erro)`) seja exatamente\n\nlinha L, coluna C: inesperado 'T'\n\nem que:\n- L e C são a linha e a coluna, ambas a contar de 1, do primeiro carácter do token onde o analisador deu pelo erro;\n- T é o texto desse token, tal como está no programa;\n- se o erro for no fim do programa, a mensagem acaba em `inesperado fim do programa`, sem plicas, e a posição é a do carácter a seguir ao último;\n- um carácter que não pertence à linguagem, como `$`, também é um erro de sintaxe, e T é esse carácter.\n\nPor exemplo, `1 + * 2` dá `linha 1, coluna 5: inesperado '*'` e `(1 + 2` dá `linha 1, coluna 7: inesperado fim do programa`.",
+  "inject": []
+ },
+ {
+  "id": "T4",
+  "title": "Divisão inteira",
+  "kind": "code",
+  "prompt": "Antes de implementares, lança dois subagentes em paralelo com a ferramenta Agent, os dois na mesma mensagem e ambos com o parâmetro model definido como \"haiku\" (são só leituras do código): um explora o analisador (calc/lexico.py e calc/analisador.py) e o outro o avaliador (calc/avaliador.py e calc/erros.py), e cada um diz-te o que há a mudar para a tarefa abaixo. Depois implementas tu, com o que eles te disserem.\n\nAcrescenta à linguagem dois operadores:\n- `a // b`, a divisão inteira: o maior inteiro menor ou igual a a/b, ou seja, arredonda sempre para baixo, também nos negativos (`-7 // 2` dá -4);\n- `a % b`, o resto: a − b × (a // b), que tem o sinal de b (`-7 % 2` dá 1 e `7 % -2` dá -1).\n\nFuncionam com quaisquer números, não só com inteiros (`7.5 // 2` dá 3 e `7.5 % 2` dá 1.5), e os resultados são exatos, como no resto da aritmética. Têm a mesma precedência de `*` e `/` e associam à esquerda, como eles. Dividir por zero com qualquer um dos dois é um ErroExecucao, como já acontece com `/`. Escreve testes.",
+  "inject": []
+ }
+]
