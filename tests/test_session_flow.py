@@ -356,3 +356,31 @@ def test_record_keeps_how_long_the_route_and_the_decision_took(capsys):
                      "route_ms": 2400, "decide_ms": 1900}, capsys)
 
     assert (out["record"]["jev"]["route_ms"], out["record"]["jev"]["decide_ms"]) == (2400, 1900)
+
+
+# --- o ledger para avaliar o JEV: a sessão, a versão e o contexto de cada turno ---------------------------
+
+def test_record_keeps_the_session_the_policy_and_the_context(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v4")
+
+    turn_v3(OPUS_NEW, task=TASK, context=61_000, capsys=capsys)
+
+    rec = ledger.read_all()[-1]
+    assert (rec["session"], rec["policy"], rec["context_tokens"]) == ("s1", "v4", 61_000)
+
+
+def test_a_subagent_turn_keeps_its_session_too(capsys):
+    _, out = record({"task": "x", "decision": SONNET_LOW.to_ledger(), "model_id": "claude-sonnet-5-5",
+                     "usage": SONNET_USAGE, "duration_ms": 900, "reason": "answer", "scope": "agent",
+                     "session": "s1"}, capsys)
+
+    assert out["record"]["session"] == "s1" and "context_tokens" not in out["record"]
+
+
+def test_a_free_answer_is_logged_with_its_session(capsys, monkeypatch):
+    monkeypatch.setenv("JEV_POLICY", "v3")
+
+    routed(FREE, capsys=capsys)
+
+    rec = ledger.read_all()[-1]
+    assert (rec["session"], rec["policy"]) == ("s1", "v3")

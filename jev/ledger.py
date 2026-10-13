@@ -41,7 +41,8 @@ def ledger_path(home: str | Path | None = None) -> Path:
 
 
 def make_record(*, task: str, decision: dict, jev: dict, standard: dict,
-                now: datetime | None = None) -> dict:
+                now: datetime | None = None, session: str | None = None, policy: str | None = None,
+                context_tokens: int | None = None) -> dict:
     if standard.get("kind") not in BASELINE_KINDS:
         raise ValueError(f"standard.kind tem de ser um de {BASELINE_KINDS}, veio {standard.get('kind')!r}")
 
@@ -50,7 +51,7 @@ def make_record(*, task: str, decision: dict, jev: dict, standard: dict,
         task = task[: MAX_TASK_CHARS - 1] + "…"
 
     ts = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    return {
+    record = {
         "v": SCHEMA_VERSION,
         "id": uuid.uuid4().hex[:12],
         "ts": ts.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
@@ -60,6 +61,9 @@ def make_record(*, task: str, decision: dict, jev: dict, standard: dict,
         "standard": standard,
         "savings_usd": round(_saved(jev, standard), 9),
     }
+    # Para avaliar o comportamento: a sessão do Claude Code, a versão da política e o contexto do turno
+    extra = {"session": session, "policy": policy, "context_tokens": context_tokens}
+    return {**record, **{k: v for k, v in extra.items() if v is not None}}
 
 
 def _saved(jev: dict, standard: dict) -> float:

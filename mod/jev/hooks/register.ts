@@ -193,15 +193,14 @@ export const register: Register = (on, options) => {
       else turns.delete(e.turnId)
       const usage: TurnUsage | null = e.usage ?? null
       // O que o núcleo guarda da sessão: a resposta (o histórico do próximo prompt) e o contexto C
+      // A sessão (também num subagente: o registo por sessão junta-os) e, no turno principal, o contexto C
       let session: string | undefined
       let context: number | undefined
-      if (!e.agentId) {
-        try {
-          session = await $.session.id()
-          context = (await $.session.usage()).context.tokens
-        } catch {
-          // sem isto o núcleo decide como antes; não é razão para falhar o turno
-        }
+      try {
+        session = await $.session.id()
+        if (!e.agentId) context = (await $.session.usage()).context.tokens
+      } catch {
+        // sem isto o núcleo decide como antes; não é razão para falhar o turno
       }
       const ran = await jev($, ['record'], {
         stdin: JSON.stringify({

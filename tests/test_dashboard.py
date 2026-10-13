@@ -216,6 +216,63 @@ def test_query_string_does_not_change_routing(server, path):
     assert get(server, path).status == 200
 
 
+# ----------------------------------------------- origens: o uso real e os braços dos pilotos
+
+def _arm_ledger(jev_home, pilot_id, arm, *records):
+    """O ledger que o mod escreve num braço de um piloto: <JEV_HOME>/pilots/<piloto>/<braço>-home/ledger.jsonl."""
+    home = pilot.pilots_dir(jev_home) / pilot_id / f"{arm}-home"
+    for r in records:
+        ledger.append(r, home=home)
+
+
+def test_sources_list_the_real_use_and_every_pilot_arm_newest_first(server, jev_home):
+    """Falha se as origens deixarem de fora os ledgers dos pilotos, ou não os ordenarem pela data do piloto."""
+    ledger.append(_rec(task="uso", jev=0.05), home=jev_home)
+    _arm_ledger(jev_home, "fatura-anthropic-20261011-1343", "jev", _rec(task="a", jev=0.10))
+    _arm_ledger(jev_home, "calc-anthropic-sessao-v3-v4-20261012-1811", "jev-v4", _rec(task="b", jev=0.20), _rec(task="c", jev=0.30))
+
+    body = get(server, "/api/sources").json()
+
+    assert [(x["id"], x["kind"], x["records"]) for x in body["sources"]] == [
+        ("uso", "uso", 1),
+        ("calc-anthropic-sessao-v3-v4-20261012-1811/jev-v4", "piloto", 2),
+        ("fatura-anthropic-20261011-1343/jev", "piloto", 1),
+    ]
+    assert body["sources"][1]["jev_usd"] == pytest.approx(0.50)
+
+
+def test_a_pilot_arm_source_gives_its_records_with_where_they_came_from(server, jev_home):
+    """Falha se ?source= for ignorado, ou se os registos não disserem de que piloto e braço vieram."""
+    ledger.append(_rec(task="uso"), home=jev_home)
+    _arm_ledger(jev_home, "fatura-anthropic-20261011-1343", "jev", _rec(task="a", std=0.30, jev=0.10))
+
+    body = get(server, "/api/ledger?source=fatura-anthropic-20261011-1343/jev").json()
+
+    assert [r["task"] for r in body["records"]] == ["a"]
+    # "jev", nas corridas contra o standard (2026-10-11), era a v1 por defeito; os registos antigos não a guardavam
+    assert body["records"][0]["source"] == {"id": "fatura-anthropic-20261011-1343/jev", "kind": "piloto",
+                                            "label": "fatura-anthropic-20261011-1343 · jev", "policy": "v1"}
+    assert body["summary"]["jev_usd"] == pytest.approx(0.10) and body["summary"]["tasks"] == 1
+
+
+def test_all_sources_together_are_one_log_in_time_order(server, jev_home):
+    """Falha se "tudo" não juntar o uso real e os pilotos, ou não os puser por ordem de tempo."""
+    late, early = _rec(task="uso, depois"), _rec(task="piloto, antes")
+    early["ts"], late["ts"] = "2026-10-11T10:00:00.000Z", "2026-10-13T10:00:00.000Z"
+    ledger.append(late, home=jev_home)
+    _arm_ledger(jev_home, "fatura-anthropic-20261011-1343", "jev", early)
+
+    body = get(server, "/api/ledger?source=tudo").json()
+
+    assert [(r["task"], r["source"]["kind"]) for r in body["records"]] == [("piloto, antes", "piloto"), ("uso, depois", "uso")]
+    assert body["summary"]["tasks"] == 2
+
+
+def test_an_unknown_source_is_a_404_never_a_path_on_disk(server, jev_home):
+    """Falha se ?source= for usado como caminho (../../) em vez de escolhido entre as origens conhecidas."""
+    assert get(server, "/api/ledger?source=../../etc").status == 404
+
+
 # ------------------------------------------------------------ the page (/)
 
 def test_root_serves_the_dashboard_page(server):
@@ -524,3 +581,13 @@ def test_the_offline_check_catches_each_way_a_page_can_go_online(html):
 def test_the_offline_check_lets_self_contained_pages_through(html):
     """O inverso: um detetor que acusa tudo também passava a ser inútil."""
     assert _external_references(html) == []
+
+
+@pytest.mark.parametrize(("arm", "policy"), [("jev-v3", "v3"), ("jev-v4", "v4"), ("jev", "v1"), ("sonnet-high", None)])
+def test_a_pilot_source_says_which_policy_its_arm_ran(server, jev_home, arm, policy):
+    """Falha se a versão de um braço não se deduzir do nome dele (os registos antigos não a guardavam)."""
+    _arm_ledger(jev_home, "calc-anthropic-20261012-1811", arm, _rec(task="a"))
+
+    body = get(server, f"/api/ledger?source=calc-anthropic-20261012-1811/{arm}").json()
+
+    assert body["records"][0]["source"].get("policy") == policy

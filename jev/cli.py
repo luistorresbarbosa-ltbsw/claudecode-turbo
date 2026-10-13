@@ -172,6 +172,7 @@ def _route(task: str, *, history=(), session: str | None = None, reset: bool = F
         jev={"model_id": res.model_id, "cost_usd": decision.router_cost_usd, "tokens": res.tokens,
              "duration_ms": decide_ms + (res.duration_ms or 0), "ok": True, "fallback": None, "decide_ms": decide_ms},
         standard=_estimated_standard(pricing.with_cc_overhead(res.tokens or {})),
+        session=session, policy=policy.current(),
     ))
     out["summary"] = ledger.summarize(ledger.read_all())
     return out
@@ -200,6 +201,8 @@ def _record(payload: dict) -> dict:
              # o que se esperou antes do turno: o `jev route` inteiro (medido no mod) e, dentro dele, a decisão
              "route_ms": payload.get("route_ms"), "decide_ms": payload.get("decide_ms")},
         standard=standard,
+        session=payload.get("session"), policy=policy.current(),
+        context_tokens=int(payload["context"]) if payload.get("context") is not None else None,
     )
     ledger.append(rec)
     _remember_turn(payload, usage)

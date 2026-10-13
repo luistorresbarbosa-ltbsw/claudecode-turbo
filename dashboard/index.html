@@ -232,6 +232,20 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 .more { display: block; margin: 16px auto 0; padding: 6px 16px; border: 0; border-radius: 8px; background: var(--plane); color: var(--ink); font-size: 13px; cursor: pointer; }
 .more:hover { background: var(--hair); }
 
+/* origem, sessão e exportação: o log para avaliar o JEV */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 18px; font-size: 13px; color: var(--ink-2); }
+.toolbar select { max-width: min(100%, 460px); padding: 4px 8px; border: 1px solid var(--axis); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; }
+.tool { display: inline-flex; align-items: center; gap: 8px; }
+.tool-end { display: inline-flex; gap: 8px; margin-left: auto; }
+.btn { padding: 4px 12px; border: 0; border-radius: 6px; background: var(--plane); color: var(--ink); font: inherit; cursor: pointer; }
+.btn:hover { background: var(--hair); }
+.session-pick { display: inline-flex; align-items: center; gap: 8px; }
+.session-pick button { padding: 0 6px; border: 0; border-radius: 4px; background: transparent; color: var(--ink-2); font: inherit; cursor: pointer; text-decoration: underline; }
+tr.row-pick { cursor: pointer; }
+tr.row-pick:hover td { background: var(--plane); }
+tr.row-active td { background: var(--plane); font-weight: 600; }
+.src { color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
+
 #content { transition: opacity 0.2s; }
 #content.is-stale { opacity: 0.5; }
 .row-new td { animation: arrived 2.6s ease-out; }
@@ -394,14 +408,53 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
   </nav>
 
   <div id="view-day" role="tabpanel" aria-labelledby="tab-day">
+  <div class="toolbar">
+    <label class="tool">Origem <select id="source" aria-label="Origem dos registos"></select></label>
+    <span class="session-pick" id="session-pick" hidden></span>
+    <span class="tool-end">
+      <button type="button" class="btn" id="export-csv" title="Cada transação da seleção atual, com os sinais do Jev, os tokens, os custos e os tempos">Exportar CSV</button>
+      <button type="button" class="btn" id="export-json" title="Os registos da seleção atual, tal como estão no ledger">Exportar JSON</button>
+    </span>
+  </div>
   <div class="problem" id="problem" role="alert" hidden></div>
 
   <section class="empty" id="empty" hidden>
-    <p class="empty-title">Ainda sem tarefas. Corre <code>/jev &lt;tarefa&gt;</code> no Claude Code.</p>
+    <p class="empty-title">Ainda sem registos nesta origem. Com o JEV instalado, cada turno das tuas sessões aparece aqui; os testes estão nas origens dos pilotos.</p>
   </section>
 
   <div id="content" hidden>
     <section class="band" id="band" aria-label="Resumo"></section>
+
+    <section class="sec" aria-labelledby="sessions-h">
+      <div class="sec-head">
+        <h2 id="sessions-h">Sessões</h2>
+        <p class="sec-meta" id="sessions-meta">Clica numa sessão para ver só os registos dela.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Início</th>
+              <th scope="col">Sessão</th>
+              <th scope="col">Versão</th>
+              <th scope="col" class="num">Turnos</th>
+              <th scope="col">Modelos</th>
+              <th scope="col" class="num" title="Trocas de modelo entre turnos principais seguidos: cada uma reescreve a cache">Trocas</th>
+              <th scope="col" class="num" title="Seguimentos que correram na faixa sem perguntar ao Jev (v4)">Sem Jev</th>
+              <th scope="col" class="num" title="Pedidos de Opus que a porta do Sonnet passou a sonnet · high (v4)">Porta</th>
+              <th scope="col" class="num" title="Turnos em que a política manteve um modelo diferente do que o Jev pediu">Mantidos</th>
+              <th scope="col" class="num" title="Decisões do Jev que falharam: o turno correu no standard">Falhas</th>
+              <th scope="col" class="num" title="Mediana do tempo da decisão do Jev (os seguimentos sem Jev ficam de fora)">Decisão</th>
+              <th scope="col" class="num" title="O que custaram as decisões do Jev no OpenRouter">Jev $</th>
+              <th scope="col" class="num" title="Execução e decisão">JEV $</th>
+              <th scope="col" class="num">Standard $</th>
+              <th scope="col" class="num">Poupado</th>
+            </tr>
+          </thead>
+          <tbody id="sessions-body"></tbody>
+        </table>
+      </div>
+    </section>
 
     <section class="sec" aria-labelledby="chart-h">
       <div class="sec-head">
@@ -418,7 +471,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 
     <section class="sec" aria-labelledby="tasks-h">
       <div class="sec-head">
-        <h2 id="tasks-h">Tarefas</h2>
+        <h2 id="tasks-h">Registo</h2>
         <p class="sec-meta" id="tasks-meta"></p>
       </div>
       <div class="table-wrap">
@@ -501,10 +554,14 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     pilotProblem: $('pilot-problem'), pilotEmpty: $('pilot-empty'), pilotContent: $('pilot-content'),
     pilotHead: $('pilot-head'), score: $('score'), pilotBody: $('ptasks-body'),
     judge: $('judge'), judgeMeta: $('judge-meta'),
+    source: $('source'), sessionPick: $('session-pick'), sessionsBody: $('sessions-body'), sessionsMeta: $('sessions-meta'),
+    exportCsv: $('export-csv'), exportJson: $('export-json'),
   };
   const state = { rows: [], series: [], summary: {}, view: 'chart', shown: PAGE, seen: new Set(), loaded: false, lastText: null, std: null,
     page: location.hash === '#piloto' ? 'pilot' : 'day',
-    pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map(), judgeSeen: new Map() };
+    pilots: null, pilotsText: null, pilotsError: null, pilotPick: null, pilotSeen: new Map(), judgeSeen: new Map(),
+    // o log para avaliar: de que origem (o uso real, um braço de um piloto, ou tudo) e, dentro dela, que sessão
+    source: storedSource(), sources: [], sourcesText: null, session: null, all: [], records: [] };
 
   // ---------------------------------------------------------------- DOM
   // Tudo o que vem do ledger entra como texto (nós de texto ou atributos): nunca como HTML.
@@ -597,7 +654,52 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       jevMs: msOf(jev.duration_ms, 0),
       stdMs: std.kind === 'measured' ? msOf(std.duration_ms, 1) : null,
       scope: str(dec.scope),                       // "agent": turno de subagente; em falta ou "main": prompt do utilizador
+      // para avaliar: o custo da decisão do Jev, os tempos, os sinais, a versão, a sessão e de onde veio o registo
+      routerCost: num(dec.router_cost_usd),
+      decideMs: typeof jev.decide_ms === 'number' ? jev.decide_ms : null,
+      routeMs: typeof jev.route_ms === 'number' ? jev.route_ms : null,
+      signals: obj(dec.signals), policy: str(rec.policy) || str(obj(rec.source).policy), session: str(rec.session),
+      contextTokens: typeof rec.context_tokens === 'number' ? rec.context_tokens : null,
+      sourceId: str(obj(rec.source).id), sourceLabel: str(obj(rec.source).label),
+      rec,
     };
+  }
+
+  // A sessão de um registo: o id da sessão do Claude Code; os registos antigos dos pilotos, que não o têm,
+  // juntam-se pelo braço do piloto (uma sessão contínua por braço)
+  const sessionKey = (r) => r.session || r.sourceId || 'uso';
+
+  function summaryOf(rows) {                       // o mesmo que ledger.summarize, para uma sessão escolhida
+    const done = rows.filter((r) => !r.failed), measured = rows.filter((r) => r.stdMs != null);
+    const standard = done.reduce((a, r) => a + r.stdCost, 0), jev = rows.reduce((a, r) => a + r.jevCost, 0);
+    const saved = standard - jev;
+    return { tasks: rows.length, failed: rows.length - done.length, standard_usd: standard, jev_usd: jev, saved_usd: saved,
+      saved_pct: standard > 0 ? Math.round((1000 * saved) / standard) / 10 : 0,
+      speed: { jev_median_ms: median(rows.map((r) => r.jevMs)), standard_median_ms: median(measured.map((r) => r.stdMs)),
+        standard_measured: measured.length } };
+  }
+
+  function sessionsOf(rows) {
+    const by = new Map();
+    for (const r of rows) {
+      const k = sessionKey(r);
+      if (!by.has(k)) by.set(k, { key: k, session: r.session, sourceLabel: r.sourceLabel, first: r.t, rows: [] });
+      by.get(k).rows.push(r);
+    }
+    return [...by.values()].map((g) => {
+      const main = g.rows.filter((r) => r.scope !== 'agent'), models = {};
+      let switches = 0;
+      for (let i = 1; i < main.length; i++) if (main[i].model && main[i - 1].model && main[i].model !== main[i - 1].model) switches++;
+      for (const r of main) models[r.model || '—'] = (models[r.model || '—'] || 0) + 1;
+      return { ...g, turns: main.length, agents: g.rows.length - main.length, models, switches,
+        policies: [...new Set(g.rows.map((r) => r.policy).filter(Boolean))],
+        skipped: g.rows.filter((r) => r.signals.jev === 'saltado').length,
+        gate: g.rows.filter((r) => r.signals.gate === 'sonnet').length,
+        held: g.rows.filter((r) => r.signals.held_from).length,
+        routerErrors: g.rows.filter((r) => r.routerError !== null).length,
+        decideMedian: median(g.rows.map((r) => (r.decideMs > 0 ? r.decideMs : null))),
+        decCost: g.rows.reduce((a, r) => a + r.routerCost, 0), sm: summaryOf(g.rows) };
+    }).sort((a, b) => b.first - a.first);
   }
 
   function prepare(records) {
@@ -714,6 +816,7 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     const sub = { gain: 'o JEV saiu mais barato que o standard', loss: 'o JEV saiu mais caro que o standard', even: 'o JEV custou o mesmo que o standard' }[kind];
     const first = rows.length ? dayMonth(rows[0].t) : '';
     const failedN = typeof sm.failed === 'number' ? sm.failed : rows.filter((r) => r.failed).length;
+    const decTotal = rows.reduce((a, r) => a + r.routerCost, 0);
     const longest = Math.max(usd(std, d).length, usd(jev, d).length, usd(saved, d, true).length);
     els.band.dataset.size = longest >= 13 ? 'xl' : longest >= 10 ? 'l' : 'm';
     els.band.replaceChildren(
@@ -727,7 +830,8 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
         h('div', { class: 'fig fig-jev' },
           h('span', { class: 'fig-label' }, h('i', { class: 'key key-jev' }), 'JEV'),
           h('span', { class: 'fig-value' }, usd(jev, d)),
-          h('span', { class: 'fig-sub', title: 'A execução mais a decisão do Jev (typesafe/jev-router).' }, 'execução e decisão')),
+          h('span', { class: 'fig-sub', title: 'A execução (preços via litellm) mais as decisões do Jev (typesafe/jev-router, no OpenRouter).' },
+            `execução ${usd(jev - decTotal, d)} · decisões ${usd(decTotal, decTotal < 1 ? 4 : 2)}`)),
         h('span', { class: 'op', 'aria-hidden': 'true' }, '='),
         h('div', { class: `fig fig-result is-${kind}` },
           h('span', { class: 'fig-label' }, 'Poupado'),
@@ -964,6 +1068,15 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       tags.push(h('span', { class: 'tag', title: 'Turno de um subagente: o Claude Code delegou esta parte a um agente, não foi um prompt teu.\nUm subagente usa ferramentas, por isso nunca corre num modelo free.' },
         icon('agent'), 'subagente'));
     }
+    if (r.signals.jev === 'saltado') {
+      tags.push(h('span', { class: 'tag', title: 'Seguimento: correu na faixa da sessão sem perguntar ao Jev (v4).' }, 'sem Jev'));
+    }
+    if (r.signals.gate === 'sonnet') {
+      tags.push(h('span', { class: 'tag', title: 'O Jev pediu Opus com pouco ganho; a porta do Sonnet (v4) correu sonnet · high.' }, 'porta do Sonnet'));
+    }
+    if (r.signals.held_from) {
+      tags.push(h('span', { class: 'tag', title: `O Jev pediu ${r.signals.held_from}; a política manteve ${r.model} (${r.signals.rule || 'cache'}).` }, `mantém ${r.model}`));
+    }
     if (r.routerError !== null) {
       const who = r.routerModel === 'typesafe/jev-router' || !r.routerModel ? 'O Jev' : `O router (${r.routerModel})`;
       tags.push(h('span', { class: 'tag', title: `${who}${r.routerModel === 'typesafe/jev-router' ? ' (typesafe/jev-router)' : ''} falhou: ${r.routerError}.\nA decisão passou a ser o standard.` },
@@ -1029,9 +1142,11 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
       const w = when(r.t);
       return h('tr', { class: r.isNew ? 'row-new' : null },
         h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
-        h('td', {}, h('div', { class: 'task', title: r.task }, r.task)),
+        h('td', {}, h('div', { class: 'task', title: r.task }, r.task), state.source === 'tudo' && r.sourceLabel && h('div', { class: 'src' }, r.sourceLabel)),
         h('td', { class: 'choice' }, choiceCell(r)),
-        h('td', { class: 'num', title: r.fallback ? 'Soma as duas tentativas: a que falhou e a repetição no standard.' : null }, costText(r.jevCost, 4)),
+        h('td', { class: 'num', title: r.fallback ? 'Soma as duas tentativas: a que falhou e a repetição no standard.' : null },
+          h('div', {}, costText(r.jevCost, 4)),
+          r.routerCost > 0 && h('div', { class: 'cost-sub', title: 'O que custou a decisão do Jev no OpenRouter (já incluído)' }, `decisão ${usd(r.routerCost, 4)}`)),
         h('td', { class: 'num' },
           h('div', {}, r.failed
             ? h('span', { class: 'void', title: 'A tarefa falhou: o standard “evitado” não conta.' }, costText(r.stdCost, 4))
@@ -1393,21 +1508,150 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
   // ------------------------------------------------------- ciclo de vida
   function render(data) {
     const records = Array.isArray(data && data.records) ? data.records : [];
-    const rows = prepare(records);
+    const all = prepare(records);
     const known = state.seen;
-    for (const r of rows) r.isNew = state.loaded && !known.has(r.key);
+    for (const r of all) r.isNew = state.loaded && !known.has(r.key);
+    state.all = all;
+    state.serverSummary = obj(data && data.summary);
+    state.seen = new Set(all.map((r) => r.key));
+    state.loaded = true;
+    applySession();
+  }
+
+  // A sessão escolhida filtra o resumo, o gráfico e o registo; sem escolha, vale a origem inteira
+  function applySession() {
+    if (state.session && !state.all.some((r) => sessionKey(r) === state.session)) state.session = null;
+    const rows = state.session ? state.all.filter((r) => sessionKey(r) === state.session) : state.all;
     state.rows = rows;
     state.series = series(rows);
-    state.summary = obj(data && data.summary);
+    state.summary = state.session ? summaryOf(rows) : state.serverSummary;
     state.std = rows.length ? rows[rows.length - 1] : null;
-    state.seen = new Set(rows.map((r) => r.key));
-    state.loaded = true;
-    els.empty.hidden = rows.length > 0;
-    els.content.hidden = rows.length === 0;
-    if (!rows.length) return;
+    els.empty.hidden = state.all.length > 0;
+    els.content.hidden = state.all.length === 0;
+    drawSessionPick();
+    if (!state.all.length) return;
     drawBand();
+    drawSessions();
     drawView();
     drawTasks();
+  }
+
+  function drawSessions() {
+    const groups = sessionsOf(state.all);
+    els.sessionsBody.replaceChildren(...groups.map((g) => {
+      const w = when(g.first), active = state.session === g.key;
+      const models = Object.entries(g.models).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${m} ${n}`).join(' · ');
+      const tr = h('tr', { class: `row-pick${active ? ' row-active' : ''}`, tabindex: 0, 'aria-selected': String(active),
+        title: active ? 'Voltar a todas as sessões' : 'Ver só os registos desta sessão' },
+        h('td', { class: 'when', title: w.full }, h('b', {}, w.day), w.time),
+        h('td', {}, h('div', {}, g.session ? h('code', { title: g.session }, g.session.slice(0, 8)) : 'sem id de sessão'),
+          g.sourceLabel && h('div', { class: 'src' }, g.sourceLabel)),
+        h('td', {}, g.policies.join(', ') || '—'),
+        h('td', { class: 'num', title: g.agents ? `mais ${g.agents} de subagentes` : null }, g.agents ? `${g.turns} +${g.agents}` : String(g.turns)),
+        h('td', {}, models),
+        h('td', { class: 'num' }, String(g.switches)),
+        h('td', { class: 'num' }, String(g.skipped)),
+        h('td', { class: 'num' }, String(g.gate)),
+        h('td', { class: 'num' }, String(g.held)),
+        h('td', { class: 'num' }, String(g.routerErrors)),
+        h('td', { class: 'num' }, fmtDuration(g.decideMedian)),
+        h('td', { class: 'num' }, costText(g.decCost, 4)),
+        h('td', { class: 'num' }, costText(g.sm.jev_usd, 3)),
+        h('td', { class: 'num' }, costText(g.sm.standard_usd, 3)),
+        h('td', { class: 'num' }, usd(g.sm.saved_usd, 3, true)));
+      const pick = () => { state.session = active ? null : g.key; state.shown = PAGE; applySession(); };
+      tr.addEventListener('click', pick);
+      tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      return tr;
+    }));
+    els.sessionsMeta.textContent = `${groups.length} ${groups.length === 1 ? 'sessão' : 'sessões'} · clica numa para ver só os registos dela`;
+  }
+
+  function drawSessionPick() {
+    const k = state.session;
+    els.sessionPick.hidden = !k;
+    if (!k) { els.sessionPick.replaceChildren(); return; }
+    const all = h('button', { type: 'button' }, 'ver todas');
+    all.addEventListener('click', () => { state.session = null; state.shown = PAGE; applySession(); });
+    fill(els.sessionPick, h('span', {}, 'Sessão ', h('code', { title: k }, k.length > 24 ? k.slice(0, 8) : k)), all);
+  }
+
+  // ----------------------------------------------------------- origens
+  function storedSource() { try { return localStorage.getItem('jev.dashboard.source'); } catch (_) { return null; } }
+  function storeSource(id) { try { localStorage.setItem('jev.dashboard.source', id); } catch (_) { /* sem armazenamento */ } }
+
+  function drawSources() {
+    const list = state.sources, uso = list.find((x) => x.id === 'uso'), pilots = list.filter((x) => x.kind === 'piloto');
+    const total = list.reduce((a, x) => a + num(x.records), 0);
+    const opt = (id, label) => h('option', { value: id }, label);
+    fill(els.source,
+      opt('tudo', `Tudo (${total} registos)`),
+      opt('uso', `Uso real (${uso ? num(uso.records) : 0})`),
+      pilots.length > 0 && h('optgroup', { label: 'Pilotos' }, pilots.map((x) => opt(x.id, `${x.label} (${num(x.records)})`))));
+    els.source.value = state.source || 'uso';
+  }
+
+  function readSources(res) {                      // um servidor antigo não tem /api/sources: fica o uso real
+    if (res.status !== 'fulfilled' || !res.value.ok || res.value.text === state.sourcesText) return;
+    try {
+      const list = obj(JSON.parse(res.value.text)).sources;
+      state.sources = Array.isArray(list) ? list.map(obj) : [];
+      state.sourcesText = res.value.text;
+      const ids = new Set(['tudo', ...state.sources.map((x) => str(x.id))]);
+      if (!state.source || !ids.has(state.source)) {
+        const uso = state.sources.find((x) => x.id === 'uso');
+        state.source = uso && num(uso.records) > 0 ? 'uso' : 'tudo';
+      }
+      drawSources();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // ----------------------------------------------------------- exportar
+  const tok = (r, k) => obj(obj(r.rec.jev).tokens)[k];
+  const CSV_COLUMNS = [
+    ['ts', (r) => r.rec.ts], ['origem', (r) => r.sourceId || 'uso'], ['sessao', (r) => r.session], ['versao', (r) => r.policy],
+    ['ambito', (r) => r.scope || 'main'], ['tarefa', (r) => r.task],
+    ['runner', (r) => r.runner], ['modelo', (r) => r.model], ['esforco', (r) => r.effort],
+    ['jev_pediu', (r) => r.signals.held_from], ['regra', (r) => r.signals.rule],
+    ['sem_jev', (r) => (r.signals.jev === 'saltado' ? 1 : 0)], ['porta_sonnet', (r) => (r.signals.gate === 'sonnet' ? 1 : 0)],
+    ['tipo_tarefa', (r) => r.signals.task], ['task_changed', (r) => r.signals.task_changed],
+    ['dificuldade', (r) => r.signals.difficulty], ['ganho', (r) => r.signals.gain],
+    ['contexto_tokens', (r) => r.contextTokens],
+    ['tokens_input', (r) => tok(r, 'input')], ['tokens_output', (r) => tok(r, 'output')],
+    ['tokens_cache_read', (r) => tok(r, 'cache_read')],
+    ['tokens_cache_write', (r) => (tok(r, 'cache_write_5m') == null && tok(r, 'cache_write_1h') == null ? tok(r, 'cache_write')
+      : num(tok(r, 'cache_write_5m')) + num(tok(r, 'cache_write_1h')))],
+    ['custo_decisao_usd', (r) => r.routerCost], ['custo_jev_usd', (r) => r.jevCost], ['custo_standard_usd', (r) => r.stdCost],
+    ['standard', (r) => r.stdKind], ['poupado_usd', (r) => r.saved],
+    ['decisao_ms', (r) => r.decideMs], ['route_ms', (r) => r.routeMs], ['duracao_ms', (r) => r.jevMs],
+    ['ok', (r) => (r.failed ? 0 : 1)], ['erro_jev', (r) => r.routerError], ['fallback', (r) => (r.fallback ? r.fallback.from : '')],
+    ['porque', (r) => r.rationale],
+  ];
+  function csvCell(v) {
+    const t = v == null ? '' : String(v);
+    return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  }
+  function download(name, type, text) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = h('a', { href: url, download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function exportName(ext) {
+    const sel = state.session ? `sessao-${state.session.slice(0, 8)}` : (state.source || 'uso').replace(/[^\w.-]+/g, '_');
+    const d = new Date();
+    return `jev-${sel}-${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.${ext}`;
+  }
+  function exportCsv() {
+    const lines = [CSV_COLUMNS.map(([name]) => name).join(','), ...state.rows.map((r) => CSV_COLUMNS.map(([, f]) => csvCell(f(r))).join(','))];
+    download(exportName('csv'), 'text/csv;charset=utf-8', '\ufeff' + lines.join('\r\n') + '\r\n');
+  }
+  function exportJson() {
+    download(exportName('json'), 'application/json', JSON.stringify(state.rows.map((r) => r.rec), null, 1));
   }
 
   function setLive(ok, text) {
@@ -1479,8 +1723,11 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
 
   async function poll() {
     if (document.hidden) return schedule();
-    const [ledgerRes, pilotsRes] = await Promise.allSettled([fetchText('/api/ledger'), fetchText('/api/pilots')]);
-    readLedger(ledgerRes);
+    const [sourcesRes, pilotsRes] = await Promise.allSettled([fetchText('/api/sources'), fetchText('/api/pilots')]);
+    readSources(sourcesRes);
+    const source = state.source || 'uso';
+    const [ledgerRes] = await Promise.allSettled([fetchText(source === 'uso' ? '/api/ledger' : `/api/ledger?source=${encodeURIComponent(source)}`)]);
+    if (source === (state.source || 'uso')) readLedger(ledgerRes);  // a origem mudou entretanto: a próxima leitura trata
     readPilots(pilotsRes);
     schedule();
   }
@@ -1491,6 +1738,15 @@ thead th.diff { padding-right: calc(10px + 12px + 92px); }
     b.addEventListener('click', () => { state.view = b.dataset.view; if (state.rows.length) drawView(); });
   }
   els.more.addEventListener('click', () => { state.shown += PAGE; drawTasks(); });
+  els.source.addEventListener('change', () => {
+    state.source = els.source.value;
+    storeSource(state.source);
+    Object.assign(state, { session: null, shown: PAGE, lastText: null, loaded: false, seen: new Set() });
+    clearTimeout(timer);
+    poll();
+  });
+  els.exportCsv.addEventListener('click', exportCsv);
+  els.exportJson.addEventListener('click', exportJson);
   for (const tab of [els.tabDay, els.tabPilot]) {
     tab.addEventListener('click', () => {
       const page = tab.dataset.page;

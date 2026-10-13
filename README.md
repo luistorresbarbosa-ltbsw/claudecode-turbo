@@ -122,7 +122,14 @@ JEV_BIN="$PWD/.venv/bin/jev" claude --plugin-dir "$PWD/mod/jev"
 
 `JEV_BIN` faz o mod chamar o núcleo deste repositório em vez do `jev` instalado (os pilotos fazem o mesmo).
 
-Dashboard (local, só em 127.0.0.1):
+Dashboard (local, só em 127.0.0.1): o registo do que o JEV fez, para o avaliar e melhorar.
+- **Origem:** o uso real (o teu ledger), cada braço de cada piloto, ou tudo junto.
+- **Sessões:** uma linha por sessão, com a versão, os turnos, os modelos e as trocas de modelo, os seguimentos sem
+  o Jev, a porta do Sonnet, os turnos mantidos, as falhas do Jev, o tempo da decisão, o custo das decisões, o custo
+  do JEV contra o standard e o poupado. Clicar numa sessão filtra o resto da página.
+- **Registo:** cada transação, com a escolha do Jev e a regra aplicada, o custo da decisão e o da execução (preços
+  via litellm), o standard estimado e o tempo.
+- **Exportar:** CSV ou JSON da seleção, com os sinais do Jev, os tokens, os custos e os tempos de cada transação.
 
 ```bash
 uv run jev-dashboard --open

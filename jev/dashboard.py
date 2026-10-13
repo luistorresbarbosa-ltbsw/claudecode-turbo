@@ -3,7 +3,10 @@
 Serve só em 127.0.0.1 e só com a stdlib:
 
     GET /            dashboard/index.html
-    GET /api/ledger  {"records": [...], "summary": {...}}, relido a cada pedido
+    GET /api/ledger  {"records": [...], "summary": {...}}, relido a cada pedido: o uso real; com
+                     ?source=<id> (de /api/sources) ou ?source=tudo, essa origem ou todas, cada registo
+                     com o seu "source"
+    GET /api/sources {"sources": [...]}: o uso real e o ledger de cada braço de cada piloto
     GET /api/pilots  {"pilots": [...]}, os pilotos do mais recente para o mais antigo, relidos a cada pedido
 
 O ledger e os pilotos são contratos partilhados (ver jev/ledger.py e jev/pilot.py). Aqui só se lê.
@@ -17,7 +20,7 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from jev import ledger, pilot
 
@@ -39,17 +42,69 @@ def _ledger_payload() -> dict:
     return {"records": records, "summary": ledger.summarize(records)}
 
 
+def _sources() -> list[dict]:
+    """O uso real (o ledger do JEV_HOME) e o ledger de cada braço dos pilotos, onde o mod regista cada turno;
+    os pilotos do mais recente para o mais antigo (o id acaba em AAAAMMDD-HHMM)."""
+    out = [{"id": "uso", "label": "Uso real", "kind": "uso", "home": ledger.ledger_path().parent}]
+    root = pilot.pilots_dir()
+    arms = sorted(root.glob("*/*-home/ledger.jsonl"), key=lambda p: (p.parent.parent.name[-13:], p.parent.name),
+                  reverse=True) if root.is_dir() else []
+    for path in arms:
+        pilot_id, arm = path.parent.parent.name, path.parent.name.removesuffix("-home")
+        out.append({"id": f"{pilot_id}/{arm}", "label": f"{pilot_id} · {arm}", "kind": "piloto", "home": path.parent,
+                    "policy": _arm_policy(arm)})
+    return out
+
+
+def _arm_policy(arm: str) -> str | None:
+    """A versão que um braço de piloto correu: jev-vN; "jev" (as corridas contra o standard) era a v1."""
+    if arm.startswith("jev-v"):
+        return arm.removeprefix("jev-")
+    return "v1" if arm == "jev" else None
+
+
+def _sources_payload() -> dict:
+    rows = []
+    for src in _sources():
+        records = ledger.read_all(home=src["home"])
+        rows.append({"id": src["id"], "label": src["label"], "kind": src["kind"], "records": len(records),
+                     "jev_usd": round(sum(r["jev"]["cost_usd"] for r in records), 9)})
+    return {"sources": rows}
+
+
+def _source_payload(wanted: str) -> dict:
+    """Os registos de uma origem (ou de todas, "tudo"), cada um com o "source" de onde veio, por ordem de tempo.
+    O id escolhe-se entre as origens conhecidas, nunca é um caminho."""
+    chosen = [s for s in _sources() if wanted in ("tudo", s["id"])]
+    records = []
+    for src in chosen:
+        tag = {"id": src["id"], "kind": src["kind"], "label": src["label"]}
+        if src.get("policy"):
+            tag["policy"] = src["policy"]
+        records += [{**r, "source": tag} for r in ledger.read_all(home=src["home"])]
+    records.sort(key=lambda r: str(r.get("ts") or ""))
+    return {"records": records, "summary": ledger.summarize(records)}
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "jev-dashboard"
 
     def do_GET(self) -> None:
         if not self._host_is_local():
             return self._reply(HTTPStatus.FORBIDDEN, "Host não permitido.")
-        route = self.path.partition("?")[0]
+        route, _, query = self.path.partition("?")
+        source = (parse_qs(query).get("source") or [""])[0]
         if route == "/":
             self._send_page()
-        elif route == "/api/ledger":
+        elif route == "/api/ledger" and source in ("", "uso"):
             self._send_json(_ledger_payload)
+        elif route == "/api/ledger":
+            if source != "tudo" and source not in {s["id"] for s in _sources()}:
+                return self._reply(HTTPStatus.NOT_FOUND, json.dumps({"error": f"origem desconhecida: {source}"}),
+                                   "application/json; charset=utf-8")
+            self._send_json(lambda: _source_payload(source))
+        elif route == "/api/sources":
+            self._send_json(_sources_payload)
         elif route == "/api/pilots":
             self._send_json(lambda: {"pilots": pilot.read_all()})
         else:

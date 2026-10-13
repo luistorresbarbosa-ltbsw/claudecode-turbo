@@ -149,6 +149,8 @@ test('um subagente corre no modelo e no esforço que o Jev escolheu para a taref
   expect(steps[0]?.effort).toBe('low')
   expect(steps[0]?.model).toBe('claude-haiku-4-5-20251001') // o modelo veio do tool.call; o passo só ganha o esforço
   expect(records()[0].scope).toBe('agent')
+  expect(records()[0].session).toBe('sessao-1') // para o registo por sessão
+  expect(records()[0].context).toBeUndefined()
 })
 
 test('um fork herda o modelo e não passa pelo Jev', async ($, on) => {
