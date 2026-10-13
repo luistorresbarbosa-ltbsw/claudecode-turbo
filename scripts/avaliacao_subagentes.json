@@ -1,0 +1,72 @@
+{
+ "pilotos": {
+  "calc-subagentes-anthropic-claudemd-sessao-standard-v4-antes-v4-20261013-1523": {
+   "standard": {
+    "modelos": "oooooooooo"
+   },
+   "jev-v4-antes": {
+    "modelos": "ssssssssss"
+   },
+   "jev-v4": {
+    "modelos": "ssssssssss"
+   }
+  }
+ },
+ "subagentes": {
+  "jev-v4": 8,
+  "jev-v4-antes": 8
+ },
+ "auditoria": {
+  "jev-v4": {
+   "sem_decisao_abaixo_de_opus": [],
+   "route_lento": []
+  },
+  "jev-v4-antes": {
+   "sem_decisao_abaixo_de_opus": [],
+   "route_lento": []
+  }
+ },
+ "tarefas_perdidas": [],
+ "juiz": {
+  "jev-v4": 5,
+  "jev-v4-antes": 4
+ },
+ "pares_com_antes": 5,
+ "real": {
+  "standard": {
+   "custo": 6.5744112,
+   "segundos": 1145.221,
+   "concluídas": 5,
+   "custo + tempo": 18.0266212
+  },
+  "jev-v4-antes": {
+   "custo": 2.4344959,
+   "segundos": 432.04999999999995,
+   "concluídas": 5,
+   "custo + tempo": 6.7549959
+  },
+  "jev-v4": {
+   "custo": 2.3878912999999997,
+   "segundos": 582.7470000000001,
+   "concluídas": 5,
+   "custo + tempo": 8.215361300000001
+  }
+ },
+ "mesmas_condições": {
+  "standard": 2.9596578,
+  "jev-v4-antes": 3.2875037999999996,
+  "jev-v4": 3.2875037999999996
+ },
+ "veredito": {
+  "válida": true,
+  "critérios": {
+   "1 tarefas": true,
+   "2 juiz": true,
+   "3 subagentes": true,
+   "4a custo contra o antes": true,
+   "4b custo contra o standard": true,
+   "5 concorrência": true
+  },
+  "recomendado": true
+ }
+}

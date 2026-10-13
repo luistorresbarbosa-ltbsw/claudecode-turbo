@@ -524,9 +524,11 @@ def _main_model(row: dict) -> str:
 
 
 def judge_tasks(pilot_id: str, workspaces: dict, tasks: list[dict], *, target: str, home: Path | None = None,
-                run_judge=run_claude_judge, spec: dict | None = None) -> dict:
+                run_judge=run_claude_judge, spec: dict | None = None, same_model: bool = False) -> dict:
     """O juiz por tarefa: compara o braço `target` com cada um dos outros, só nas tarefas em que o modelo do
-    pedido principal difere (onde é o mesmo, a diferença é ruído); cada critério precisa de 3 de 4 votos."""
+    pedido principal difere (onde é o mesmo, a diferença é ruído); cada critério precisa de 3 de 4 votos.
+    `same_model`: compara também onde o modelo principal é o mesmo (quando o que difere é outra coisa, como o
+    modelo dos subagentes)."""
     spec = spec or {}
     claims = {c["id"]: c["claim"] for c in CRITERIA} | (spec.get("criterios") or {})
     criteria = "\n".join(f"- {c['id']}: {claims[c['id']]}" for c in CRITERIA)
@@ -539,7 +541,7 @@ def judge_tasks(pilot_id: str, workspaces: dict, tasks: list[dict], *, target: s
             if not ra or not rb or "skipped" in (ra["status"], rb["status"]):
                 continue
             models = [_main_model(ra), _main_model(rb)]
-            if models[0] == models[1]:
+            if models[0] == models[1] and not same_model:
                 continue
             diffs = {arm: task_diff(workspaces[arm], task["id"]) for arm in (target, other)}
             votes = {c["id"]: [] for c in CRITERIA}
@@ -560,6 +562,22 @@ def judge_tasks(pilot_id: str, workspaces: dict, tasks: list[dict], *, target: s
            "results": results, "ts": _now()}
     pilot.append(row, home=home)
     return row
+
+
+def judge_extra_pair(pilot_id: str, target: str, other: str, *, home: Path | None = None,
+                     run_judge=run_claude_judge, spec: dict | None = None) -> dict:
+    """Juiz por tarefa de mais um par de braços, também onde o modelo principal é o mesmo; junta o resultado ao
+    do juiz já feito (o `pilot` lê só a última linha task_judge)."""
+    p = next(p for p in pilot.read_all(home=home) if p["id"] == pilot_id)
+    tasks = p["meta"]["tasks"]
+    workspaces = {arm: Path(p["meta"]["workspaces"][arm]) for arm in (target, other)}
+    extra = judge_tasks(pilot_id, workspaces, tasks, target=target, home=home, run_judge=run_judge, spec=spec,
+                        same_model=True)
+    before = p.get("task_judge") or {"results": [], "cost_usd": 0.0}
+    merged = {**extra, "results": before["results"] + [r for r in extra["results"]],
+              "cost_usd": round(before["cost_usd"] + extra["cost_usd"], 9)}
+    pilot.append(merged, home=home)
+    return merged
 
 
 def judge_pilot(pilot_id: str, workspaces: dict, *, home: Path | None = None, run_judge=run_claude_judge,

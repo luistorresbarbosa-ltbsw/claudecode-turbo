@@ -14,7 +14,8 @@ CLEAN = {"sem_decisao_abaixo_de_opus": [], "route_lento": []}
 
 def numbers(**over):
     out = {"subagentes": {"jev-v4": 10, "jev-v4-antes": 9}, "tarefas_perdidas": [], "juiz": {"jev-v4": 6, "jev-v4-antes": 4},
-           "auditoria": {"jev-v4": dict(CLEAN), "jev-v4-antes": dict(CLEAN)},
+           "auditoria": {"jev-v4": dict(CLEAN), "jev-v4-antes": dict(CLEAN)}, "pares_com_antes": 5,
+           "real": {"standard": {"custo + tempo": 18.0}, "jev-v4-antes": {"custo + tempo": 6.7}, "jev-v4": {"custo + tempo": 8.2}},
            "mesmas_condições": {"standard": 30.0, "jev-v4-antes": 20.0, "jev-v4": 21.0}}
     out.update(over)
     return out
@@ -51,9 +52,15 @@ def test_cost_up_to_ten_percent_over_the_old_mod_passes_but_more_fails():
     assert A.verdict(bad)["critérios"]["4a custo contra o antes"] is False
 
 
-def test_costing_more_than_standard_fails_criterion_4b_even_if_the_rest_passes():
-    v = A.verdict(numbers(mesmas_condições={"standard": 20.5, "jev-v4-antes": 20.0, "jev-v4": 21.0}))
+def test_costing_more_than_standard_in_real_cost_and_time_fails_criterion_4b():
+    v = A.verdict(numbers(real={"standard": {"custo + tempo": 8.0}, "jev-v4-antes": {"custo + tempo": 6.7},
+                                "jev-v4": {"custo + tempo": 8.2}}))
     assert v["critérios"]["4b custo contra o standard"] is False and v["recomendado"] is False
+
+
+def test_without_the_target_against_old_pair_judged_there_is_no_verdict_on_criterion_2():
+    v = A.verdict(numbers(pares_com_antes=0))
+    assert v["recomendado"] is None and "2 juiz" in v["sem_medição"]
 
 
 def test_a_subagent_without_a_decision_running_below_opus_is_caught():

@@ -31,6 +31,15 @@ O mod novo passa a recomendado se cumprir os cinco critérios:
 5. Concorrência: nenhum `jev route` de subagente (`route_ms`) passa de 30 s, e nenhum registo de subagente tem a
    decisão a falhar por timeout.
 
+Emenda de 2026-10-13, depois da 1.ª repetição e sem mexer em nenhum limiar, por dois defeitos de medição:
+- Critério 2: o juiz do piloto salta os pares com o mesmo modelo principal, e entre `jev-v4-antes` e `jev-v4` só os
+  subagentes diferem. Esse par foi julgado à parte (`pilot_run.judge_extra_pair`), e só conta o par alvo/antes (antes
+  contavam-se também os votos contra o standard, e o critério passava sem ter sido medido).
+- Critério 4b: o standard não tem ledger do mod, por isso a simulação "mesmas condições" dava-lhe tempo 0 e o standard
+  saía mais barato do que o JEV (2,96 contra 3,29), contra o custo e o tempo reais (18,03 contra 8,22). A comparação
+  com o standard passa a ser sobre o custo e o tempo reais das linhas do piloto. O 4a mantém-se nas mesmas condições,
+  porque os dois braços JEV têm ledger; os valores reais vão no relatório.
+
 Se falhar o critério 1 ou 2, a mudança é uma regressão de qualidade: reverte-se (ou refaz-se) antes de a instalar.
 Se falhar só o 4a, decide o utilizador, com os números à frente. Se falhar o 4b, o JEV com subagentes não compensa
 face ao standard nestas tarefas, e isso vai no relatório mesmo que o resto passe.
@@ -79,12 +88,14 @@ def verdict(out: dict) -> dict:
     if not valid:
         return {"válida": False, "critérios": {}, "recomendado": None}
     cost = out["mesmas_condições"]
+    if not out["pares_com_antes"]:  # o critério 2 só se mede com o par alvo/antes julgado
+        return {"válida": True, "critérios": {}, "recomendado": None, "sem_medição": "2 juiz (par alvo/antes por julgar)"}
     criteria = {
         "1 tarefas": not out["tarefas_perdidas"],
         "2 juiz": out["juiz"][BASE] <= out["juiz"][TARGET],
         "3 subagentes": not out["auditoria"][TARGET]["sem_decisao_abaixo_de_opus"],
         "4a custo contra o antes": cost[TARGET] <= cost[BASE] * COST_MARGIN,
-        "4b custo contra o standard": cost[TARGET] < cost[STANDARD],
+        "4b custo contra o standard": out["real"][TARGET]["custo + tempo"] < out["real"][STANDARD]["custo + tempo"],
         "5 concorrência": not out["auditoria"][TARGET]["route_lento"],
     }
     return {"válida": True, "critérios": criteria, "recomendado": all(criteria.values())}
@@ -95,7 +106,8 @@ def evaluate(pilot_ids: list[str]) -> dict:
 
     pilots = {p["id"]: p for p in pilot.read_all()}
     out = {"pilotos": {}, "subagentes": {TARGET: 0, BASE: 0}, "auditoria": {}, "tarefas_perdidas": [],
-           "juiz": {TARGET: 0, BASE: 0},
+           "juiz": {TARGET: 0, BASE: 0}, "pares_com_antes": 0,
+           "real": {arm: {"custo": 0.0, "segundos": 0.0, "concluídas": 0} for arm in (STANDARD, BASE, TARGET)},
            "mesmas_condições": {STANDARD: 0.0, BASE: 0.0, TARGET: 0.0}}
     audits = {TARGET: {"sem_decisao_abaixo_de_opus": [], "route_lento": []}, BASE: {"sem_decisao_abaixo_de_opus": [], "route_lento": []}}
     for pid in pilot_ids:
@@ -108,9 +120,17 @@ def evaluate(pilot_ids: list[str]) -> dict:
                 if row and target and row["acceptance"]["ok"] and not target["acceptance"]["ok"]:
                     out["tarefas_perdidas"].append(f"{pid}:{t['id']} (perdeu para {other})")
         for res in ((p.get("task_judge") or {}).get("results") or []):
+            if sorted(res["pair"]) != sorted([TARGET, BASE]):
+                continue  # só o par alvo/antes (o critério 2)
+            out["pares_com_antes"] += 1
             for c in res["criteria"]:
                 if c["result"] in out["juiz"]:
                     out["juiz"][c["result"]] += 1
+        for r in p["tasks"]:
+            real = out["real"][r["arm"]]
+            real["custo"] += r["cost_usd"]
+            real["segundos"] += r["wall_ms"] / 1000
+            real["concluídas"] += r["acceptance"]["ok"]
         for arm in (BASE, TARGET):
             records = ledger.read_all(home=pilot.pilots_dir() / pid / f"{arm}-home")
             audit = agent_audit(records)
@@ -126,6 +146,8 @@ def evaluate(pilot_ids: list[str]) -> dict:
             out["mesmas_condições"][arm] += v4.sim.objective(r)
         out["pilotos"][pid] = {arm: {"modelos": "".join(t["model"][0] for t in turns)} for arm, turns in arms.items()}
     out["auditoria"] = audits
+    for real in out["real"].values():
+        real["custo + tempo"] = real["custo"] + v4.sim.policy.TIME_USD_PER_S * real["segundos"]
     out["veredito"] = verdict(out)
     return out
 
@@ -136,6 +158,8 @@ if __name__ == "__main__":
     print("subagentes lançados:", out["subagentes"], "· mínimo por braço:", MIN_SUBAGENTES)
     print("tarefas perdidas:", out["tarefas_perdidas"], "· juiz:", out["juiz"])
     print("mesmas condições:", {k: round(v, 2) for k, v in out["mesmas_condições"].items()})
+    for arm, r in out["real"].items():
+        print(f"real {arm}: {r['concluídas']} concluídas · ${r['custo']:.2f} · {r['segundos']:.0f}s · custo+tempo {r['custo + tempo']:.2f}")
     print("auditoria:", out["auditoria"])
     v = out["veredito"]
-    print("válida:", v["válida"], "· critérios:", v["critérios"], "· recomendado:", v["recomendado"])
+    print("válida:", v["válida"], "· critérios:", v["critérios"], "· recomendado:", v["recomendado"], v.get("sem_medição", ""))
