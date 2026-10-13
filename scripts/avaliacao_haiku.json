@@ -1,0 +1,39 @@
+{
+ "subagentes": {
+  "jev-v4-antes": {
+   "haiku": 4
+  },
+  "jev-v4": {
+   "sonnet": 3,
+   "opus": 1
+  }
+ },
+ "tarefas_perdidas": [],
+ "mesmas_condições": {
+  "jev-v4-antes": 2.3602429000000003,
+  "jev-v4": 2.3602429000000003
+ },
+ "juiz (não decide)": {
+  "jev-v4-antes": 0,
+  "jev-v4": 0
+ },
+ "real": {
+  "jev-v4-antes": {
+   "custo": 0.86659885,
+   "segundos": 217.732
+  },
+  "jev-v4": {
+   "custo": 1.2009576,
+   "segundos": 273.755
+  }
+ },
+ "veredito": {
+  "válida": true,
+  "critérios": {
+   "M2 novo sem haiku": true,
+   "Q1 tarefas": true,
+   "Q2 custo + tempo": true
+  },
+  "confirmado": true
+ }
+}
